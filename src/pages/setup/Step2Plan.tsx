@@ -3,7 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-const PLANS_URL = 'https://myappbuddy.com.au/companion/plans.json'
+const CATALOG_URL = 'https://myappbuddy.com.au/api/v1/catalog'
+const APP_ID = 'companion'
+
+interface CatalogPlan {
+  id: string
+  appId: string
+  name: string
+  blurb: string
+  priceMonth: number | null
+  perSeat: boolean
+  popular: boolean
+  features: string[]
+  sort?: number
+  archived?: boolean
+  hidden?: boolean
+}
 
 interface Plan {
   id: string
@@ -15,30 +30,39 @@ interface Plan {
   featured: boolean
 }
 
+function catalogToDisplay(p: CatalogPlan): Plan {
+  const dollars = p.priceMonth != null ? p.priceMonth / 100 : null
+  const price = dollars === null ? 'Custom' : dollars === 0 ? 'Free' : `A$${dollars}`
+  const suffix = p.priceMonth && p.perSeat ? '/client/mo' : p.priceMonth && !p.perSeat ? '/mo' : ''
+  return { id: p.id, name: p.name, price, suffix, sub: p.blurb, features: p.features, featured: p.popular }
+}
+
 export default function Step2Plan() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
   const [plans, setPlans] = useState<Plan[]>([])
-  const [selected, setSelected] = useState('starter')
+  const [selected, setSelected] = useState('companion_starter')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const [orgId, setOrgId] = useState<string | null>(profile?.org_id ?? null)
 
   useEffect(() => {
-    fetch(PLANS_URL)
+    fetch(CATALOG_URL)
       .then(r => r.json())
-      .then((data: Plan[]) => {
-        // App signup only shows paid plans (not family/enterprise)
-        const appPlans = data.filter(p => !['family', 'enterprise'].includes(p.id))
+      .then((data: { plans: CatalogPlan[] }) => {
+        const appPlans = (data.plans ?? [])
+          .filter(p => p.appId === APP_ID && !p.archived && !p.hidden)
+          .filter(p => p.id !== 'companion_family' && p.id !== 'companion_enterprise')
+          .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+          .map(catalogToDisplay)
         setPlans(appPlans)
       })
       .catch(() => {
-        // Fallback to hardcoded if fetch fails
         setPlans([
-          { id: 'solo',    name: 'Solo',    price: 'A$29', suffix: '/mo', sub: 'Up to 3 participants',  features: ['3 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes'], featured: false },
-          { id: 'starter', name: 'Starter', price: 'A$49', suffix: '/mo', sub: 'Up to 10 participants', features: ['10 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes', 'Provider dashboard'], featured: true },
-          { id: 'team',    name: 'Team',    price: 'A$7',  suffix: '/participant/mo', sub: 'per month, no cap', features: ['Unlimited participants', 'NDIS exports', 'Incident workflows', 'Priority support'], featured: false },
+          { id: 'companion_solo',     name: 'Solo',    price: 'A$29', suffix: '/mo', sub: 'Up to 3 participants',  features: ['3 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes'], featured: false },
+          { id: 'companion_starter',  name: 'Starter', price: 'A$49', suffix: '/mo', sub: 'Up to 10 participants', features: ['10 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes', 'Provider dashboard'], featured: true },
+          { id: 'companion_team',     name: 'Team',    price: 'A$7',  suffix: '/client/mo', sub: 'per month, no cap', features: ['Unlimited participants', 'NDIS exports', 'Incident workflows', 'Priority support'], featured: false },
         ])
       })
   }, [])
