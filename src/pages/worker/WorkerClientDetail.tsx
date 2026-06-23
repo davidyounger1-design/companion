@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import AiBadge from '../../components/AiBadge'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -226,24 +227,35 @@ export default function WorkerClientDetail() {
           No entries yet today.
         </p>
       ) : (
-        <div className="scroll-list">
-          {logs.map((log) => {
-            const typeInfo = LOG_TYPES.find((t) => t.type === log.type)
-            return (
-              <div key={log.id} className="card card-sm" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
-                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
-                    {new Date(log.occurred_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
-                    {' · '}
-                    {typeInfo?.label}
-                  </p>
+        <>
+          {logs.every((l) => l.ai_source) && (
+            <AiBadge
+              variant="header"
+              reason={logs[0].ai_reason ?? 'All entries on this page were generated or assisted by AI.'}
+            />
+          )}
+          <div className="scroll-list">
+            {logs.map((log) => {
+              const typeInfo = LOG_TYPES.find((t) => t.type === log.type)
+              return (
+                <div key={log.id} className="card card-sm" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {new Date(log.occurred_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
+                      {' · '}
+                      {typeInfo?.label}
+                      {log.ai_source && log.ai_reason && (
+                        <> · <AiBadge reason={log.ai_reason} /></>
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        </>
       )}
     </div>
   )

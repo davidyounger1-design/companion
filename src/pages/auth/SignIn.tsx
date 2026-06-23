@@ -100,6 +100,10 @@ export default function SignIn() {
           >
             {isSubmitting ? <span className="spinner" /> : 'Sign in'}
           </button>
+
+          <p style={{ textAlign: 'center', fontSize: '0.875rem', margin: 0 }}>
+            <Link to="/forgot-password" style={{ color: 'var(--color-muted)' }}>Forgot password?</Link>
+          </p>
         </form>
 
         <div className="divider" />

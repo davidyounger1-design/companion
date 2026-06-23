@@ -29,7 +29,7 @@ type FormData = z.infer<typeof schema>
 
 export default function Step1Service() {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const [selectedServices, setSelectedServices] = useState<string[]>([])
   const [serverError, setServerError] = useState('')
 
@@ -49,6 +49,7 @@ export default function Step1Service() {
     setServerError('')
     try {
       await createOrganisation(user.id, data.orgName, data.state, selectedServices)
+      await refreshProfile()
       navigate('/setup/plan')
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Could not save. Please try again.')

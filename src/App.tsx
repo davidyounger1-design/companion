@@ -5,13 +5,21 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import Landing from './pages/Landing'
 import SignUp from './pages/auth/SignUp'
 import SignIn from './pages/auth/SignIn'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
 import SetupLayout from './pages/setup/SetupLayout'
 import Step0Account from './pages/setup/Step0Account'
 import Step1Service from './pages/setup/Step1Service'
+import Step2Plan from './pages/setup/Step2Plan'
+import Step3Team from './pages/setup/Step3Team'
+import Step4Clients from './pages/setup/Step4Clients'
+import Step5Circles from './pages/setup/Step5Circles'
+import Step6GoLive from './pages/setup/Step5GoLive'
 import WorkerLayout from './pages/worker/WorkerLayout'
 import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
+import Deck from './pages/Deck'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
@@ -53,12 +61,20 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/sign-up" element={<RequireNoAuth><SignUp /></RequireNoAuth>} />
             <Route path="/sign-in" element={<RequireNoAuth><SignIn /></RequireNoAuth>} />
+            <Route path="/deck" element={<Deck />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Provider setup wizard */}
             <Route path="/setup" element={<RequireAuth><SetupLayout /></RequireAuth>}>
               <Route index element={<Navigate to="account" replace />} />
               <Route path="account" element={<Step0Account />} />
               <Route path="service" element={<Step1Service />} />
+              <Route path="plan" element={<Step2Plan />} />
+              <Route path="team" element={<Step3Team />} />
+              <Route path="clients" element={<Step4Clients />} />
+              <Route path="circles" element={<Step5Circles />} />
+              <Route path="go-live" element={<Step6GoLive />} />
             </Route>
 
             {/* Coordinator dashboard */}

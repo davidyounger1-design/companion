@@ -9,6 +9,7 @@ interface AuthState {
   session: Session | null
   profile: Profile | null
   loading: boolean
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState>({
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthState>({
   session: null,
   profile: null,
   loading: true,
+  refreshProfile: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -24,33 +26,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session: null,
     profile: null,
     loading: true,
+    refreshProfile: async () => {},
   })
+
+  async function refreshProfile() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    setState((prev) => ({ ...prev, profile: data }))
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         hydrateUser(session.user, session).then((profile) =>
-          setState({ user: session.user, session, profile, loading: false }),
+          setState((prev) => ({ ...prev, user: session.user, session, profile, loading: false })),
         )
       } else {
-        setState({ user: null, session: null, profile: null, loading: false })
+        setState((prev) => ({ ...prev, user: null, session: null, profile: null, loading: false }))
       }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         hydrateUser(session.user, session).then((profile) =>
-          setState({ user: session.user, session, profile, loading: false }),
+          setState((prev) => ({ ...prev, user: session.user, session, profile, loading: false })),
         )
       } else {
-        setState({ user: null, session: null, profile: null, loading: false })
+        setState((prev) => ({ ...prev, user: null, session: null, profile: null, loading: false }))
       }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ ...state, refreshProfile }}>{children}</AuthContext.Provider>
 }
 
 async function hydrateUser(user: User, _session: Session): Promise<Profile | null> {

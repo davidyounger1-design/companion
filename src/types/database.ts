@@ -160,6 +160,8 @@ export interface Database {
           label: string
           occurred_at: string
           photo_path: string | null
+          ai_source: string | null
+          ai_reason: string | null
           created_at: string
         }
         Insert: {
@@ -171,9 +173,11 @@ export interface Database {
           label: string
           occurred_at?: string
           photo_path?: string | null
+          ai_source?: string | null
+          ai_reason?: string | null
           created_at?: string
         }
-        Update: { label?: string; flagged?: boolean }
+        Update: { label?: string; flagged?: boolean; ai_source?: string | null; ai_reason?: string | null }
         Relationships: []
       }
       behaviour_notes: {
@@ -189,6 +193,8 @@ export interface Database {
           behaviour: string | null
           response: string | null
           flagged_for_review: boolean
+          ai_source: string | null
+          ai_reason: string | null
           occurred_at: string
           created_at: string
         }
@@ -204,6 +210,8 @@ export interface Database {
           behaviour?: string | null
           response?: string | null
           flagged_for_review?: boolean
+          ai_source?: string | null
+          ai_reason?: string | null
           occurred_at?: string
           created_at?: string
         }
@@ -215,6 +223,8 @@ export interface Database {
           behaviour?: string | null
           response?: string | null
           flagged_for_review?: boolean
+          ai_source?: string | null
+          ai_reason?: string | null
         }
         Relationships: []
       }
@@ -274,6 +284,26 @@ export interface Database {
           created_at?: string
         }
         Update: { status?: InviteStatus }
+        Relationships: []
+      }
+      demo_requests: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          org_name: string | null
+          message: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          org_name?: string | null
+          message?: string | null
+          created_at?: string
+        }
+        Update: Record<string, never>
         Relationships: []
       }
       org_settings: {

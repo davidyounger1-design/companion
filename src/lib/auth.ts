@@ -63,7 +63,8 @@ export async function ensureProfile(userId: string, fullName: string) {
     role: 'coordinator' as Role,
     org_id: null,
   })
-  if (error) throw new Error(supabaseMessage(error))
+  // 409 = profile already exists (race condition or stale RLS read) — safe to ignore
+  if (error && error.code !== '23505') throw new Error(supabaseMessage(error))
 }
 
 export async function createOrganisation(
@@ -72,20 +73,36 @@ export async function createOrganisation(
   state: string,
   services: string[],
 ) {
-  const { data: org, error: orgError } = await supabase
+  // Generate the UUID client-side so we never need to .select() after insert.
+  // Doing .insert().select() would trigger the SELECT policy before the profile
+  // has an org_id set, causing an RLS denial (chicken-and-egg).
+  const orgId = crypto.randomUUID()
+
+  const { error: orgError } = await supabase
     .from('organisations')
-    .insert({ name, state, services, plan: 'trial', billing_status: 'trial' })
-    .select()
-    .single()
+    .insert({ id: orgId, name, state, services, plan: 'trial', billing_status: 'trial' })
   if (orgError) throw new Error(supabaseMessage(orgError))
 
+  // Set the profile's org_id first so my_org_id() returns correctly for subsequent queries.
   const { error: profileError } = await supabase
     .from('profiles')
-    .update({ org_id: org.id })
+    .update({ org_id: orgId })
     .eq('id', userId)
   if (profileError) throw new Error(supabaseMessage(profileError))
 
-  await supabase.from('org_settings').insert({ org_id: org.id })
+  await supabase.from('org_settings').insert({ org_id: orgId })
 
-  return org
+  return { id: orgId }
+}
+
+export async function resetPassword(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+  if (error) throw new Error(supabaseMessage(error))
+}
+
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw new Error(supabaseMessage(error))
 }
