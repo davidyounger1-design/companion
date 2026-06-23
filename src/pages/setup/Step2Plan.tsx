@@ -3,44 +3,48 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-const PLANS = [
-  {
-    id: 'solo',
-    name: 'Solo',
-    price: 'A$29/mo',
-    sub: 'Up to 3 participants',
-    features: ['3 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes'],
-  },
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: 'A$49/mo',
-    sub: 'Up to 10 participants',
-    highlight: true,
-    features: ['10 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes', 'Provider dashboard'],
-  },
-  {
-    id: 'team',
-    name: 'Team',
-    price: 'A$7/participant',
-    sub: 'per month, no cap',
-    features: ['Unlimited participants', 'NDIS exports', 'Incident workflows', 'Priority support'],
-  },
-]
+const PLANS_URL = 'https://myappbuddy.com.au/companion/plans.json'
+
+interface Plan {
+  id: string
+  name: string
+  price: string
+  suffix: string
+  sub: string
+  features: string[]
+  featured: boolean
+}
 
 export default function Step2Plan() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
+  const [plans, setPlans] = useState<Plan[]>([])
   const [selected, setSelected] = useState('starter')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  // Resolve org_id — may be stale right after Step 1 navigation.
   const [orgId, setOrgId] = useState<string | null>(profile?.org_id ?? null)
 
   useEffect(() => {
+    fetch(PLANS_URL)
+      .then(r => r.json())
+      .then((data: Plan[]) => {
+        // App signup only shows paid plans (not family/enterprise)
+        const appPlans = data.filter(p => !['family', 'enterprise'].includes(p.id))
+        setPlans(appPlans)
+      })
+      .catch(() => {
+        // Fallback to hardcoded if fetch fails
+        setPlans([
+          { id: 'solo',    name: 'Solo',    price: 'A$29', suffix: '/mo', sub: 'Up to 3 participants',  features: ['3 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes'], featured: false },
+          { id: 'starter', name: 'Starter', price: 'A$49', suffix: '/mo', sub: 'Up to 10 participants', features: ['10 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes', 'Provider dashboard'], featured: true },
+          { id: 'team',    name: 'Team',    price: 'A$7',  suffix: '/participant/mo', sub: 'per month, no cap', features: ['Unlimited participants', 'NDIS exports', 'Incident workflows', 'Priority support'], featured: false },
+        ])
+      })
+  }, [])
+
+  useEffect(() => {
     if (orgId) return
-    // Fetch directly from DB as authoritative source.
     supabase
       .from('profiles')
       .select('org_id')
@@ -73,8 +77,14 @@ export default function Step2Plan() {
         Your 14-day free trial starts today — no card required yet.
       </p>
 
+      {plans.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-muted)' }}>
+          <span className="spinner" />
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        {PLANS.map((plan) => (
+        {plans.map((plan) => (
           <button
             key={plan.id}
             type="button"
@@ -92,9 +102,9 @@ export default function Step2Plan() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
               <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '1rem' }}>
                 {plan.name}
-                {plan.highlight && <span className="badge badge-sage" style={{ marginLeft: '0.5rem', verticalAlign: 'middle', fontSize: '0.7rem' }}>Popular</span>}
+                {plan.featured && <span className="badge badge-sage" style={{ marginLeft: '0.5rem', verticalAlign: 'middle', fontSize: '0.7rem' }}>Popular</span>}
               </span>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>{plan.price}</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>{plan.price}{plan.suffix}</span>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>{plan.sub}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
@@ -111,7 +121,7 @@ export default function Step2Plan() {
       <button
         className="btn btn-primary btn-full"
         onClick={handleContinue}
-        disabled={saving}
+        disabled={saving || plans.length === 0}
         style={{ fontSize: '1rem' }}
       >
         {saving ? <span className="spinner" /> : 'Start free trial →'}
