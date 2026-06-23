@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { ensureProfile } from '../lib/auth'
 import type { Profile } from '../types/database'
 
 interface AuthState {
@@ -26,23 +27,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   useEffect(() => {
-    // Initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        loadProfile(session.user.id).then((profile) => {
-          setState({ user: session.user, session, profile, loading: false })
-        })
+        hydrateUser(session.user, session).then((profile) =>
+          setState({ user: session.user, session, profile, loading: false }),
+        )
       } else {
         setState({ user: null, session: null, profile: null, loading: false })
       }
     })
 
-    // Auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        loadProfile(session.user.id).then((profile) => {
-          setState({ user: session.user, session, profile, loading: false })
-        })
+        hydrateUser(session.user, session).then((profile) =>
+          setState({ user: session.user, session, profile, loading: false }),
+        )
       } else {
         setState({ user: null, session: null, profile: null, loading: false })
       }
@@ -54,9 +53,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>
 }
 
-async function loadProfile(userId: string): Promise<Profile | null> {
-  const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-  return data
+async function hydrateUser(user: User, _session: Session): Promise<Profile | null> {
+  // Load existing profile
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (existing) return existing
+
+  // First sign-in after email confirmation — create the profile from metadata
+  const fullName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    user.email?.split('@')[0] ??
+    'Coordinator'
+
+  try {
+    await ensureProfile(user.id, fullName)
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    return data
+  } catch {
+    return null
+  }
 }
 
 export function useAuth() {

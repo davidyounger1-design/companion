@@ -16,7 +16,7 @@ type FormData = z.infer<typeof schema>
 export default function SignUp() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [confirmEmail, setConfirmEmail] = useState(false)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -25,12 +25,38 @@ export default function SignUp() {
   async function onSubmit(data: FormData) {
     setServerError('')
     try {
-      await signUp(data.email, data.password, data.fullName)
-      setSuccess(true)
-      setTimeout(() => navigate('/setup/account'), 1500)
+      const result = await signUp(data.email, data.password, data.fullName)
+      if (result.session) {
+        // Immediately authenticated — go to setup
+        navigate('/setup/account')
+      } else {
+        // Email confirmation required — tell the user to check their inbox
+        setConfirmEmail(true)
+      }
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Sign-up failed. Please try again.')
     }
+  }
+
+  if (confirmEmail) {
+    return (
+      <div className="auth-layout">
+        <div className="auth-card" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📬</div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 400, marginBottom: '0.75rem' }}>
+            Check your email
+          </h1>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.95rem', lineHeight: 1.7 }}>
+            We've sent a confirmation link to your inbox. Click it to activate your account,
+            then come back here to sign in.
+          </p>
+          <div className="divider" />
+          <Link to="/sign-in" className="btn btn-primary btn-full">
+            Go to sign in
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -43,12 +69,6 @@ export default function SignUp() {
         <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '1.75rem' }}>
           Set up your organisation in minutes.
         </p>
-
-        {success && (
-          <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
-            Account created! Taking you to setup…
-          </div>
-        )}
 
         {serverError && (
           <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
