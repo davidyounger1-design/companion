@@ -1,6 +1,14 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function Landing() {
+  const { user, profile, loading } = useAuth()
+
+  if (!loading && user) {
+    if (profile?.role === 'support_worker') return <Navigate to="/worker" replace />
+    if (profile?.org_id) return <Navigate to="/dashboard" replace />
+    return <Navigate to="/setup/account" replace />
+  }
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
       {/* Nav */}
