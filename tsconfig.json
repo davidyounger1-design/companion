@@ -19,6 +19,7 @@
 
     /* Linting */
     "strict": true,
+    "ignoreDeprecations": "6.0",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
