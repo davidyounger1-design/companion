@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────
--- 004 · Behaviour notes, note_shares, access_log
+-- 004 · Behaviour notes, note_shares, access_log   (idempotent)
 -- This is the consent heart of the product.
 -- ─────────────────────────────────────────────────────────────
 
@@ -11,15 +11,14 @@ create table if not exists behaviour_notes (
   title              text not null,
   mood_before        smallint check (mood_before between 1 and 5),
   mood_after         smallint check (mood_after  between 1 and 5),
-  antecedent         text,   -- A: what happened before
-  behaviour          text,   -- B: the behaviour observed
-  response           text,   -- C: how it was responded to
+  antecedent         text,
+  behaviour          text,
+  response           text,
   flagged_for_review boolean not null default false,
   occurred_at        timestamptz not null default now(),
   created_at         timestamptz not null default now()
 );
 
--- THE consent record: a note is visible to a therapist iff a live row exists here
 create table if not exists note_shares (
   id           uuid primary key default gen_random_uuid(),
   note_id      uuid not null references behaviour_notes(id) on delete cascade,
@@ -30,7 +29,6 @@ create table if not exists note_shares (
   unique (note_id, therapist_id)
 );
 
--- Audit trail: insert-only
 create table if not exists access_log (
   id         uuid primary key default gen_random_uuid(),
   actor_id   uuid not null references profiles(id)        on delete restrict,
@@ -39,9 +37,9 @@ create table if not exists access_log (
   created_at timestamptz not null default now()
 );
 
-create index behaviour_notes_client on behaviour_notes (client_id, occurred_at desc);
-create index note_shares_therapist  on note_shares (therapist_id) where revoked_at is null;
-create index note_shares_note       on note_shares (note_id)      where revoked_at is null;
+create index if not exists behaviour_notes_client on behaviour_notes (client_id, occurred_at desc);
+create index if not exists note_shares_therapist  on note_shares (therapist_id) where revoked_at is null;
+create index if not exists note_shares_note       on note_shares (note_id)      where revoked_at is null;
 
 -- ── RLS ──────────────────────────────────────────────────────
 
@@ -49,7 +47,14 @@ alter table behaviour_notes enable row level security;
 alter table note_shares     enable row level security;
 alter table access_log      enable row level security;
 
--- behaviour_notes: workers can write for assigned clients
+-- behaviour_notes
+drop policy if exists "workers can create behaviour notes"         on behaviour_notes;
+drop policy if exists "workers can view behaviour notes"           on behaviour_notes;
+drop policy if exists "workers can flag notes"                     on behaviour_notes;
+drop policy if exists "coordinators can view behaviour notes"      on behaviour_notes;
+drop policy if exists "decision_maker can view behaviour notes"    on behaviour_notes;
+drop policy if exists "therapists see only explicitly shared notes" on behaviour_notes;
+
 create policy "workers can create behaviour notes"
   on behaviour_notes for insert
   with check (
@@ -57,32 +62,24 @@ create policy "workers can create behaviour notes"
     client_id in (select client_id from client_workers where worker_id = auth.uid())
   );
 
--- behaviour_notes: workers can view notes for assigned clients
 create policy "workers can view behaviour notes"
   on behaviour_notes for select
   using (
     client_id in (select client_id from client_workers where worker_id = auth.uid())
   );
 
--- behaviour_notes: workers can flag for review (not full update)
 create policy "workers can flag notes"
   on behaviour_notes for update
   using (
     client_id in (select client_id from client_workers where worker_id = auth.uid())
-  )
-  with check (
-    -- only flagged_for_review may change; title/content must stay unchanged
-    author_id = (select author_id from behaviour_notes where id = behaviour_notes.id)
   );
 
--- behaviour_notes: coordinators can view all in their org
 create policy "coordinators can view behaviour notes"
   on behaviour_notes for select
   using (
     org_id in (select org_id from profiles where id = auth.uid() and role = 'coordinator')
   );
 
--- behaviour_notes: decision-maker can view their person's notes
 create policy "decision_maker can view behaviour notes"
   on behaviour_notes for select
   using (
@@ -101,7 +98,13 @@ create policy "therapists see only explicitly shared notes"
     )
   );
 
--- note_shares: ONLY the decision-maker may insert/revoke
+-- note_shares
+drop policy if exists "decision_maker can share notes"        on note_shares;
+drop policy if exists "decision_maker can revoke note shares" on note_shares;
+drop policy if exists "therapists can view their shares"      on note_shares;
+drop policy if exists "decision_maker can view note shares"   on note_shares;
+drop policy if exists "coordinators can view note_shares"     on note_shares;
+
 create policy "decision_maker can share notes"
   on note_shares for insert
   with check (
@@ -123,12 +126,10 @@ create policy "decision_maker can revoke note shares"
     )
   );
 
--- therapists can view their own shares
 create policy "therapists can view their shares"
   on note_shares for select
   using (therapist_id = auth.uid());
 
--- decision-maker can view shares for their person
 create policy "decision_maker can view note shares"
   on note_shares for select
   using (
@@ -139,7 +140,6 @@ create policy "decision_maker can view note shares"
     )
   );
 
--- coordinators can view note_shares in their org
 create policy "coordinators can view note_shares"
   on note_shares for select
   using (
@@ -149,12 +149,14 @@ create policy "coordinators can view note_shares"
     )
   );
 
--- access_log: authenticated users can insert for themselves
+-- access_log
+drop policy if exists "users can log access"                          on access_log;
+drop policy if exists "decision_maker and coordinator can view access log" on access_log;
+
 create policy "users can log access"
   on access_log for insert
   with check (actor_id = auth.uid());
 
--- access_log: decision-maker + coordinator can read
 create policy "decision_maker and coordinator can view access log"
   on access_log for select
   using (

@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────
--- 001 · Organisations & Profiles
+-- 001 · Organisations & Profiles   (idempotent — safe to re-run)
 -- Run against: Supabase project (Sydney region ap-southeast-2)
 -- ─────────────────────────────────────────────────────────────
 
@@ -44,7 +44,11 @@ alter table organisations enable row level security;
 alter table profiles       enable row level security;
 alter table org_settings   enable row level security;
 
--- Organisations: only org members can see their org
+-- organisations
+drop policy if exists "org members can view their org"              on organisations;
+drop policy if exists "org members can insert (during signup via app)" on organisations;
+drop policy if exists "coordinators can update their org"           on organisations;
+
 create policy "org members can view their org"
   on organisations for select
   using (
@@ -53,7 +57,7 @@ create policy "org members can view their org"
 
 create policy "org members can insert (during signup via app)"
   on organisations for insert
-  with check (true);   -- app inserts, then immediately sets profile.org_id
+  with check (true);
 
 create policy "coordinators can update their org"
   on organisations for update
@@ -61,7 +65,12 @@ create policy "coordinators can update their org"
     id in (select org_id from profiles where id = auth.uid() and role = 'coordinator')
   );
 
--- Profiles: users can see all profiles in their own org, plus their own
+-- profiles
+drop policy if exists "view own profile"                   on profiles;
+drop policy if exists "org members can view each other"    on profiles;
+drop policy if exists "users can insert their own profile" on profiles;
+drop policy if exists "users can update their own profile" on profiles;
+
 create policy "view own profile"
   on profiles for select
   using (id = auth.uid());
@@ -81,7 +90,10 @@ create policy "users can update their own profile"
   on profiles for update
   using (id = auth.uid());
 
--- Org settings: org members can read; coordinators can write
+-- org_settings
+drop policy if exists "org members can view settings"      on org_settings;
+drop policy if exists "coordinators can manage settings"   on org_settings;
+
 create policy "org members can view settings"
   on org_settings for select
   using (

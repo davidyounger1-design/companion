@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────
--- 002 · Clients, client_workers, client_family, client_circle
+-- 002 · Clients, client_workers, client_family, client_circle  (idempotent)
 -- ─────────────────────────────────────────────────────────────
 
 create table if not exists clients (
@@ -44,33 +44,35 @@ create table if not exists client_circle (
 
 -- ── RLS ──────────────────────────────────────────────────────
 
-alter table clients       enable row level security;
+alter table clients        enable row level security;
 alter table client_workers enable row level security;
 alter table client_family  enable row level security;
 alter table client_circle  enable row level security;
 
--- Clients: coordinators see all in their org
+-- clients
+drop policy if exists "coordinators can manage clients"       on clients;
+drop policy if exists "workers can view assigned clients"     on clients;
+drop policy if exists "family can view their clients"         on clients;
+drop policy if exists "therapists can view circle clients"    on clients;
+
 create policy "coordinators can manage clients"
   on clients for all
   using (
     org_id in (select org_id from profiles where id = auth.uid() and role = 'coordinator')
   );
 
--- Clients: workers see only assigned clients
 create policy "workers can view assigned clients"
   on clients for select
   using (
     id in (select client_id from client_workers where worker_id = auth.uid())
   );
 
--- Clients: family can see linked clients
 create policy "family can view their clients"
   on clients for select
   using (
     id in (select client_id from client_family where family_id = auth.uid() and status = 'active')
   );
 
--- Clients: therapists see clients where they are in_circle
 create policy "therapists can view circle clients"
   on clients for select
   using (
@@ -78,6 +80,9 @@ create policy "therapists can view circle clients"
   );
 
 -- client_workers
+drop policy if exists "coordinators can manage client_workers" on client_workers;
+drop policy if exists "workers can view their own assignments"  on client_workers;
+
 create policy "coordinators can manage client_workers"
   on client_workers for all
   using (
@@ -92,6 +97,9 @@ create policy "workers can view their own assignments"
   using (worker_id = auth.uid());
 
 -- client_family
+drop policy if exists "coordinators can manage client_family" on client_family;
+drop policy if exists "family can view their own links"        on client_family;
+
 create policy "coordinators can manage client_family"
   on client_family for all
   using (
@@ -105,7 +113,11 @@ create policy "family can view their own links"
   on client_family for select
   using (family_id = auth.uid());
 
--- client_circle: coordinator OR decision-maker may propose; only decision-maker may approve/remove
+-- client_circle
+drop policy if exists "coordinators can manage circle"          on client_circle;
+drop policy if exists "decision_maker can manage circle"        on client_circle;
+drop policy if exists "therapists can view their circle status" on client_circle;
+
 create policy "coordinators can manage circle"
   on client_circle for all
   using (

@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────
--- 005 · Messages & Invites
+-- 005 · Messages & Invites   (idempotent)
 -- ─────────────────────────────────────────────────────────────
 
 create table if not exists messages (
@@ -24,15 +24,18 @@ create table if not exists invites (
   created_at timestamptz not null default now()
 );
 
-create index messages_client on messages (client_id, created_at desc);
-create index invites_token   on invites (token) where status = 'pending';
+create index if not exists messages_client on messages (client_id, created_at desc);
+create index if not exists invites_token   on invites (token) where status = 'pending';
 
 -- ── RLS ──────────────────────────────────────────────────────
 
 alter table messages enable row level security;
 alter table invites  enable row level security;
 
--- Messages: org workers/coordinators can read and send
+drop policy if exists "org members can view messages" on messages;
+drop policy if exists "org members can send messages" on messages;
+drop policy if exists "coordinators can manage invites" on invites;
+
 create policy "org members can view messages"
   on messages for select
   using (
@@ -52,7 +55,6 @@ create policy "org members can send messages"
     org_id in (select org_id from profiles where id = auth.uid())
   );
 
--- Invites: coordinators can manage
 create policy "coordinators can manage invites"
   on invites for all
   using (
