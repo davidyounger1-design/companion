@@ -1,0 +1,158 @@
+import { useQuery } from '@tanstack/react-query'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
+import { signOut } from '../../lib/auth'
+
+export default function CoordinatorDashboard() {
+  const { profile } = useAuth()
+  const navigate = useNavigate()
+
+  const { data: clients, isLoading: clientsLoading } = useQuery({
+    queryKey: ['clients', profile?.org_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('org_id', profile!.org_id!)
+        .order('full_name')
+      if (error) throw error
+      return data
+    },
+    enabled: !!profile?.org_id,
+  })
+
+  const { data: todayLogs } = useQuery({
+    queryKey: ['today-logs', profile?.org_id],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0]
+      const { data, error } = await supabase
+        .from('log_entries')
+        .select('client_id')
+        .eq('org_id', profile!.org_id!)
+        .gte('occurred_at', `${today}T00:00:00`)
+      if (error) throw error
+      return data
+    },
+    enabled: !!profile?.org_id,
+  })
+
+  const loggedClientIds = new Set(todayLogs?.map((l) => l.client_id))
+  const activeClients = clients?.filter((c) => c.active) ?? []
+  const loggedToday = activeClients.filter((c) => loggedClientIds.has(c.id)).length
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/')
+  }
+
+  return (
+    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
+      {/* Header */}
+      <header style={{
+        background: 'var(--color-surface)',
+        borderBottom: '1px solid color-mix(in srgb, var(--color-muted) 20%, transparent)',
+        padding: '1rem 1.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <div>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 600 }}>Companion</span>
+          <span className="badge badge-sage" style={{ marginLeft: '0.6rem' }}>Coordinator</span>
+        </div>
+        <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.85rem' }}>
+          Sign out
+        </button>
+      </header>
+
+      <main style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 400, marginBottom: '0.25rem' }}>
+          Good {timeOfDay()}, {firstName(profile?.full_name)}
+        </h1>
+        <p style={{ color: 'var(--color-muted)', marginBottom: '1.75rem', fontSize: '0.9rem' }}>
+          {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}
+        </p>
+
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+          <StatCard
+            label="Active participants"
+            value={clientsLoading ? '…' : String(activeClients.length)}
+            icon="👥"
+          />
+          <StatCard
+            label="Logged today"
+            value={clientsLoading ? '…' : `${loggedToday} / ${activeClients.length}`}
+            icon="✅"
+          />
+          <StatCard
+            label="Needs review"
+            value="—"
+            icon="🔍"
+          />
+        </div>
+
+        {/* Participants */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-ui)', fontWeight: 700, margin: 0 }}>Participants</h2>
+          <Link to="/setup/clients" className="btn btn-secondary" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
+            + Add participant
+          </Link>
+        </div>
+
+        {clientsLoading ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-muted)' }}>
+            <div className="spinner" style={{ margin: '0 auto', color: 'var(--color-primary)' }} />
+          </div>
+        ) : activeClients.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+            <p style={{ color: 'var(--color-muted)', marginBottom: '1rem' }}>No participants yet.</p>
+            <Link to="/setup/clients" className="btn btn-primary">Add your first participant</Link>
+          </div>
+        ) : (
+          <div className="scroll-list">
+            {activeClients.map((client) => (
+              <div key={client.id} className="card card-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ fontWeight: 600, margin: 0 }}>{client.full_name}</p>
+                  {client.setting && (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: '0.2rem' }}>{client.setting}</p>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {loggedClientIds.has(client.id) ? (
+                    <span className="badge badge-sage">Logged</span>
+                  ) : (
+                    <span className="badge badge-muted">Not logged</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
+function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+  return (
+    <div className="card card-sm">
+      <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{icon}</div>
+      <p style={{ fontSize: '1.6rem', fontFamily: 'var(--font-display)', fontWeight: 600, margin: '0 0 0.2rem' }}>{value}</p>
+      <p className="eyebrow" style={{ margin: 0 }}>{label}</p>
+    </div>
+  )
+}
+
+function timeOfDay() {
+  const h = new Date().getHours()
+  if (h < 12) return 'morning'
+  if (h < 17) return 'afternoon'
+  return 'evening'
+}
+
+function firstName(name?: string | null) {
+  return name?.split(' ')[0] ?? 'there'
+}
