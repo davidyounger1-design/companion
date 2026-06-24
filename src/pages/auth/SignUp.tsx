@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { signUp } from '../../lib/auth'
+import { supabase } from '../../lib/supabase'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Please enter your full name'),
@@ -15,11 +16,15 @@ type FormData = z.infer<typeof schema>
 
 export default function SignUp() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get('token') ?? ''
+  const prefillEmail = searchParams.get('email') ?? ''
   const [serverError, setServerError] = useState('')
   const [confirmEmail, setConfirmEmail] = useState(false)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: { email: prefillEmail },
   })
 
   async function onSubmit(data: FormData) {
@@ -27,8 +32,14 @@ export default function SignUp() {
     try {
       const result = await signUp(data.email, data.password, data.fullName)
       if (result.session) {
-        // Immediately authenticated — go to setup
-        navigate('/setup/account')
+        // Immediately authenticated — accept invite if present, else go to setup
+        if (inviteToken) {
+          const { data: inv } = await supabase.rpc('accept_invite', { p_token: inviteToken })
+          const r = inv as { ok?: boolean; role?: string } | null
+          navigate(r?.role === 'support_worker' ? '/worker' : '/dashboard', { replace: true })
+        } else {
+          navigate('/setup/account')
+        }
       } else {
         // Email confirmation required — tell the user to check their inbox
         setConfirmEmail(true)
@@ -51,7 +62,10 @@ export default function SignUp() {
             then come back here to sign in.
           </p>
           <div className="divider" />
-          <Link to="/sign-in" className="btn btn-primary btn-full">
+          <Link
+            to={inviteToken ? `/sign-in?token=${encodeURIComponent(inviteToken)}` : '/sign-in'}
+            className="btn btn-primary btn-full"
+          >
             Go to sign in
           </Link>
         </div>

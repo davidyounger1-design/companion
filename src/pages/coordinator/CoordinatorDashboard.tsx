@@ -22,6 +22,20 @@ export default function CoordinatorDashboard() {
     enabled: !!profile?.org_id,
   })
 
+  const { data: flaggedNotes } = useQuery({
+    queryKey: ['flagged-notes', profile?.org_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('behaviour_notes')
+        .select('id')
+        .eq('org_id', profile!.org_id!)
+        .eq('flagged_for_review', true)
+      if (error) throw error
+      return data
+    },
+    enabled: !!profile?.org_id,
+  })
+
   const { data: todayLogs } = useQuery({
     queryKey: ['today-logs', profile?.org_id],
     queryFn: async () => {
@@ -88,7 +102,7 @@ export default function CoordinatorDashboard() {
           />
           <StatCard
             label="Needs review"
-            value="—"
+            value={flaggedNotes ? String(flaggedNotes.length) : '…'}
             icon="🔍"
           />
         </div>

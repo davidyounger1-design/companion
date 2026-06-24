@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -15,6 +15,8 @@ type FormData = z.infer<typeof schema>
 
 export default function SignIn() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get('token') ?? ''
   const [serverError, setServerError] = useState('')
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -25,6 +27,16 @@ export default function SignIn() {
     setServerError('')
     try {
       await signIn(data.email, data.password)
+
+      // Accept a pending invite if one is in the URL
+      if (inviteToken) {
+        const { data: result } = await supabase.rpc('accept_invite', { p_token: inviteToken })
+        const r = result as { ok?: boolean; role?: string; error?: string } | null
+        if (r?.ok) {
+          navigate(r.role === 'support_worker' ? '/worker' : '/dashboard', { replace: true })
+          return
+        }
+      }
 
       // Determine where to send the user based on their role
       const { data: { user } } = await supabase.auth.getUser()

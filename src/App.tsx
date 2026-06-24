@@ -7,6 +7,7 @@ import SignUp from './pages/auth/SignUp'
 import SignIn from './pages/auth/SignIn'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
+import AcceptInvite from './pages/auth/AcceptInvite'
 import SetupLayout from './pages/setup/SetupLayout'
 import Step0Account from './pages/setup/Step0Account'
 import Step1Service from './pages/setup/Step1Service'
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="/deck" element={<Deck />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
 
             {/* Provider setup wizard */}
             <Route path="/setup" element={<RequireAuth><SetupLayout /></RequireAuth>}>

@@ -1,3 +1,5 @@
+type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
+
 // ─── Domain types ────────────────────────────────────────────────────────────
 
 export type Role = 'coordinator' | 'support_worker' | 'family' | 'therapist'
@@ -341,7 +343,17 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      lookup_invite: {
+        Args: { p_token: string }
+        Returns: Array<{
+          org_id: string; org_name: string; email: string
+          role: string; expires_at: string; status: string
+        }>
+      }
+      accept_invite: {
+        Args: { p_token: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
