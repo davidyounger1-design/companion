@@ -16,10 +16,18 @@ import Step3Team from './pages/setup/Step3Team'
 import Step4Clients from './pages/setup/Step4Clients'
 import Step5Circles from './pages/setup/Step5Circles'
 import Step6GoLive from './pages/setup/Step5GoLive'
+import FamilySetupLayout from './pages/setup/family/FamilySetupLayout'
+import FamilyStep1Participant from './pages/setup/family/FamilyStep1Participant'
+import FamilyStep2Invite from './pages/setup/family/FamilyStep2Invite'
+import FamilyStep3Done from './pages/setup/family/FamilyStep3Done'
+import FamilyDashboard from './pages/family/FamilyDashboard'
+import AddEntry from './pages/family/AddEntry'
+import EditParticipant from './pages/family/EditParticipant'
 import WorkerLayout from './pages/worker/WorkerLayout'
 import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
+import MembersPage from './pages/members/MembersPage'
 import Deck from './pages/Deck'
 
 const queryClient = new QueryClient({
@@ -34,11 +42,13 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function RequireNoAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading, profile } = useAuth()
+  const { user, loading, profile, org } = useAuth()
   if (loading) return <FullPageSpinner />
   if (user) {
-    // Redirect based on role
-    if (profile?.role === 'support_worker') return <Navigate to="/worker" replace />
+    const role = profile?.role
+    if (role === 'support_worker' || role === 'trusted_support_worker') return <Navigate to="/worker" replace />
+    if (role === 'family') return <Navigate to="/family" replace />
+    if (role === 'coordinator' && org?.org_type === 'family') return <Navigate to="/family" replace />
     return <Navigate to="/dashboard" replace />
   }
   return <>{children}</>
@@ -79,11 +89,27 @@ export default function App() {
               <Route path="go-live" element={<Step6GoLive />} />
             </Route>
 
+            {/* Family setup wizard */}
+            <Route path="/setup/family" element={<RequireAuth><FamilySetupLayout /></RequireAuth>}>
+              <Route index element={<Navigate to="participant" replace />} />
+              <Route path="participant" element={<FamilyStep1Participant />} />
+              <Route path="invite" element={<FamilyStep2Invite />} />
+              <Route path="done" element={<FamilyStep3Done />} />
+            </Route>
+
+            {/* Family journal */}
+            <Route path="/family" element={<RequireAuth><FamilyDashboard /></RequireAuth>} />
+            <Route path="/family/add" element={<RequireAuth><AddEntry /></RequireAuth>} />
+            <Route path="/family/participant" element={<RequireAuth><EditParticipant /></RequireAuth>} />
+
             {/* Coordinator dashboard */}
             <Route
               path="/dashboard"
               element={<RequireAuth><CoordinatorDashboard /></RequireAuth>}
             />
+
+            {/* Member management */}
+            <Route path="/members" element={<RequireAuth><MembersPage /></RequireAuth>} />
 
             {/* Worker portal */}
             <Route path="/worker" element={<RequireAuth><WorkerLayout /></RequireAuth>}>

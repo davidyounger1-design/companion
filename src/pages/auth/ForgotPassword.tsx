@@ -24,7 +24,9 @@ export default function ForgotPassword() {
       await resetPassword(data.email)
       setSent(true)
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Could not send reset email. Please try again.')
+      const msg = err instanceof Error ? err.message : ''
+      const isUsable = msg && msg !== '{}' && msg !== '[object Object]'
+      setServerError(isUsable ? msg : 'Could not send reset email. Please try again.')
     }
   }
 

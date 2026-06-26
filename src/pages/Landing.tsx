@@ -138,6 +138,15 @@ export default function Landing() {
 
   const plans = [
     {
+      name: 'Family',
+      price: null as number | null,
+      cap: 'for families & guardians',
+      desc: 'Stay connected to your loved one\'s care — forever free.',
+      features: ['Daily digest & timeline', 'Conversation starters', 'Messaging with the team', 'Control who sees what'],
+      cta: 'Get started free',
+      highlight: false,
+    },
+    {
       name: 'Solo',
       price: billing === 'monthly' ? 29 : 24,
       cap: '3 participants',
@@ -575,7 +584,7 @@ export default function Landing() {
           </div>
 
           {/* Plan cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
             {plans.map(plan => (
               <div key={plan.name} style={{
                 background: plan.highlight ? 'var(--color-primary-deep)' : '#fff',
@@ -605,10 +614,14 @@ export default function Landing() {
                 <p style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>{plan.name}</p>
                 <p style={{ fontSize: '0.825rem', color: plan.highlight ? 'rgba(255,255,255,0.65)' : 'var(--color-muted)', marginBottom: '1rem' }}>{plan.desc}</p>
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 400 }}>A${plan.price}</span>
-                  <span style={{ fontSize: '0.875rem', color: plan.highlight ? 'rgba(255,255,255,0.65)' : 'var(--color-muted)', marginLeft: 4 }}>
-                    {plan.name === 'Team' ? '/ participant / mo' : '/ mo'}
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 400 }}>
+                    {plan.price === null ? 'Free' : `A$${plan.price}`}
                   </span>
+                  {plan.price !== null && (
+                    <span style={{ fontSize: '0.875rem', color: plan.highlight ? 'rgba(255,255,255,0.65)' : 'var(--color-muted)', marginLeft: 4 }}>
+                      {plan.name === 'Team' ? '/ participant / mo' : '/ mo'}
+                    </span>
+                  )}
                 </div>
                 <ul style={{ listStyle: 'none', padding: 0, marginBottom: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {plan.features.map(f => (
@@ -622,8 +635,9 @@ export default function Landing() {
                   ))}
                 </ul>
                 <Link
-                  to={plan.name === 'Team' ? '/' : '/sign-up'}
+                  to={plan.name === 'Team' ? '/' : plan.name === 'Family' ? '/sign-up?plan=family' : '/sign-up'}
                   onClick={plan.name === 'Team' ? (e) => { e.preventDefault(); document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }) } : undefined}
+                  state={undefined}
                   style={{
                     display: 'block',
                     textAlign: 'center',
@@ -643,7 +657,7 @@ export default function Landing() {
           </div>
 
           <p style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.875rem', color: 'var(--color-muted)' }}>
-            14-day free trial on all plans. No credit card required. GST invoices included.{' '}
+            Family plan is free forever. Provider plans include a 14-day free trial — no credit card required. GST invoices included.{' '}
             <Link to="/deck" style={{ color: 'var(--color-primary-deep)', textDecoration: 'none' }}>Investor information →</Link>
           </p>
         </div>

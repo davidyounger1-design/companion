@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { signIn } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
+import { checkPlan, isFamilyPlan } from '../../lib/planCheck'
 
 const schema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -33,25 +34,54 @@ export default function SignIn() {
         const { data: result } = await supabase.rpc('accept_invite', { p_token: inviteToken })
         const r = result as { ok?: boolean; role?: string; error?: string } | null
         if (r?.ok) {
-          navigate(r.role === 'support_worker' ? '/worker' : '/dashboard', { replace: true })
+          const workerRoles = ['support_worker', 'trusted_support_worker']
+          navigate(workerRoles.includes(r.role ?? '') ? '/worker' : r.role === 'family' ? '/family' : '/dashboard', { replace: true })
           return
         }
       }
 
-      // Determine where to send the user based on their role
+      // Determine where to send the user based on their role + live plan + org type
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, org_id')
-        .eq('id', user.id)
-        .single()
+      const [{ data: profile }, planInfo] = await Promise.all([
+        supabase.from('profiles').select('role, org_id').eq('id', user.id).single(),
+        checkPlan().catch(() => ({ plan: null })),
+      ])
+
+      const planIsFamily = isFamilyPlan(planInfo.plan)
 
       if (!profile?.org_id) {
         navigate('/setup/account')
-      } else if (profile.role === 'support_worker') {
+        return
+      }
+
+      // Fetch org type for coordinator routing
+      let orgType: string | null = null
+      if (profile.org_id) {
+        const { data: org } = await supabase
+          .from('organisations')
+          .select('org_type')
+          .eq('id', profile.org_id)
+          .single()
+        orgType = org?.org_type ?? null
+      }
+
+      const isCoordinator = profile.role === 'coordinator'
+      const isFamilyOrg = orgType === 'family'
+
+      if (planIsFamily && isCoordinator && !isFamilyOrg) {
+        // Plan switched to family but org isn't set up as family yet
+        navigate('/setup/family/participant')
+      } else if (!planIsFamily && planInfo.plan !== null && profile.role === 'family') {
+        // Upgraded away from family — go through provider onboarding
+        navigate('/setup/service')
+      } else if (profile.role === 'family') {
+        navigate('/family')
+      } else if (profile.role === 'support_worker' || profile.role === 'trusted_support_worker') {
         navigate('/worker')
+      } else if (isCoordinator && isFamilyOrg) {
+        navigate('/family')
       } else {
         navigate('/dashboard')
       }
@@ -63,6 +93,15 @@ export default function SignIn() {
   return (
     <div className="auth-layout">
       <div className="auth-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.75rem' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-primary-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <path d="M8 13C8 13 2.5 9.5 2.5 5.5C2.5 3.5 4 2 5.5 2C6.5 2 7.5 2.7 8 3.5C8.5 2.7 9.5 2 10.5 2C12 2 13.5 3.5 13.5 5.5C13.5 9.5 8 13 8 13Z" fill="white" opacity="0.9"/>
+              <path d="M6 8C6 8 4 7 4 5.5" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.5"/>
+            </svg>
+          </div>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 600, color: 'var(--color-ink)' }}>Companion</span>
+        </div>
         <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Sign in</p>
         <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 400 }}>
           Welcome back
@@ -84,7 +123,7 @@ export default function SignIn() {
               id="email"
               type="email"
               className={`input${errors.email ? ' error' : ''}`}
-              placeholder="you@yourorg.com.au"
+              placeholder="you@example.com"
               autoComplete="email"
               {...register('email')}
             />
@@ -121,8 +160,8 @@ export default function SignIn() {
         <div className="divider" />
 
         <p style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)' }}>
-          New provider?{' '}
-          <Link to="/sign-up" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Create an account</Link>
+          Don't have an account?{' '}
+          <Link to="/sign-up" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Create one</Link>
         </p>
       </div>
     </div>

@@ -22,6 +22,9 @@ export default function SignUp() {
   const [serverError, setServerError] = useState('')
   const [confirmEmail, setConfirmEmail] = useState(false)
 
+  const planParam = searchParams.get('plan')
+  if (planParam === 'family') localStorage.setItem('companion.intendedPlan', 'family')
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { email: prefillEmail },
@@ -36,7 +39,8 @@ export default function SignUp() {
         if (inviteToken) {
           const { data: inv } = await supabase.rpc('accept_invite', { p_token: inviteToken })
           const r = inv as { ok?: boolean; role?: string } | null
-          navigate(r?.role === 'support_worker' ? '/worker' : '/dashboard', { replace: true })
+          const workerRoles = ['support_worker', 'trusted_support_worker']
+          navigate(workerRoles.includes(r?.role ?? '') ? '/worker' : r?.role === 'family' ? '/family' : '/dashboard', { replace: true })
         } else {
           navigate('/setup/account')
         }
@@ -76,12 +80,21 @@ export default function SignUp() {
   return (
     <div className="auth-layout">
       <div className="auth-card">
-        <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Provider sign-up</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.75rem' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-primary-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <path d="M8 13C8 13 2.5 9.5 2.5 5.5C2.5 3.5 4 2 5.5 2C6.5 2 7.5 2.7 8 3.5C8.5 2.7 9.5 2 10.5 2C12 2 13.5 3.5 13.5 5.5C13.5 9.5 8 13 8 13Z" fill="white" opacity="0.9"/>
+              <path d="M6 8C6 8 4 7 4 5.5" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.5"/>
+            </svg>
+          </div>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 600, color: 'var(--color-ink)' }}>Companion</span>
+        </div>
+        <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Create account</p>
         <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 400 }}>
           Welcome to Companion
         </h1>
         <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '1.75rem' }}>
-          Set up your organisation in minutes.
+          Create your account to get started.
         </p>
 
         {serverError && (
@@ -109,7 +122,7 @@ export default function SignUp() {
               id="email"
               type="email"
               className={`input${errors.email ? ' error' : ''}`}
-              placeholder="sarah@yourorg.com.au"
+              placeholder="you@example.com"
               autoComplete="email"
               {...register('email')}
             />

@@ -110,9 +110,14 @@ export default function CoordinatorDashboard() {
         {/* Participants */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <h2 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-ui)', fontWeight: 700, margin: 0 }}>Participants</h2>
-          <Link to="/setup/clients" className="btn btn-secondary" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
-            + Add participant
-          </Link>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Link to="/members" className="btn btn-ghost" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
+              Members
+            </Link>
+            <Link to="/setup/clients" className="btn btn-secondary" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
+              + Add participant
+            </Link>
+          </div>
         </div>
 
         {clientsLoading ? (

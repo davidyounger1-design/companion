@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 export default function Step4Clients() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { user, profile } = useAuth()
   const [name, setName] = useState('')
   const [dob, setDob] = useState('')
@@ -52,6 +54,7 @@ export default function Step4Clients() {
     if (err) {
       setError(err.message)
     } else {
+      qc.invalidateQueries({ queryKey: ['clients', orgId] })
       setAdded((prev) => [...prev, name.trim()])
       setName('')
       setDob('')

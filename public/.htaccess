@@ -1,5 +1,13 @@
 Options -MultiViews
 RewriteEngine On
+
+# When accessed via myappbuddy.com.au/companion/ (not the subdomain) — serve marketing page
+RewriteCond %{HTTP_HOST} !^companion\.myappbuddy\.com\.au$ [NC]
+RewriteRule ^$ marketing.html [L]
+
+# SPA fallback — routes like /sign-in serve index.html (React PWA)
+# Exclude /assets/ so missing versioned files return 404 instead of HTML
+RewriteCond %{REQUEST_URI} !^/assets/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [L]
