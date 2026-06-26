@@ -17,28 +17,58 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser()
-    if (authErr || !caller) return new Response(JSON.stringify({ ok: false, error: 'not_authenticated' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (authErr || !caller) {
+      return new Response(JSON.stringify({ ok: false, error: 'not_authenticated' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     const { data: callerProfile } = await callerClient.from('profiles').select('role').eq('id', caller.id).single()
     if (callerProfile?.role !== 'coordinator') {
-      return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { user_id } = await req.json()
-    if (!user_id) return new Response(JSON.stringify({ ok: false, error: 'user_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (!user_id) {
+      return new Response(JSON.stringify({ ok: false, error: 'user_id required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-    // Use service role key to delete auth user
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
-    const { error: deleteErr } = await admin.auth.admin.deleteUser(user_id)
-    if (deleteErr) {
-      return new Response(JSON.stringify({ ok: false, error: deleteErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+
+    // Look up user email so we can purge their pending invites
+    const { data: { user: targetUser } } = await admin.auth.admin.getUserById(user_id)
+    const targetEmail = targetUser?.email
+
+    // Delete any pending invites for this email (same org as caller)
+    if (targetEmail) {
+      await admin.from('invites')
+        .delete()
+        .eq('email', targetEmail)
+        .eq('org_id', callerProfile.org_id ?? '')
+        .in('status', ['pending', 'expired'])
     }
 
-    return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    // Delete the auth user (cascades nothing in auth — profile/org already removed by remove_member RPC)
+    const { error: deleteErr } = await admin.auth.admin.deleteUser(user_id)
+    if (deleteErr) {
+      return new Response(JSON.stringify({ ok: false, error: deleteErr.message }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ ok: false, error: String(e) }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })
