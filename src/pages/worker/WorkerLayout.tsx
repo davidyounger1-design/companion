@@ -4,8 +4,6 @@ import { signOut } from '../../lib/auth'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 
-const APP_VERSION = '0.2.0'
-
 function useUnreadCount() {
   const { user, profile } = useAuth()
   return useQuery({
@@ -99,9 +97,9 @@ export default function WorkerLayout() {
           </span>
           Messages
         </NavLink>
-        <NavLink to="/release-notes" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span style={{ fontSize: '1.25rem' }}>ℹ️</span>
-          v{APP_VERSION}
+        <NavLink to="/help" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span style={{ fontSize: '1.25rem' }}>❓</span>
+          Help
         </NavLink>
       </nav>
     </div>

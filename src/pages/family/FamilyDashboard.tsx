@@ -465,8 +465,18 @@ export default function FamilyDashboard() {
           </div>
         ))}
 
-        {/* Version footer */}
-        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+        {/* Footer links */}
+        <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('/help')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
+            ❓ Help
+          </button>
+          {isCoordinator && (
+            <button onClick={() => navigate('/settings/permissions')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
+              🔐 Permissions
+            </button>
+          )}
           <button onClick={() => navigate('/release-notes')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
             Companion v{APP_VERSION}

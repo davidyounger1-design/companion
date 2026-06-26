@@ -343,6 +343,7 @@ export interface Database {
           locale: string
           feature_flags: Record<string, boolean>
           retention_preferences: Record<string, unknown>
+          permissions: Record<string, unknown>
           created_at: string
         }
         Insert: {
@@ -352,6 +353,7 @@ export interface Database {
           digest_send_time?: string
           locale?: string
           feature_flags?: Record<string, boolean>
+          permissions?: Record<string, unknown>
           retention_preferences?: Record<string, unknown>
           created_at?: string
         }
@@ -361,6 +363,7 @@ export interface Database {
           locale?: string
           feature_flags?: Record<string, boolean>
           retention_preferences?: Record<string, unknown>
+          permissions?: Record<string, unknown>
         }
         Relationships: []
       }

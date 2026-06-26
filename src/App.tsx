@@ -33,6 +33,8 @@ import WorkerNoticeBoard from './pages/worker/WorkerNoticeBoard'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
 import MembersPage from './pages/members/MembersPage'
 import ReleaseNotes from './pages/ReleaseNotes'
+import Help from './pages/Help'
+import PermissionsPage from './pages/settings/PermissionsPage'
 import Deck from './pages/Deck'
 
 const queryClient = new QueryClient({
@@ -82,6 +84,8 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route path="/release-notes" element={<ReleaseNotes />} />
+            <Route path="/help" element={<RequireAuth><Help /></RequireAuth>} />
+            <Route path="/settings/permissions" element={<RequireAuth><PermissionsPage /></RequireAuth>} />
 
             {/* Provider setup wizard */}
             <Route path="/setup" element={<RequireAuth><SetupLayout /></RequireAuth>}>
