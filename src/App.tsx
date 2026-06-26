@@ -23,11 +23,16 @@ import FamilyStep3Done from './pages/setup/family/FamilyStep3Done'
 import FamilyDashboard from './pages/family/FamilyDashboard'
 import AddEntry from './pages/family/AddEntry'
 import EditParticipant from './pages/family/EditParticipant'
+import FamilyMessages from './pages/family/FamilyMessages'
+import FamilyNoticeBoard from './pages/family/FamilyNoticeBoard'
 import WorkerLayout from './pages/worker/WorkerLayout'
 import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
+import WorkerMessages from './pages/worker/WorkerMessages'
+import WorkerNoticeBoard from './pages/worker/WorkerNoticeBoard'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
 import MembersPage from './pages/members/MembersPage'
+import ReleaseNotes from './pages/ReleaseNotes'
 import Deck from './pages/Deck'
 
 const queryClient = new QueryClient({
@@ -76,6 +81,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/release-notes" element={<ReleaseNotes />} />
 
             {/* Provider setup wizard */}
             <Route path="/setup" element={<RequireAuth><SetupLayout /></RequireAuth>}>
@@ -101,12 +107,11 @@ export default function App() {
             <Route path="/family" element={<RequireAuth><FamilyDashboard /></RequireAuth>} />
             <Route path="/family/add" element={<RequireAuth><AddEntry /></RequireAuth>} />
             <Route path="/family/participant" element={<RequireAuth><EditParticipant /></RequireAuth>} />
+            <Route path="/family/messages" element={<RequireAuth><FamilyMessages /></RequireAuth>} />
+            <Route path="/family/notices" element={<RequireAuth><FamilyNoticeBoard /></RequireAuth>} />
 
             {/* Coordinator dashboard */}
-            <Route
-              path="/dashboard"
-              element={<RequireAuth><CoordinatorDashboard /></RequireAuth>}
-            />
+            <Route path="/dashboard" element={<RequireAuth><CoordinatorDashboard /></RequireAuth>} />
 
             {/* Member management */}
             <Route path="/members" element={<RequireAuth><MembersPage /></RequireAuth>} />
@@ -116,6 +121,10 @@ export default function App() {
               <Route index element={<WorkerClients />} />
               <Route path="clients/:clientId" element={<WorkerClientDetail />} />
             </Route>
+
+            {/* Worker messaging / notice board (outside WorkerLayout — full-page) */}
+            <Route path="/worker/messages" element={<RequireAuth><WorkerMessages /></RequireAuth>} />
+            <Route path="/worker/notices" element={<RequireAuth><WorkerNoticeBoard /></RequireAuth>} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

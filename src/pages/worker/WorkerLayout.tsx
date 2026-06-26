@@ -1,10 +1,36 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { signOut } from '../../lib/auth'
 import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../lib/supabase'
+
+const APP_VERSION = '0.2.0'
+
+function useUnreadCount() {
+  const { user, profile } = useAuth()
+  return useQuery({
+    queryKey: ['unread-count', user?.id],
+    queryFn: async () => {
+      if (!user || !profile?.org_id) return 0
+      const lastSeen = localStorage.getItem(`msg_last_seen_${user.id}`) ?? new Date(0).toISOString()
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', profile.org_id)
+        .gt('created_at', lastSeen)
+        .neq('sender_id', user.id)
+        .or(`recipient_id.eq.${user.id},recipient_id.is.null`)
+      return count ?? 0
+    },
+    enabled: !!user && !!profile?.org_id,
+    refetchInterval: 30000,
+  })
+}
 
 export default function WorkerLayout() {
   const { profile, user } = useAuth()
   const navigate = useNavigate()
+  const { data: unread = 0 } = useUnreadCount()
 
   async function handleSignOut() {
     await signOut()
@@ -53,22 +79,31 @@ export default function WorkerLayout() {
           <span style={{ fontSize: '1.25rem' }}>👥</span>
           Clients
         </NavLink>
-        <NavLink to="/worker/notes" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span style={{ fontSize: '1.25rem' }}>📋</span>
-          Notes
+        <NavLink to="/worker/notices" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span style={{ fontSize: '1.25rem' }}>📌</span>
+          Notices
         </NavLink>
         <NavLink to="/worker/messages" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span style={{ fontSize: '1.25rem' }}>💬</span>
+          <span style={{ fontSize: '1.25rem', position: 'relative', display: 'inline-flex' }}>
+            💬
+            {unread > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -6,
+                background: '#ef4444', color: '#fff',
+                borderRadius: '50%', width: 16, height: 16,
+                fontSize: '0.6rem', fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                lineHeight: 1,
+              }}>{unread > 9 ? '9+' : unread}</span>
+            )}
+          </span>
           Messages
         </NavLink>
-        {profile?.role === 'trusted_support_worker' && (
-          <NavLink to="/members" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-            <span style={{ fontSize: '1.25rem' }}>➕</span>
-            Invite
-          </NavLink>
-        )}
+        <NavLink to="/release-notes" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span style={{ fontSize: '1.25rem' }}>ℹ️</span>
+          v{APP_VERSION}
+        </NavLink>
       </nav>
     </div>
   )
 }
-

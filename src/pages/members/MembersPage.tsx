@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 
-type OrgMember = { id: string; full_name: string; role: string }
+type OrgMember = { id: string; full_name: string; role: string; email?: string }
 
 type RpcResult = { ok: boolean; error?: string; new_role?: string }
 
@@ -104,21 +104,14 @@ function InviteModal({
                   Share this link manually instead:
                 </p>
                 <div style={{
-                  background: 'var(--color-surface)',
-                  borderRadius: 8,
-                  padding: '0.6rem 0.75rem',
-                  fontSize: '0.75rem',
-                  wordBreak: 'break-all',
-                  border: '1px solid var(--color-border)',
-                  marginBottom: '0.4rem',
+                  background: 'var(--color-surface)', borderRadius: 8,
+                  padding: '0.6rem 0.75rem', fontSize: '0.75rem', wordBreak: 'break-all',
+                  border: '1px solid var(--color-border)', marginBottom: '0.4rem',
                 }}>
                   {fallbackLink}
                 </div>
-                <button
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
-                  onClick={() => navigator.clipboard.writeText(fallbackLink).catch(() => {})}
-                >
+                <button className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                  onClick={() => navigator.clipboard.writeText(fallbackLink!).catch(() => {})}>
                   Copy link
                 </button>
               </div>
@@ -128,26 +121,14 @@ function InviteModal({
 
         <div className="field" style={{ marginBottom: '1rem' }}>
           <label htmlFor="invite-email">Email address</label>
-          <input
-            id="invite-email"
-            type="email"
-            className="input"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoFocus
-          />
+          <input id="invite-email" type="email" className="input" placeholder="you@example.com"
+            value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
         </div>
 
         {allowedRoles.length > 1 && (
           <div className="field" style={{ marginBottom: '1rem' }}>
             <label htmlFor="invite-role">Role</label>
-            <select
-              id="invite-role"
-              className="input"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
+            <select id="invite-role" className="input" value={role} onChange={(e) => setRole(e.target.value)}>
               {allowedRoles.map((r) => (
                 <option key={r} value={r}>{ROLE_LABEL[r] ?? r}</option>
               ))}
@@ -157,12 +138,8 @@ function InviteModal({
 
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
-          <button
-            className="btn btn-primary"
-            onClick={handleInvite}
-            disabled={saving || !email.trim()}
-            style={{ flex: 2 }}
-          >
+          <button className="btn btn-primary" onClick={handleInvite}
+            disabled={saving || !email.trim()} style={{ flex: 2 }}>
             {saving ? <span className="spinner" /> : 'Send invite'}
           </button>
         </div>
@@ -177,6 +154,7 @@ export default function MembersPage() {
   const { user, profile, org } = useAuth()
   const [showInvite, setShowInvite] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [resendingId, setResendingId] = useState<string | null>(null)
 
   const isCoordinator = profile?.role === 'coordinator'
   const isTrustedWorker = profile?.role === 'trusted_support_worker'
@@ -185,10 +163,8 @@ export default function MembersPage() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['org-members', profile?.org_id],
     queryFn: async () => {
-      // Try the RPC first (requires migration 012); fall back to direct query
       const rpc = await supabase.rpc('get_org_members')
       if (!rpc.error) return (rpc.data ?? []) as OrgMember[]
-
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, role')
@@ -201,7 +177,20 @@ export default function MembersPage() {
     enabled: !!profile?.org_id,
   })
 
-  // For invite: need a client_id (workers need to be linked to a participant)
+  const { data: pendingInvites = [] } = useQuery({
+    queryKey: ['pending-invites', profile?.org_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('invites')
+        .select('id, email, role, created_at')
+        .eq('org_id', profile!.org_id!)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+      return data ?? []
+    },
+    enabled: !!profile?.org_id && isCoordinator,
+  })
+
   const { data: firstClient, isLoading: firstClientLoading } = useQuery({
     queryKey: ['first-client', profile?.org_id],
     queryFn: async () => {
@@ -234,15 +223,34 @@ export default function MembersPage() {
   }
 
   async function remove(memberId: string) {
-    if (!confirm('Remove this member from the organisation?')) return
+    if (!confirm('Remove this member from the organisation? This will also delete their login account.')) return
     setActionError('')
+    // Remove from org data first
     const { data } = await supabase.rpc('remove_member', { p_user_id: memberId })
     const r = data as RpcResult | null
     if (!r?.ok) { setActionError(r?.error ?? 'Removal failed'); return }
+    // Then delete auth user via edge function (best-effort — fails gracefully if not deployed)
+    try {
+      await supabase.functions.invoke('delete-member', { body: { user_id: memberId } })
+    } catch {
+      // Edge function not deployed yet — auth user remains but profile/org access is removed
+    }
     qc.invalidateQueries({ queryKey: ['org-members'] })
   }
 
-  // Roles this user can invite
+  async function resendInvite(invite: { id: string; email: string; role: string }) {
+    if (!org || !firstClient) return
+    setResendingId(invite.id)
+    try {
+      await supabase.functions.invoke('invite-member', {
+        body: { email: invite.email, role: invite.role, org_id: org.id, client_id: firstClient.id },
+      })
+      qc.invalidateQueries({ queryKey: ['pending-invites'] })
+    } finally {
+      setResendingId(null)
+    }
+  }
+
   const invitableRoles: string[] = isCoordinator
     ? isFamilyOrg
       ? ['family', 'support_worker', 'trusted_support_worker']
@@ -251,7 +259,6 @@ export default function MembersPage() {
       ? ['support_worker']
       : []
 
-  // Group members by role
   const grouped = ROLE_ORDER.reduce<Record<string, OrgMember[]>>((acc, r) => {
     const inRole = members.filter((m) => m.role === r)
     if (inRole.length) acc[r] = inRole
@@ -262,35 +269,19 @@ export default function MembersPage() {
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
-      {/* Header */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '1rem 1rem 0.75rem',
-        borderBottom: '1px solid var(--color-border)',
-        position: 'sticky',
-        top: 0,
-        background: 'var(--color-bg)',
-        zIndex: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '1rem 1rem 0.75rem', borderBottom: '1px solid var(--color-border)',
+        position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 10,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            className="btn btn-ghost"
-            onClick={() => navigate(-1)}
-            style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-          >
-            ←
-          </button>
+          <button className="btn btn-ghost" onClick={() => navigate(-1)}
+            style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
           <h1 style={{ fontSize: '1.15rem', fontWeight: 600, margin: 0 }}>Members</h1>
         </div>
         {invitableRoles.length > 0 && (
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowInvite(true)}
-            disabled={firstClientLoading}
-            style={{ fontSize: '0.875rem' }}
-          >
+          <button className="btn btn-primary" onClick={() => setShowInvite(true)}
+            disabled={firstClientLoading} style={{ fontSize: '0.875rem' }}>
             {firstClientLoading ? <span className="spinner" /> : '+ Invite'}
           </button>
         )}
@@ -301,6 +292,32 @@ export default function MembersPage() {
           <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{actionError}</div>
         )}
 
+        {/* Pending invites */}
+        {isCoordinator && pendingInvites.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <p style={{
+              fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.5rem',
+            }}>Pending invites</p>
+            {pendingInvites.map((inv: any) => (
+              <div key={inv.id} className="card card-sm" style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: '0.5rem', opacity: 0.8,
+              }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 500 }}>{inv.email}</p>
+                  <span style={roleBadgeStyle(inv.role)}>{ROLE_LABEL[inv.role] ?? inv.role}</span>
+                </div>
+                <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}
+                  disabled={resendingId === inv.id}
+                  onClick={() => resendInvite(inv)}>
+                  {resendingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '↩ Resend'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: '3rem' }}>
             <div className="spinner" style={{ margin: '0 auto', color: 'var(--color-primary)' }} />
@@ -309,29 +326,21 @@ export default function MembersPage() {
           Object.entries(grouped).map(([role, roleMembers]) => (
             <div key={role} style={{ marginBottom: '1.5rem' }}>
               <p style={{
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--color-muted)',
-                margin: '0 0 0.5rem',
+                fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.5rem',
               }}>
                 {ROLE_LABEL[role] ?? role}s
               </p>
               {roleMembers.map((m) => (
                 <div key={m.id} className="card card-sm" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '0.5rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: '50%',
                       background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary)',
-                      flexShrink: 0,
+                      fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary)', flexShrink: 0,
                     }}>
                       {m.full_name.charAt(0).toUpperCase()}
                     </div>
@@ -348,55 +357,33 @@ export default function MembersPage() {
 
                   {isCoordinator && m.id !== user?.id && (
                     <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                      {/* Promote actions */}
                       {m.role === 'family' && isFamilyOrg && (
-                        <button
-                          className="btn btn-ghost"
-                          onClick={() => promote(m.id, 'coordinator')}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                          title="Make coordinator"
-                        >
+                        <button className="btn btn-ghost" onClick={() => promote(m.id, 'coordinator')}
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make coordinator">
                           ↑ Coord
                         </button>
                       )}
                       {m.role === 'support_worker' && (
-                        <button
-                          className="btn btn-ghost"
-                          onClick={() => promote(m.id, 'trusted_support_worker')}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                          title="Make trusted worker"
-                        >
+                        <button className="btn btn-ghost" onClick={() => promote(m.id, 'trusted_support_worker')}
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make trusted worker">
                           ↑ Trust
                         </button>
                       )}
-                      {/* Demote actions */}
                       {m.role === 'coordinator' && isFamilyOrg && coordinatorCount > 1 && (
-                        <button
-                          className="btn btn-ghost"
-                          onClick={() => demote(m.id)}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                          title="Demote to family member"
-                        >
+                        <button className="btn btn-ghost" onClick={() => demote(m.id)}
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to family member">
                           ↓
                         </button>
                       )}
                       {m.role === 'trusted_support_worker' && (
-                        <button
-                          className="btn btn-ghost"
-                          onClick={() => demote(m.id)}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                          title="Demote to support worker"
-                        >
+                        <button className="btn btn-ghost" onClick={() => demote(m.id)}
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to support worker">
                           ↓
                         </button>
                       )}
-                      {/* Remove */}
-                      <button
-                        className="btn btn-ghost"
-                        onClick={() => remove(m.id)}
+                      <button className="btn btn-ghost" onClick={() => remove(m.id)}
                         style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', color: 'var(--color-danger, #c0392b)' }}
-                        title="Remove member"
-                      >
+                        title="Remove member">
                         ✕
                       </button>
                     </div>
@@ -419,7 +406,7 @@ export default function MembersPage() {
           orgId={org.id}
           allowedRoles={invitableRoles}
           clientId={firstClient?.id ?? null}
-          onClose={() => { setShowInvite(false); qc.invalidateQueries({ queryKey: ['org-members'] }) }}
+          onClose={() => { setShowInvite(false); qc.invalidateQueries({ queryKey: ['org-members', 'pending-invites'] }) }}
         />
       )}
     </div>

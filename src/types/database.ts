@@ -123,9 +123,9 @@ export interface Database {
         Relationships: []
       }
       client_workers: {
-        Row: { client_id: string; worker_id: string }
-        Insert: { client_id: string; worker_id: string }
-        Update: { client_id?: string; worker_id?: string }
+        Row: { client_id: string; worker_id: string; status?: string }
+        Insert: { client_id: string; worker_id: string; status?: string }
+        Update: { client_id?: string; worker_id?: string; status?: string }
         Relationships: []
       }
       client_family: {
@@ -166,6 +166,7 @@ export interface Database {
           label: string
           occurred_at: string
           photo_path: string | null
+          mood_score: number | null
           ai_source: string | null
           ai_reason: string | null
           created_at: string
@@ -179,11 +180,32 @@ export interface Database {
           label: string
           occurred_at?: string
           photo_path?: string | null
+          mood_score?: number | null
           ai_source?: string | null
           ai_reason?: string | null
           created_at?: string
         }
-        Update: { label?: string; flagged?: boolean; ai_source?: string | null; ai_reason?: string | null }
+        Update: { label?: string; type?: LogType; mood_score?: number | null; flagged?: boolean; ai_source?: string | null; ai_reason?: string | null }
+        Relationships: []
+      }
+      notices: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          author_id: string | null
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          author_id?: string | null
+          body: string
+          created_at?: string
+        }
+        Update: { body?: string }
         Relationships: []
       }
       behaviour_notes: {
@@ -261,8 +283,8 @@ export interface Database {
         Relationships: []
       }
       messages: {
-        Row: { id: string; client_id: string; org_id: string; sender_id: string; body: string; created_at: string }
-        Insert: { id?: string; client_id: string; org_id: string; sender_id: string; body: string; created_at?: string }
+        Row: { id: string; client_id: string; org_id: string; sender_id: string; recipient_id: string | null; body: string; created_at: string }
+        Insert: { id?: string; client_id: string; org_id: string; sender_id: string; recipient_id?: string | null; body: string; created_at?: string }
         Update: { body?: string }
         Relationships: []
       }
@@ -402,3 +424,5 @@ export type BehaviourNote = Tables['behaviour_notes']['Row']
 export type NoteShare    = Tables['note_shares']['Row']
 export type Invite       = Tables['invites']['Row']
 export type OrgSettings  = Tables['org_settings']['Row']
+export type Notice       = Tables['notices']['Row']
+export type Message      = Tables['messages']['Row']

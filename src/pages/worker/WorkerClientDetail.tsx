@@ -7,6 +7,9 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import MoodSlider from '../../components/MoodSlider'
+import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
+import Lightbox from '../../components/Lightbox'
 import type { LogType } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -16,13 +19,44 @@ const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
   { type: 'note',     icon: '📝', label: 'Note' },
 ]
 
-const schema = z.object({
-  label: z.string(),
-})
+const schema = z.object({ label: z.string() })
 type FormData = z.infer<typeof schema>
 
 function fileExt(file: File) {
   return file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+}
+
+function isVideoFile(file: File) {
+  return file.type.startsWith('video/')
+}
+
+function isVideoPath(path: string) {
+  return /\.(mp4|mov|webm|m4v|avi|ogv)(\?|$)/i.test(path)
+}
+
+function MediaCell({ path }: { path: string }) {
+  const [lightbox, setLightbox] = useState<string | null>(null)
+  const { data: url } = useQuery({
+    queryKey: ['media-url', path],
+    queryFn: async () => {
+      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(path, 3600)
+      return data?.signedUrl ?? null
+    },
+    staleTime: 3_500_000,
+  })
+  if (!url) return null
+  const video = isVideoPath(path)
+  return (
+    <>
+      {video ? (
+        <video src={url} controls style={{ width: '100%', borderRadius: 6, marginTop: '0.5rem', maxHeight: 220, display: 'block' }} />
+      ) : (
+        <img src={url} alt="" onClick={() => setLightbox(url)}
+          style={{ width: '100%', borderRadius: 6, marginTop: '0.5rem', maxHeight: 220, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }} />
+      )}
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+    </>
+  )
 }
 
 export default function WorkerClientDetail() {
@@ -34,25 +68,29 @@ export default function WorkerClientDetail() {
   const [selectedType, setSelectedType] = useState<LogType>('activity')
   const [showForm, setShowForm] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const [newMood, setNewMood] = useState(50)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editType, setEditType] = useState<LogType>('activity')
   const [editLabel, setEditLabel] = useState('')
+  const [editMood, setEditMood] = useState(50)
 
-  function startEdit(log: { id: string; type: string; label: string }) {
+  function startEdit(log: { id: string; type: string; label: string; mood_score?: number | null }) {
     setEditingId(log.id)
     setEditType((LOG_TYPES.find(t => t.type === log.type)?.type ?? 'note') as LogType)
-    setEditLabel(log.label === '📷' ? '' : log.label)
+    setEditLabel(log.label === '📷' || log.label === '🎥' ? '' : log.label)
+    setEditMood(log.mood_score ?? 50)
   }
 
   function cancelEdit() { setEditingId(null) }
 
   const updateLog = useMutation({
-    mutationFn: async ({ id, label, type }: { id: string; label: string; type: LogType }) => {
+    mutationFn: async ({ id, label, type, moodScore }: { id: string; label: string; type: LogType; moodScore: number }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase.from('log_entries') as any)
-        .update({ label: label.trim() || '📷', type })
+        .update({ label: label.trim() || '📝', type, mood_score: moodScore })
         .eq('id', id)
+        .eq('author_id', user!.id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -61,19 +99,19 @@ export default function WorkerClientDetail() {
     },
   })
 
-  const [photo, setPhoto] = useState<File | null>(null)
+  const [media, setMedia] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  function pickMedia(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setPhoto(file)
+    setMedia(file)
     setPreview(URL.createObjectURL(file))
   }
 
-  function removePhoto() {
-    setPhoto(null)
+  function removeMedia() {
+    setMedia(null)
     if (preview) URL.revokeObjectURL(preview)
     setPreview(null)
     if (fileRef.current) fileRef.current.value = ''
@@ -81,21 +119,18 @@ export default function WorkerClientDetail() {
 
   function resetForm() {
     setShowForm(false)
-    setPhoto(null)
+    setMedia(null)
     if (preview) URL.revokeObjectURL(preview)
     setPreview(null)
     if (fileRef.current) fileRef.current.value = ''
+    setNewMood(50)
     reset()
   }
 
   const { data: client, isLoading: clientLoading } = useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', clientId!)
-        .single()
+      const { data, error } = await supabase.from('clients').select('*').eq('id', clientId!).single()
       if (error) throw error
       return data
     },
@@ -110,12 +145,13 @@ export default function WorkerClientDetail() {
         .from('log_entries')
         .select('*')
         .eq('client_id', clientId!)
+        .eq('author_id', user!.id)
         .gte('occurred_at', `${today}T00:00:00`)
         .order('occurred_at', { ascending: false })
       if (error) throw error
       return data
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !!user,
   })
 
   const { register, handleSubmit, reset } = useForm<FormData>({
@@ -123,15 +159,15 @@ export default function WorkerClientDetail() {
   })
 
   const addLog = useMutation({
-    mutationFn: async ({ label, photoFile }: { label: string; photoFile: File | null }) => {
+    mutationFn: async ({ label, mediaFile }: { label: string; mediaFile: File | null }) => {
       let photoPath: string | null = null
-      if (photoFile) {
-        const ext = fileExt(photoFile)
+      if (mediaFile) {
+        const ext = fileExt(mediaFile)
         const uuid = crypto.randomUUID()
         photoPath = `${profile!.org_id}/${clientId}/${user!.id}/${uuid}.${ext}`
         const { error: uploadErr } = await supabase.storage
           .from('journal-photos')
-          .upload(photoPath, photoFile, { upsert: false })
+          .upload(photoPath, mediaFile, { upsert: false })
         if (uploadErr) throw uploadErr
       }
       const { error } = await supabase.from('log_entries').insert({
@@ -139,9 +175,10 @@ export default function WorkerClientDetail() {
         org_id: profile!.org_id!,
         author_id: user!.id,
         type: selectedType,
-        label: label.trim() || '📷',
+        label: label.trim() || (mediaFile && isVideoFile(mediaFile) ? '🎥' : mediaFile ? '📷' : '📝'),
         occurred_at: new Date().toISOString(),
         photo_path: photoPath,
+        mood_score: newMood,
       })
       if (error) throw error
     },
@@ -173,16 +210,11 @@ export default function WorkerClientDetail() {
 
   return (
     <div className="page">
-      {/* Back */}
-      <button
-        className="btn btn-ghost"
-        onClick={() => navigate('/worker')}
-        style={{ padding: '0.25rem 0', marginBottom: '0.75rem', fontSize: '0.875rem' }}
-      >
+      <button className="btn btn-ghost" onClick={() => navigate('/worker')}
+        style={{ padding: '0.25rem 0', marginBottom: '0.75rem', fontSize: '0.875rem' }}>
         ← My clients
       </button>
 
-      {/* Client header */}
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <h1 style={{ fontSize: '1.4rem', fontWeight: 400, margin: '0 0 0.25rem' }}>{client.full_name}</h1>
         {client.setting && <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', margin: 0 }}>{client.setting}</p>}
@@ -194,54 +226,40 @@ export default function WorkerClientDetail() {
       </div>
 
       {successMsg && (
-        <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
-          {successMsg}
-        </div>
+        <div className="alert alert-success" style={{ marginBottom: '1rem' }}>{successMsg}</div>
       )}
 
-      {/* Log entry form */}
       {!showForm ? (
-        <button
-          className="btn btn-primary btn-full"
-          onClick={() => setShowForm(true)}
-          style={{ marginBottom: '1.5rem' }}
-        >
+        <button className="btn btn-primary btn-full" onClick={() => setShowForm(true)}
+          style={{ marginBottom: '1.5rem' }}>
           + Add log entry
         </button>
       ) : (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <p style={{ fontWeight: 700, marginBottom: '1rem', fontSize: '0.95rem' }}>New log entry</p>
 
-          {/* Type picker */}
           <div className="log-type-grid" style={{ marginBottom: '1rem' }}>
             {LOG_TYPES.map(({ type, icon, label }) => (
-              <button
-                key={type}
-                type="button"
+              <button key={type} type="button"
                 className={`log-type-btn${selectedType === type ? ' selected' : ''}`}
-                onClick={() => setSelectedType(type)}
-              >
-                <span className="icon">{icon}</span>
-                {label}
+                onClick={() => setSelectedType(type)}>
+                <span className="icon">{icon}</span>{label}
               </button>
             ))}
           </div>
 
           <form onSubmit={handleSubmit((d) => {
-            if (!d.label.trim() && !photo) return
-            addLog.mutate({ label: d.label, photoFile: photo })
+            if (!d.label.trim() && !media) return
+            addLog.mutate({ label: d.label, mediaFile: media })
           })} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="field">
               <label htmlFor="label">
                 {selectedType === 'meal'     && 'What did they eat or drink?'}
                 {selectedType === 'activity' && 'What did they do?'}
                 {selectedType === 'mood'     && 'How were they feeling?'}
-                {selectedType === 'note'     && 'Note (optional if adding a photo)'}
+                {selectedType === 'note'     && 'Note (optional if adding a photo or video)'}
               </label>
-              <textarea
-                id="label"
-                className="input"
-                rows={3}
+              <textarea id="label" className="input" rows={3}
                 placeholder={
                   selectedType === 'meal'     ? 'e.g. Porridge with banana, decaf coffee' :
                   selectedType === 'activity' ? 'e.g. Walked to the park, fed the ducks' :
@@ -253,13 +271,19 @@ export default function WorkerClientDetail() {
               />
             </div>
 
-            {/* Photo — always available */}
-            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={pickPhoto} />
+            <MoodSlider value={newMood} onChange={setNewMood} />
+
+            <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={pickMedia} />
             {preview ? (
               <div style={{ position: 'relative' }}>
-                <img src={preview} alt="Preview"
-                  style={{ width: '100%', borderRadius: 8, maxHeight: 260, objectFit: 'cover', display: 'block' }} />
-                <button type="button" onClick={removePhoto} style={{
+                {media && isVideoFile(media) ? (
+                  <video src={preview} controls
+                    style={{ width: '100%', borderRadius: 8, maxHeight: 260, display: 'block' }} />
+                ) : (
+                  <img src={preview} alt="Preview"
+                    style={{ width: '100%', borderRadius: 8, maxHeight: 260, objectFit: 'cover', display: 'block' }} />
+                )}
+                <button type="button" onClick={removeMedia} style={{
                   position: 'absolute', top: 8, right: 8,
                   background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
                   borderRadius: '50%', width: 28, height: 28, cursor: 'pointer',
@@ -273,25 +297,13 @@ export default function WorkerClientDetail() {
                 gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem',
               }}>
                 <span style={{ fontSize: '1.1rem' }}>📷</span>
-                Add a photo (optional)
+                Add a photo or video (optional)
               </button>
             )}
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={resetForm}
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={addLog.isPending}
-                style={{ flex: 2 }}
-              >
+              <button type="button" className="btn btn-ghost" onClick={resetForm} style={{ flex: 1 }}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={addLog.isPending} style={{ flex: 2 }}>
                 {addLog.isPending ? <span className="spinner" /> : 'Save entry'}
               </button>
             </div>
@@ -305,7 +317,6 @@ export default function WorkerClientDetail() {
         </div>
       )}
 
-      {/* Today's log */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <h2 style={{ fontSize: '1rem', fontFamily: 'var(--font-ui)', fontWeight: 700, margin: 0 }}>Today so far</h2>
         {logs && <span className="badge badge-muted">{logs.length} {logs.length === 1 ? 'entry' : 'entries'}</span>}
@@ -322,10 +333,8 @@ export default function WorkerClientDetail() {
       ) : (
         <>
           {logs.every((l) => l.ai_source) && (
-            <AiBadge
-              variant="header"
-              reason={logs[0].ai_reason ?? 'All entries on this page were generated or assisted by AI.'}
-            />
+            <AiBadge variant="header"
+              reason={logs[0].ai_reason ?? 'All entries on this page were generated or assisted by AI.'} />
           )}
           <div className="scroll-list">
             {logs.map((log) => {
@@ -340,19 +349,26 @@ export default function WorkerClientDetail() {
                         <button key={type} type="button"
                           className={`log-type-btn${editType === type ? ' selected' : ''}`}
                           onClick={() => setEditType(type)}>
-                          <span className="icon">{icon}</span>
-                          {label}
+                          <span className="icon">{icon}</span>{label}
                         </button>
                       ))}
                     </div>
-                    <textarea
-                      className="input"
-                      rows={2}
-                      value={editLabel}
+                    <textarea className="input" rows={2} value={editLabel}
                       onChange={(e) => setEditLabel(e.target.value)}
-                      autoFocus
-                      style={{ resize: 'vertical' }}
-                    />
+                      autoFocus style={{ resize: 'vertical' }} />
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                        <label style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Mood rating</label>
+                        <span>{moodEmoji(editMood)}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>😔</span>
+                        <input type="range" min={0} max={100} value={editMood}
+                          onChange={(e) => setEditMood(+e.target.value)}
+                          style={{ flex: 1, accentColor: moodColor(editMood) }} />
+                        <span>😊</span>
+                      </div>
+                    </div>
                     {updateLog.isError && (
                       <div className="alert alert-error" style={{ fontSize: '0.8rem' }}>
                         {updateLog.error instanceof Error ? updateLog.error.message : 'Could not save.'}
@@ -360,12 +376,10 @@ export default function WorkerClientDetail() {
                     )}
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button className="btn btn-ghost" onClick={cancelEdit} style={{ flex: 1, fontSize: '0.85rem' }}>Cancel</button>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => updateLog.mutate({ id: log.id, label: editLabel, type: editType })}
+                      <button className="btn btn-primary"
+                        onClick={() => updateLog.mutate({ id: log.id, label: editLabel, type: editType, moodScore: editMood })}
                         disabled={updateLog.isPending}
-                        style={{ flex: 2, fontSize: '0.85rem' }}
-                      >
+                        style={{ flex: 2, fontSize: '0.85rem' }}>
                         {updateLog.isPending ? <span className="spinner" /> : 'Save changes'}
                       </button>
                     </div>
@@ -376,10 +390,9 @@ export default function WorkerClientDetail() {
               return (
                 <div key={log.id} className="card card-sm"
                   style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer' }}
-                  onClick={() => startEdit(log)}
-                >
-                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon ?? '📷'}</span>
-                  <div style={{ flex: 1 }}>
+                  onClick={() => startEdit(log)}>
+                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon ?? '📝'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
                     <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
                       {new Date(log.occurred_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
@@ -389,8 +402,10 @@ export default function WorkerClientDetail() {
                         <> · <AiBadge reason={log.ai_reason} /></>
                       )}
                     </p>
+                    <MoodBar score={log.mood_score} />
+                    {log.photo_path && <MediaCell path={log.photo_path} />}
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2 }}>✏️</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2, flexShrink: 0 }}>✏️</span>
                 </div>
               )
             })}

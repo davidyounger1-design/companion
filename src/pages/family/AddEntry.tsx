@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import MoodSlider from '../../components/MoodSlider'
 
 type EntryType = 'meal' | 'activity' | 'mood' | 'note'
 
@@ -10,11 +11,15 @@ const TYPES: { key: EntryType; label: string; icon: string; prompt: string; plac
   { key: 'meal',     label: 'Meal',     icon: '🍽️', prompt: 'What did they eat or drink?', placeholder: 'e.g. Porridge and orange juice' },
   { key: 'activity', label: 'Activity', icon: '🌿', prompt: 'What did they do?',            placeholder: 'e.g. Walked to the park' },
   { key: 'mood',     label: 'Mood',     icon: '😊', prompt: 'How were they feeling?',       placeholder: 'e.g. Happy and engaged' },
-  { key: 'note',     label: 'Note',     icon: '📝', prompt: 'Note (optional if adding a photo)', placeholder: 'Add a note…' },
+  { key: 'note',     label: 'Note',     icon: '📝', prompt: 'Note (optional if adding media)', placeholder: 'Add a note…' },
 ]
 
 function fileExt(file: File) {
   return file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+}
+
+function isVideo(file: File) {
+  return file.type.startsWith('video/')
 }
 
 export default function AddEntry() {
@@ -25,8 +30,9 @@ export default function AddEntry() {
 
   const [type, setType] = useState<EntryType>('activity')
   const [label, setLabel] = useState('')
-  const [photo, setPhoto] = useState<File | null>(null)
+  const [media, setMedia] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [moodScore, setMoodScore] = useState(50)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -46,15 +52,15 @@ export default function AddEntry() {
 
   const clientId = clientRow?.client_id
 
-  function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  function pickMedia(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setPhoto(file)
+    setMedia(file)
     setPreview(URL.createObjectURL(file))
   }
 
-  function removePhoto() {
-    setPhoto(null)
+  function removeMedia() {
+    setMedia(null)
     if (preview) URL.revokeObjectURL(preview)
     setPreview(null)
     if (fileRef.current) fileRef.current.value = ''
@@ -62,18 +68,18 @@ export default function AddEntry() {
 
   async function handleSave() {
     if (!clientId || !profile?.org_id || !user) return
-    if (!label.trim() && !photo) return
+    if (!label.trim() && !media) return
     setSaving(true)
     setError('')
     try {
       let photoPath: string | null = null
-      if (photo) {
-        const ext = fileExt(photo)
+      if (media) {
+        const ext = fileExt(media)
         const uuid = crypto.randomUUID()
         photoPath = `${profile.org_id}/${clientId}/${user.id}/${uuid}.${ext}`
         const { error: uploadErr } = await supabase.storage
           .from('journal-photos')
-          .upload(photoPath, photo, { upsert: false })
+          .upload(photoPath, media, { upsert: false })
         if (uploadErr) throw uploadErr
       }
 
@@ -82,9 +88,10 @@ export default function AddEntry() {
         org_id: profile.org_id,
         author_id: user.id,
         type,
-        label: label.trim() || '📷',
+        label: label.trim() || (media && isVideo(media) ? '🎥' : '📷'),
         occurred_at: new Date().toISOString(),
         photo_path: photoPath,
+        mood_score: moodScore,
       })
       if (insertErr) throw insertErr
 
@@ -98,11 +105,11 @@ export default function AddEntry() {
   }
 
   const activeType = TYPES.find((t) => t.key === type)!
-  const canSave = (label.trim().length > 0 || !!photo) && !!clientId
+  const isVideoFile = media ? isVideo(media) : false
+  const canSave = (label.trim().length > 0 || !!media) && !!clientId
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', display: 'flex', flexDirection: 'column' }}>
-      {/* Nav */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
@@ -125,52 +132,50 @@ export default function AddEntry() {
         {/* Type selector */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
           {TYPES.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setType(t.key)}
-              style={{
-                padding: '1rem',
-                borderRadius: 12,
-                border: `2px solid ${type === t.key ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                background: type === t.key ? 'var(--color-primary-subtle, #f0faf6)' : 'var(--color-surface)',
-                cursor: 'pointer',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
-                fontSize: '0.875rem', fontWeight: type === t.key ? 600 : 400,
-                color: type === t.key ? 'var(--color-primary-deep, #2d5a3d)' : 'var(--color-ink)',
-                transition: 'border-color 0.15s',
-              }}
-            >
+            <button key={t.key} type="button" onClick={() => setType(t.key)} style={{
+              padding: '1rem', borderRadius: 12,
+              border: `2px solid ${type === t.key ? 'var(--color-primary)' : 'var(--color-border)'}`,
+              background: type === t.key ? 'var(--color-primary-subtle, #f0faf6)' : 'var(--color-surface)',
+              cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
+              fontSize: '0.875rem', fontWeight: type === t.key ? 600 : 400,
+              color: type === t.key ? 'var(--color-primary-deep, #2d5a3d)' : 'var(--color-ink)',
+              transition: 'border-color 0.15s',
+            }}>
               <span style={{ fontSize: '1.5rem' }}>{t.icon}</span>
               {t.label}
             </button>
           ))}
         </div>
 
-        {/* Text field — optional for photo type */}
+        {/* Text field */}
         <div className="field" style={{ marginBottom: '1rem' }}>
           <label htmlFor="entry-label">{activeType.prompt}</label>
           <textarea
-            id="entry-label"
-            className="input"
+            id="entry-label" className="input"
             placeholder={activeType.placeholder}
-            rows={3}
-            value={label}
+            rows={3} value={label}
             onChange={(e) => setLabel(e.target.value)}
-            style={{ resize: 'vertical' }}
-            autoFocus
+            style={{ resize: 'vertical' }} autoFocus
           />
         </div>
 
-        {/* Photo — always available, always optional (except photo-only entries) */}
-        <input ref={fileRef} type="file" accept="image/*"
-          style={{ display: 'none' }} onChange={pickPhoto} />
+        {/* Mood slider */}
+        <MoodSlider value={moodScore} onChange={setMoodScore} />
+
+        {/* Media picker */}
+        <input ref={fileRef} type="file" accept="image/*,video/*"
+          style={{ display: 'none' }} onChange={pickMedia} />
 
         {preview ? (
           <div style={{ position: 'relative', marginBottom: '1rem' }}>
-            <img src={preview} alt="Preview"
-              style={{ width: '100%', borderRadius: 8, maxHeight: 300, objectFit: 'cover', display: 'block' }} />
-            <button onClick={removePhoto} style={{
+            {isVideoFile ? (
+              <video src={preview} controls
+                style={{ width: '100%', borderRadius: 8, maxHeight: 300, display: 'block' }} />
+            ) : (
+              <img src={preview} alt="Preview"
+                style={{ width: '100%', borderRadius: 8, maxHeight: 300, objectFit: 'cover', display: 'block' }} />
+            )}
+            <button onClick={removeMedia} style={{
               position: 'absolute', top: 8, right: 8,
               background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
               borderRadius: '50%', width: 28, height: 28, cursor: 'pointer',
@@ -181,10 +186,10 @@ export default function AddEntry() {
           <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} style={{
             width: '100%', border: '2px dashed var(--color-border)', borderRadius: 8,
             padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem',
+            gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1rem',
           }}>
             <span style={{ fontSize: '1.25rem' }}>📷</span>
-            Add a photo (optional)
+            Add a photo or video (optional)
           </button>
         )}
       </div>
