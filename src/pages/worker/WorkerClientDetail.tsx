@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import AiBadge from '../../components/AiBadge'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -13,13 +13,17 @@ const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
   { type: 'meal',     icon: '🍽️', label: 'Meal' },
   { type: 'activity', icon: '🌿', label: 'Activity' },
   { type: 'mood',     icon: '😊', label: 'Mood' },
-  { type: 'photo',    icon: '📷', label: 'Photo' },
+  { type: 'note',     icon: '📝', label: 'Note' },
 ]
 
 const schema = z.object({
-  label: z.string().min(1, 'Please describe what happened'),
+  label: z.string(),
 })
 type FormData = z.infer<typeof schema>
+
+function fileExt(file: File) {
+  return file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+}
 
 export default function WorkerClientDetail() {
   const { clientId } = useParams<{ clientId: string }>()
@@ -30,6 +34,59 @@ export default function WorkerClientDetail() {
   const [selectedType, setSelectedType] = useState<LogType>('activity')
   const [showForm, setShowForm] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editType, setEditType] = useState<LogType>('activity')
+  const [editLabel, setEditLabel] = useState('')
+
+  function startEdit(log: { id: string; type: string; label: string }) {
+    setEditingId(log.id)
+    setEditType((LOG_TYPES.find(t => t.type === log.type)?.type ?? 'note') as LogType)
+    setEditLabel(log.label === '📷' ? '' : log.label)
+  }
+
+  function cancelEdit() { setEditingId(null) }
+
+  const updateLog = useMutation({
+    mutationFn: async ({ id, label, type }: { id: string; label: string; type: LogType }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('log_entries') as any)
+        .update({ label: label.trim() || '📷', type })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['logs', clientId] })
+      setEditingId(null)
+    },
+  })
+
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhoto(file)
+    setPreview(URL.createObjectURL(file))
+  }
+
+  function removePhoto() {
+    setPhoto(null)
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function resetForm() {
+    setShowForm(false)
+    setPhoto(null)
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(null)
+    if (fileRef.current) fileRef.current.value = ''
+    reset()
+  }
 
   const { data: client, isLoading: clientLoading } = useQuery({
     queryKey: ['client', clientId],
@@ -61,27 +118,37 @@ export default function WorkerClientDetail() {
     enabled: !!clientId,
   })
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
   const addLog = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async ({ label, photoFile }: { label: string; photoFile: File | null }) => {
+      let photoPath: string | null = null
+      if (photoFile) {
+        const ext = fileExt(photoFile)
+        const uuid = crypto.randomUUID()
+        photoPath = `${profile!.org_id}/${clientId}/${user!.id}/${uuid}.${ext}`
+        const { error: uploadErr } = await supabase.storage
+          .from('journal-photos')
+          .upload(photoPath, photoFile, { upsert: false })
+        if (uploadErr) throw uploadErr
+      }
       const { error } = await supabase.from('log_entries').insert({
         client_id: clientId!,
         org_id: profile!.org_id!,
         author_id: user!.id,
         type: selectedType,
-        label: data.label,
+        label: label.trim() || '📷',
         occurred_at: new Date().toISOString(),
+        photo_path: photoPath,
       })
       if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['logs', clientId] })
       qc.invalidateQueries({ queryKey: ['today-logs-worker'] })
-      reset()
-      setShowForm(false)
+      resetForm()
       setSuccessMsg('Entry saved!')
       setTimeout(() => setSuccessMsg(''), 3000)
     },
@@ -160,35 +227,61 @@ export default function WorkerClientDetail() {
             ))}
           </div>
 
-          <form onSubmit={handleSubmit((d) => addLog.mutate(d))} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleSubmit((d) => {
+            if (!d.label.trim() && !photo) return
+            addLog.mutate({ label: d.label, photoFile: photo })
+          })} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="field">
               <label htmlFor="label">
-                {selectedType === 'meal' && 'What did they eat?'}
+                {selectedType === 'meal'     && 'What did they eat or drink?'}
                 {selectedType === 'activity' && 'What did they do?'}
-                {selectedType === 'mood' && 'How were they feeling?'}
-                {selectedType === 'photo' && 'Describe the photo'}
+                {selectedType === 'mood'     && 'How were they feeling?'}
+                {selectedType === 'note'     && 'Note (optional if adding a photo)'}
               </label>
               <textarea
                 id="label"
-                className={`input${errors.label ? ' error' : ''}`}
+                className="input"
                 rows={3}
                 placeholder={
-                  selectedType === 'meal' ? 'e.g. Porridge with banana, decaf coffee' :
+                  selectedType === 'meal'     ? 'e.g. Porridge with banana, decaf coffee' :
                   selectedType === 'activity' ? 'e.g. Walked to the park, fed the ducks' :
-                  selectedType === 'mood' ? 'e.g. Calm and engaged all morning' :
-                  'e.g. Smiling in the garden'
+                  selectedType === 'mood'     ? 'e.g. Calm and engaged all morning' :
+                  'Add a note…'
                 }
                 style={{ resize: 'vertical' }}
                 {...register('label')}
               />
-              {errors.label && <span className="field-error">{errors.label.message}</span>}
             </div>
+
+            {/* Photo — always available */}
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={pickPhoto} />
+            {preview ? (
+              <div style={{ position: 'relative' }}>
+                <img src={preview} alt="Preview"
+                  style={{ width: '100%', borderRadius: 8, maxHeight: 260, objectFit: 'cover', display: 'block' }} />
+                <button type="button" onClick={removePhoto} style={{
+                  position: 'absolute', top: 8, right: 8,
+                  background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
+                  borderRadius: '50%', width: 28, height: 28, cursor: 'pointer',
+                  fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>✕</button>
+              </div>
+            ) : (
+              <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} style={{
+                width: '100%', border: '2px dashed var(--color-border)', borderRadius: 8,
+                padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem',
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>📷</span>
+                Add a photo (optional)
+              </button>
+            )}
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() => { setShowForm(false); reset() }}
+                onClick={resetForm}
                 style={{ flex: 1 }}
               >
                 Cancel
@@ -237,20 +330,67 @@ export default function WorkerClientDetail() {
           <div className="scroll-list">
             {logs.map((log) => {
               const typeInfo = LOG_TYPES.find((t) => t.type === log.type)
+              const isEditing = editingId === log.id
+
+              if (isEditing) {
+                return (
+                  <div key={log.id} className="card card-sm" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="log-type-grid">
+                      {LOG_TYPES.map(({ type, icon, label }) => (
+                        <button key={type} type="button"
+                          className={`log-type-btn${editType === type ? ' selected' : ''}`}
+                          onClick={() => setEditType(type)}>
+                          <span className="icon">{icon}</span>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      className="input"
+                      rows={2}
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      autoFocus
+                      style={{ resize: 'vertical' }}
+                    />
+                    {updateLog.isError && (
+                      <div className="alert alert-error" style={{ fontSize: '0.8rem' }}>
+                        {updateLog.error instanceof Error ? updateLog.error.message : 'Could not save.'}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button className="btn btn-ghost" onClick={cancelEdit} style={{ flex: 1, fontSize: '0.85rem' }}>Cancel</button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => updateLog.mutate({ id: log.id, label: editLabel, type: editType })}
+                        disabled={updateLog.isPending}
+                        style={{ flex: 2, fontSize: '0.85rem' }}
+                      >
+                        {updateLog.isPending ? <span className="spinner" /> : 'Save changes'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              }
+
               return (
-                <div key={log.id} className="card card-sm" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon}</span>
+                <div key={log.id} className="card card-sm"
+                  style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer' }}
+                  onClick={() => startEdit(log)}
+                >
+                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon ?? '📷'}</span>
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
                     <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
                       {new Date(log.occurred_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
                       {' · '}
-                      {typeInfo?.label}
+                      {typeInfo?.label ?? log.type}
                       {log.ai_source && log.ai_reason && (
                         <> · <AiBadge reason={log.ai_reason} /></>
                       )}
                     </p>
                   </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2 }}>✏️</span>
                 </div>
               )
             })}

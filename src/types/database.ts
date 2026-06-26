@@ -2,8 +2,9 @@ type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 
-export type Role = 'coordinator' | 'support_worker' | 'family' | 'therapist'
-export type LogType = 'meal' | 'activity' | 'mood' | 'photo'
+export type Role = 'coordinator' | 'support_worker' | 'trusted_support_worker' | 'family' | 'therapist'
+export type OrgType = 'family' | 'provider'
+export type LogType = 'meal' | 'activity' | 'mood' | 'note' | 'photo'
 export type CircleStatus = 'proposed' | 'pending_approval' | 'in_circle' | 'removed'
 export type DecisionMakerKind = 'self' | 'guardian' | 'nominee'
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'cancelled'
@@ -28,6 +29,7 @@ export interface Database {
           myappbuddy_account_id: string | null
           plan: string
           billing_status: BillingStatus
+          org_type: OrgType
           created_at: string
         }
         Insert: {
@@ -41,6 +43,7 @@ export interface Database {
           myappbuddy_account_id?: string | null
           plan?: string
           billing_status?: BillingStatus
+          org_type?: OrgType
           created_at?: string
         }
         Update: {
@@ -53,6 +56,7 @@ export interface Database {
           myappbuddy_account_id?: string | null
           plan?: string
           billing_status?: BillingStatus
+          org_type?: OrgType
         }
         Relationships: []
       }
@@ -353,6 +357,26 @@ export interface Database {
       accept_invite: {
         Args: { p_token: string }
         Returns: Json
+      }
+      setup_family_org: {
+        Args: { p_participant_name: string }
+        Returns: Json
+      }
+      promote_member: {
+        Args: { p_user_id: string; p_new_role: string }
+        Returns: Json
+      }
+      demote_member: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      remove_member: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      get_org_members: {
+        Args: Record<string, never>
+        Returns: Array<{ id: string; full_name: string; role: string }>
       }
     }
     Enums: {

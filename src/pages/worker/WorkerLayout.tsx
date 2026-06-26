@@ -3,7 +3,7 @@ import { signOut } from '../../lib/auth'
 import { useAuth } from '../../context/AuthContext'
 
 export default function WorkerLayout() {
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const navigate = useNavigate()
 
   async function handleSignOut() {
@@ -30,10 +30,17 @@ export default function WorkerLayout() {
           <span className="badge badge-sage" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>Worker</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>{firstName(profile?.full_name)}</span>
-          <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>
-            Out
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+            <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>
+              Sign out
+            </button>
+            {(profile?.full_name || user?.email) && (
+              <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)', paddingRight: '0.5rem', textAlign: 'right', lineHeight: 1.4 }}>
+                {profile?.full_name && <>{profile.full_name}<br /></>}
+                {user?.email}
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -54,11 +61,14 @@ export default function WorkerLayout() {
           <span style={{ fontSize: '1.25rem' }}>💬</span>
           Messages
         </NavLink>
+        {profile?.role === 'trusted_support_worker' && (
+          <NavLink to="/members" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+            <span style={{ fontSize: '1.25rem' }}>➕</span>
+            Invite
+          </NavLink>
+        )}
       </nav>
     </div>
   )
 }
 
-function firstName(name?: string | null) {
-  return name?.split(' ')[0] ?? 'there'
-}
