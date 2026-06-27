@@ -8,11 +8,12 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      workbox: {
-        cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
+      injectManifest: {
+        injectionPoint: 'self.__WB_MANIFEST',
       },
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {

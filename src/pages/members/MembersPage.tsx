@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { usePermissions } from '../../hooks/usePermissions'
 
 type OrgMember = { id: string; full_name: string; role: string; email?: string }
 
@@ -156,8 +157,8 @@ export default function MembersPage() {
   const [actionError, setActionError] = useState('')
   const [resendingId, setResendingId] = useState<string | null>(null)
 
+  const perms = usePermissions()
   const isCoordinator = profile?.role === 'coordinator'
-  const isTrustedWorker = profile?.role === 'trusted_support_worker'
   const isFamilyOrg = org?.org_type === 'family'
 
   const { data: members = [], isLoading } = useQuery({
@@ -251,13 +252,22 @@ export default function MembersPage() {
     }
   }
 
-  const invitableRoles: string[] = isCoordinator
-    ? isFamilyOrg
-      ? ['family', 'support_worker', 'trusted_support_worker']
-      : ['support_worker', 'trusted_support_worker']
-    : isTrustedWorker
-      ? ['support_worker']
-      : []
+  // Roles the current user is allowed to invite
+  const invitableRoles: string[] = (() => {
+    if (isCoordinator) {
+      // Coordinator can always invite; family org includes 'family' role
+      return isFamilyOrg
+        ? ['family', 'support_worker', 'trusted_support_worker']
+        : ['support_worker', 'trusted_support_worker']
+    }
+    if (!perms.invite_members) return []
+    // Family members can invite the same set as a coordinator
+    if (profile?.role === 'family') {
+      return ['family', 'support_worker', 'trusted_support_worker']
+    }
+    // Workers (trusted or standard) can only invite other support workers
+    return ['support_worker']
+  })()
 
   const grouped = ROLE_ORDER.reduce<Record<string, OrgMember[]>>((acc, r) => {
     const inRole = members.filter((m) => m.role === r)
@@ -266,6 +276,7 @@ export default function MembersPage() {
   }, {})
 
   const coordinatorCount = members.filter((m) => m.role === 'coordinator').length
+  const isOrgOwner = (memberId: string) => !!org?.owner_id && org.owner_id === memberId
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
@@ -333,9 +344,11 @@ export default function MembersPage() {
               </p>
               {roleMembers.map((m) => (
                 <div key={m.id} className="card card-sm" style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: '0.5rem', gap: '0.5rem',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {/* Avatar + info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: '50%',
                       background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
@@ -344,19 +357,35 @@ export default function MembersPage() {
                     }}>
                       {m.full_name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: '0.9375rem' }}>
-                        {m.full_name}
+                    <div style={{ minWidth: 0 }}>
+                      {/* Name row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <p style={{ margin: 0, fontWeight: 500, fontSize: '0.9375rem' }}>{m.full_name}</p>
                         {m.id === user?.id && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginLeft: '0.5rem' }}>you</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--color-muted)' }}>you</span>
                         )}
-                      </p>
+                        {isOrgOwner(m.id) && (
+                          <span style={{
+                            fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 700,
+                            padding: '0.1rem 0.4rem', border: '1px solid currentColor',
+                            borderRadius: 4, letterSpacing: '0.05em', textTransform: 'uppercase',
+                          }}>Owner</span>
+                        )}
+                      </div>
+                      {/* Email */}
+                      {m.email && (
+                        <p style={{ margin: '0.1rem 0 0.2rem', fontSize: '0.75rem', color: 'var(--color-muted)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {m.email}
+                        </p>
+                      )}
                       <span style={roleBadgeStyle(m.role)}>{ROLE_LABEL[m.role] ?? m.role}</span>
                     </div>
                   </div>
 
-                  {isCoordinator && m.id !== user?.id && (
-                    <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                  {/* Actions — coordinator only, not for self, not for org owner */}
+                  {isCoordinator && m.id !== user?.id && !isOrgOwner(m.id) && (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
                       {m.role === 'family' && isFamilyOrg && (
                         <button className="btn btn-ghost" onClick={() => promote(m.id, 'coordinator')}
                           style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make coordinator">

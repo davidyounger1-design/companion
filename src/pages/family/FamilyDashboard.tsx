@@ -6,9 +6,12 @@ import { supabase } from '../../lib/supabase'
 import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
+import FamilyBottomNav from '../../components/FamilyBottomNav'
 import type { LogType } from '../../types/database'
+import { useInstallPrompt } from '../../hooks/useInstallPrompt'
+import { usePushNotifications } from '../../hooks/usePushNotifications'
 
-const APP_VERSION = '0.2.0'
+const APP_VERSION = '0.4.1'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -239,6 +242,137 @@ function groupByDate(entries: EntryWithAuthor[]) {
   return Object.entries(groups)
 }
 
+function toLocalDate(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function CalendarSheet({
+  entries, selectedDate, onSelect, onClose,
+}: {
+  entries: EntryWithAuthor[]
+  selectedDate: string | null
+  onSelect: (date: string | null) => void
+  onClose: () => void
+}) {
+  const today = new Date()
+  const [viewYear, setViewYear] = useState(
+    selectedDate ? +selectedDate.slice(0, 4) : today.getFullYear()
+  )
+  const [viewMonth, setViewMonth] = useState(
+    selectedDate ? +selectedDate.slice(5, 7) - 1 : today.getMonth()
+  )
+
+  const entryDates = new Set(entries.map(e => toLocalDate(e.occurred_at)))
+  const firstDay = new Date(viewYear, viewMonth, 1)
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const startDow = firstDay.getDay()
+  const monthLabel = firstDay.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })
+  const todayStr = toLocalDate(today.toISOString())
+
+  function pad(n: number) { return String(n).padStart(2, '0') }
+  function iso(d: number) { return `${viewYear}-${pad(viewMonth + 1)}-${pad(d)}` }
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+    else setViewMonth(m => m - 1)
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const cells: (number | null)[] = []
+  for (let i = 0; i < startDow; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, zIndex: 49,
+        background: 'rgba(0,0,0,0.4)',
+      }} />
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+        background: 'var(--color-surface)',
+        borderRadius: '20px 20px 0 0',
+        padding: '0.75rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom))',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
+        maxWidth: 520, margin: '0 auto',
+      }}>
+        {/* drag handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.875rem' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        </div>
+
+        {/* month navigation */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <button className="btn btn-ghost" onClick={prevMonth} style={{ padding: '0.3rem 0.75rem' }}>←</button>
+          <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{monthLabel}</span>
+          <button className="btn btn-ghost" onClick={nextMonth} style={{ padding: '0.3rem 0.75rem' }}>→</button>
+        </div>
+
+        {/* day-of-week headers */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+            <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-muted)', padding: '2px 0' }}>{d}</div>
+          ))}
+        </div>
+
+        {/* calendar grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+          {cells.map((day, i) => {
+            if (!day) return <div key={i} />
+            const dateStr = iso(day)
+            const hasEntries = entryDates.has(dateStr)
+            const isSelected = selectedDate === dateStr
+            const isToday = dateStr === todayStr
+            return (
+              <button
+                key={i}
+                disabled={!hasEntries}
+                onClick={() => { onSelect(isSelected ? null : dateStr); onClose() }}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  padding: '0.45rem 0',
+                  borderRadius: 10,
+                  border: isToday && !isSelected ? '1.5px solid var(--color-primary)' : '1.5px solid transparent',
+                  background: isSelected ? 'var(--color-primary)' : 'transparent',
+                  cursor: hasEntries ? 'pointer' : 'default',
+                  opacity: hasEntries ? 1 : 0.3,
+                }}
+              >
+                <span style={{
+                  fontSize: '0.875rem',
+                  fontWeight: isSelected || isToday ? 700 : 400,
+                  color: isSelected ? '#fff' : isToday ? 'var(--color-primary)' : 'var(--color-text)',
+                  lineHeight: 1.3,
+                }}>
+                  {day}
+                </span>
+                <div style={{
+                  width: 5, height: 5, borderRadius: '50%', marginTop: 2,
+                  background: isSelected ? 'rgba(255,255,255,0.6)' : hasEntries ? 'var(--color-primary)' : 'transparent',
+                }} />
+              </button>
+            )
+          })}
+        </div>
+
+        {selectedDate && (
+          <button className="btn btn-ghost" onClick={() => { onSelect(null); onClose() }}
+            style={{ width: '100%', marginTop: '1rem', fontSize: '0.875rem' }}>
+            Show all entries
+          </button>
+        )}
+      </div>
+    </>
+  )
+}
+
+
+
 export default function FamilyDashboard() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
@@ -248,7 +382,16 @@ export default function FamilyDashboard() {
   const isFamily = profile?.role === 'family'
   const canEdit = isCoordinator || isFamily
 
+  const { canInstall, isIOS, install } = useInstallPrompt()
+  const { permission: pushPermission, subscribing, subscribe } = usePushNotifications()
+  const [showIOSTip, setShowIOSTip] = useState(false)
+  const [pushDismissed, setPushDismissed] = useState(
+    () => localStorage.getItem('push_dismissed') === '1'
+  )
+
   const [editingEntry, setEditingEntry] = useState<EntryWithAuthor | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [showCalendar, setShowCalendar] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDob, setEditDob] = useState('')
@@ -339,7 +482,10 @@ export default function FamilyDashboard() {
     author_name: authorMap[e.author_id],
   }))
 
-  const grouped = groupByDate(entriesWithAuthors)
+  const filteredEntries = selectedDate
+    ? entriesWithAuthors.filter(e => toLocalDate(e.occurred_at) === selectedDate)
+    : entriesWithAuthors
+  const grouped = groupByDate(filteredEntries)
   const currentUserName = profile?.full_name ?? ''
 
   async function saveEntryEdit(id: string, label: string, type: LogType, moodScore: number) {
@@ -357,63 +503,80 @@ export default function FamilyDashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '5rem' }}>
-      {/* Header */}
-      <div style={{
-        padding: '1rem 1rem 0', position: 'sticky', top: 0,
-        background: 'var(--color-bg)', zIndex: 10, borderBottom: '1px solid var(--color-border)',
+    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+
+      {/* Header — same pattern as WorkerLayout */}
+      <header style={{
+        background: 'var(--color-surface)',
+        borderBottom: '1px solid color-mix(in srgb, var(--color-muted) 20%, transparent)',
+        padding: '0.875rem 1.25rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <div style={{ maxWidth: 520, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem' }}>
-          {editMode ? (
-            <div style={{ flex: 1 }}>
-              <p className="eyebrow" style={{ margin: '0 0 0.4rem' }}>Edit participant</p>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <input className="input" value={editName} onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Full name" autoFocus style={{ fontSize: '0.9rem', minHeight: 36, padding: '0.4rem 0.75rem', width: 160 }} />
-                <input type="date" className="input" value={editDob} onChange={(e) => setEditDob(e.target.value)}
-                  style={{ fontSize: '0.9rem', minHeight: 36, padding: '0.4rem 0.75rem', width: 150 }} />
-                <button className="btn btn-primary" onClick={saveEdit} disabled={saving || !editName.trim()}
-                  style={{ fontSize: '0.85rem', minHeight: 36, padding: '0.4rem 1rem' }}>
-                  {saving ? <span className="spinner" /> : 'Save'}
-                </button>
-                <button className="btn btn-ghost" onClick={() => setEditMode(false)}
-                  style={{ fontSize: '0.85rem', minHeight: 36, padding: '0.4rem 0.75rem' }}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <div>
-                  <p className="eyebrow" style={{ margin: 0 }}>Care journal</p>
-                  <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>{participantName}</h1>
-                </div>
-                {isCoordinator && (
-                  <button className="btn btn-ghost" onClick={startEdit}
-                    style={{ fontSize: '1rem', padding: '0.2rem 0.4rem', lineHeight: 1 }} title="Edit participant">✏️</button>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                {isCoordinator && (
-                  <button className="btn btn-ghost" onClick={() => navigate('/members')} style={{ fontSize: '0.8rem' }}>Members</button>
-                )}
-                <button className="btn btn-ghost" onClick={() => navigate('/family/messages')} style={{ fontSize: '0.8rem' }} title="Messages">💬</button>
-                <button className="btn btn-ghost" onClick={() => navigate('/family/notices')} style={{ fontSize: '0.8rem' }} title="Notice board">📌</button>
-                <button className="btn btn-primary" onClick={() => navigate('/family/add')} style={{ fontSize: '0.875rem' }}>+ Add</button>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                  <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Sign out</button>
-                  {(currentUserName || user?.email) && (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', paddingRight: '0.25rem', textAlign: 'right', lineHeight: 1.4 }}>
-                      {currentUserName && <>{currentUserName}<br /></>}{user?.email}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
+        <div>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>Companion</span>
+          <span className="badge badge-sage" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
+            {isCoordinator ? 'Coordinator' : 'Family'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+          <button className="btn btn-ghost" onClick={handleSignOut}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>Sign out</button>
+          {(currentUserName || user?.email) && (
+            <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)', paddingRight: '0.5rem', textAlign: 'right', lineHeight: 1.4 }}>
+              {currentUserName && <>{currentUserName}<br /></>}
+              {user?.email}
+            </span>
           )}
         </div>
-      </div>
+      </header>
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
+
+        {/* Participant name + edit */}
+        {editMode ? (
+          <div style={{ marginBottom: '1rem' }}>
+            <p className="eyebrow" style={{ margin: '0 0 0.5rem' }}>Edit participant</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <input className="input" value={editName} onChange={(e) => setEditName(e.target.value)}
+                placeholder="Full name" autoFocus />
+              <input type="date" className="input" value={editDob} onChange={(e) => setEditDob(e.target.value)} />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-ghost" onClick={() => setEditMode(false)} style={{ flex: 1 }}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveEdit} disabled={saving || !editName.trim()} style={{ flex: 2 }}>
+                  {saving ? <span className="spinner" /> : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <p className="eyebrow" style={{ margin: 0 }}>Care journal</p>
+                <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {participantName}
+                </h1>
+              </div>
+              {isCoordinator && (
+                <button className="btn btn-ghost" onClick={startEdit}
+                  style={{ fontSize: '1rem', padding: '0.2rem 0.4rem', lineHeight: 1, flexShrink: 0 }} title="Edit participant">✏️</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, marginLeft: '0.75rem' }}>
+              <button className="btn btn-ghost" onClick={() => setShowCalendar(true)}
+                style={{ fontSize: '1rem', padding: '0.4rem 0.6rem' }} title="Filter by date">
+                📅
+              </button>
+              <button className="btn btn-primary" onClick={() => navigate('/family/add')}
+                style={{ fontSize: '0.875rem' }}>
+                + Add
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Active notices */}
         {notices.map((n: any) => (
           <div key={n.id} style={{
@@ -449,8 +612,47 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {/* Mood tracker */}
         {entries.length > 0 && <MoodChart entries={entries} />}
+
+        {/* Date filter bar */}
+        {entries.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '1rem 0 0.25rem' }}>
+            <button
+              onClick={() => setShowCalendar(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                background: selectedDate ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)' : 'var(--color-surface)',
+                border: `1px solid ${selectedDate ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                borderRadius: 20, padding: '0.3rem 0.8rem', cursor: 'pointer',
+                fontSize: '0.8125rem', fontWeight: 500,
+                color: selectedDate ? 'var(--color-primary)' : 'var(--color-muted)',
+              }}
+            >
+              <span style={{ fontSize: '0.9rem' }}>📅</span>
+              {selectedDate
+                ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+                : 'All entries'}
+            </button>
+            {selectedDate && (
+              <button onClick={() => setSelectedDate(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--color-muted)', padding: '0.1rem 0.3rem', lineHeight: 1 }}
+                title="Clear filter">×</button>
+            )}
+            {selectedDate && (
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginLeft: 'auto' }}>
+                {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* No entries for selected date */}
+        {selectedDate && filteredEntries.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-muted)' }}>
+            <p style={{ fontSize: '1.5rem', margin: '0 0 0.5rem' }}>📭</p>
+            <p style={{ fontSize: '0.9rem', margin: 0 }}>No entries for this day</p>
+          </div>
+        )}
 
         {grouped.map(([date, dayEntries]) => (
           <div key={date}>
@@ -465,12 +667,65 @@ export default function FamilyDashboard() {
           </div>
         ))}
 
+
+        {/* Install app banner */}
+        {canInstall && !isIOS && (
+          <div className="card" style={{ marginTop: '1.5rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))' }}>
+            <span style={{ fontSize: '1.4rem' }}>📱</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>Add to home screen</p>
+              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>Install Companion for quick access, even offline.</p>
+            </div>
+            <button className="btn btn-primary" onClick={install} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', flexShrink: 0 }}>Install</button>
+          </div>
+        )}
+        {canInstall && isIOS && (
+          <div className="card" style={{ marginTop: '1.5rem', padding: '0.875rem 1rem', background: 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: showIOSTip ? '0.75rem' : 0 }}>
+              <span style={{ fontSize: '1.4rem' }}>📱</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>Add to home screen</p>
+                <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>Install Companion for quick access.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowIOSTip(t => !t)} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', flexShrink: 0 }}>
+                {showIOSTip ? 'Got it' : 'How?'}
+              </button>
+            </div>
+            {showIOSTip && (
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.6, paddingLeft: '2.15rem' }}>
+                Tap the <strong>Share</strong> button (⬆️) at the bottom of Safari, then choose <strong>Add to Home Screen</strong>.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Notification permission banner */}
+        {pushPermission === 'default' && !pushDismissed && (
+          <div className="card" style={{ marginTop: '1rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.4rem' }}>🔔</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>Get message notifications</p>
+              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>Know when someone sends you a message.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+              <button className="btn btn-ghost" onClick={() => { setPushDismissed(true); localStorage.setItem('push_dismissed','1') }}
+                style={{ fontSize: '0.75rem', padding: '0.35rem 0.6rem', color: 'var(--color-muted)' }}>Later</button>
+              <button className="btn btn-primary" onClick={subscribe} disabled={subscribing}
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+                {subscribing ? '…' : 'Enable'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Footer links */}
         <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-          <button onClick={() => navigate('/help')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
-            ❓ Help
-          </button>
+          {isCoordinator && (
+            <button onClick={() => navigate('/members')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
+              👥 Members
+            </button>
+          )}
           {isCoordinator && (
             <button onClick={() => navigate('/settings/permissions')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
@@ -487,6 +742,17 @@ export default function FamilyDashboard() {
       {editingEntry && (
         <EditEntryModal entry={editingEntry} onSave={saveEntryEdit} onClose={() => setEditingEntry(null)} />
       )}
+
+      {showCalendar && (
+        <CalendarSheet
+          entries={entriesWithAuthors}
+          selectedDate={selectedDate}
+          onSelect={setSelectedDate}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
+
+      <FamilyBottomNav />
     </div>
   )
 }

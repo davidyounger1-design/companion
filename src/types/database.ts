@@ -30,6 +30,7 @@ export interface Database {
           plan: string
           billing_status: BillingStatus
           org_type: OrgType
+          owner_id: string | null
           created_at: string
         }
         Insert: {
@@ -44,6 +45,7 @@ export interface Database {
           plan?: string
           billing_status?: BillingStatus
           org_type?: OrgType
+          owner_id?: string | null
           created_at?: string
         }
         Update: {
@@ -57,6 +59,7 @@ export interface Database {
           plan?: string
           billing_status?: BillingStatus
           org_type?: OrgType
+          owner_id?: string | null
         }
         Relationships: []
       }
@@ -283,8 +286,8 @@ export interface Database {
         Relationships: []
       }
       messages: {
-        Row: { id: string; client_id: string; org_id: string; sender_id: string; recipient_id: string | null; body: string; created_at: string }
-        Insert: { id?: string; client_id: string; org_id: string; sender_id: string; recipient_id?: string | null; body: string; created_at?: string }
+        Row: { id: string; client_id: string | null; org_id: string; sender_id: string; recipient_id: string | null; body: string; created_at: string }
+        Insert: { id?: string; client_id?: string | null; org_id: string; sender_id: string; recipient_id?: string | null; body: string; created_at?: string }
         Update: { body?: string }
         Relationships: []
       }

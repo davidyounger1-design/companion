@@ -23,17 +23,19 @@ import FamilyStep3Done from './pages/setup/family/FamilyStep3Done'
 import FamilyDashboard from './pages/family/FamilyDashboard'
 import AddEntry from './pages/family/AddEntry'
 import EditParticipant from './pages/family/EditParticipant'
-import FamilyMessages from './pages/family/FamilyMessages'
 import FamilyNoticeBoard from './pages/family/FamilyNoticeBoard'
+import MessagesHub from './pages/messages/MessagesHub'
+import MessageThread from './pages/messages/MessageThread'
 import WorkerLayout from './pages/worker/WorkerLayout'
 import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
-import WorkerMessages from './pages/worker/WorkerMessages'
 import WorkerNoticeBoard from './pages/worker/WorkerNoticeBoard'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
 import MembersPage from './pages/members/MembersPage'
 import ReleaseNotes from './pages/ReleaseNotes'
 import Help from './pages/Help'
+import Feedback from './pages/Feedback'
+import Account from './pages/Account'
 import PermissionsPage from './pages/settings/PermissionsPage'
 import Deck from './pages/Deck'
 
@@ -85,6 +87,8 @@ export default function App() {
             <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route path="/release-notes" element={<ReleaseNotes />} />
             <Route path="/help" element={<RequireAuth><Help /></RequireAuth>} />
+            <Route path="/feedback" element={<RequireAuth><Feedback /></RequireAuth>} />
+            <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
             <Route path="/settings/permissions" element={<RequireAuth><PermissionsPage /></RequireAuth>} />
 
             {/* Provider setup wizard */}
@@ -107,11 +111,14 @@ export default function App() {
               <Route path="done" element={<FamilyStep3Done />} />
             </Route>
 
+            {/* Unified messaging */}
+            <Route path="/messages" element={<RequireAuth><MessagesHub /></RequireAuth>} />
+            <Route path="/messages/:userId" element={<RequireAuth><MessageThread /></RequireAuth>} />
+
             {/* Family journal */}
             <Route path="/family" element={<RequireAuth><FamilyDashboard /></RequireAuth>} />
             <Route path="/family/add" element={<RequireAuth><AddEntry /></RequireAuth>} />
             <Route path="/family/participant" element={<RequireAuth><EditParticipant /></RequireAuth>} />
-            <Route path="/family/messages" element={<RequireAuth><FamilyMessages /></RequireAuth>} />
             <Route path="/family/notices" element={<RequireAuth><FamilyNoticeBoard /></RequireAuth>} />
 
             {/* Coordinator dashboard */}
@@ -126,8 +133,7 @@ export default function App() {
               <Route path="clients/:clientId" element={<WorkerClientDetail />} />
             </Route>
 
-            {/* Worker messaging / notice board (outside WorkerLayout — full-page) */}
-            <Route path="/worker/messages" element={<RequireAuth><WorkerMessages /></RequireAuth>} />
+            {/* Worker notice board (outside WorkerLayout — full-page) */}
             <Route path="/worker/notices" element={<RequireAuth><WorkerNoticeBoard /></RequireAuth>} />
 
             {/* Fallback */}

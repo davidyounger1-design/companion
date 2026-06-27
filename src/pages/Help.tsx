@@ -1,9 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const SUPPORT_EMAIL = 'support@myappbuddy.com.au'
-const IDEAS_URL = 'https://myappbuddy.com.au/ideas'
-
 type Section = { icon: string; title: string; body: string }
 
 const GUIDE: Record<string, { heading: string; sections: Section[] }> = {
@@ -38,7 +35,7 @@ const GUIDE: Record<string, { heading: string; sections: Section[] }> = {
       {
         icon: '💬',
         title: 'Messages',
-        body: 'The 💬 button opens the family group thread — a shared chat visible to all family members and the coordinator. Workers have a direct private thread with you.',
+        body: 'The messages tab opens the hub showing all org members. Tap any person for a direct thread, or tap the family group for the shared thread visible to all family members and coordinators.',
       },
       {
         icon: '↩️',
@@ -73,7 +70,7 @@ const GUIDE: Record<string, { heading: string; sections: Section[] }> = {
       {
         icon: '💬',
         title: 'Messages',
-        body: 'Tap the 💬 button to open the family group chat. Messages are shared with all family members and the coordinator. Great for quick updates and coordination.',
+        body: 'Tap the 💬 button to open the message hub. Send a direct message to any team member, or use the family group thread for shared updates visible to all family members and the coordinator.',
       },
     ],
   },
@@ -98,7 +95,7 @@ const GUIDE: Record<string, { heading: string; sections: Section[] }> = {
       {
         icon: '💬',
         title: 'Messages',
-        body: 'Use the messages tab (💬 in the bottom nav) to send a direct message to the coordinator. Tap into the app to see your unread count badge.',
+        body: 'Use the messages tab (💬 in the bottom nav) to message any team member directly, or the family group thread.',
       },
     ],
   },
@@ -118,7 +115,7 @@ const GUIDE: Record<string, { heading: string; sections: Section[] }> = {
       {
         icon: '💬',
         title: 'Messages',
-        body: 'Use the messages tab (💬 in the bottom nav) to send a direct message to the coordinator.',
+        body: 'Use the messages tab (💬 in the bottom nav) to send a direct message to the coordinator or other team members.',
       },
     ],
   },
@@ -133,7 +130,7 @@ const GUIDE: Record<string, { heading: string; sections: Section[] }> = {
       {
         icon: '💬',
         title: 'Messages',
-        body: 'Use the messages feature to communicate directly with the coordinator.',
+        body: 'Use the messages feature to communicate directly with the coordinator or other team members.',
       },
     ],
   },
@@ -154,7 +151,7 @@ export default function Help() {
       }}>
         <button className="btn btn-ghost" onClick={() => navigate(-1)}
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
-        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help &amp; support</h1>
+        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help guide</h1>
       </div>
 
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '1rem' }}>
@@ -174,65 +171,6 @@ export default function Help() {
           </div>
         ))}
 
-        {/* Coordinator-only: link to permissions */}
-        {role === 'coordinator' && (
-          <button onClick={() => navigate('/settings/permissions')}
-            className="card" style={{
-              width: '100%', textAlign: 'left', marginBottom: '0.75rem',
-              cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)',
-              borderRadius: 12, padding: '1rem',
-            }}>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '1.4rem' }}>🔐</span>
-              <div>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>Manage permissions →</p>
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-                  Control what each role can see and do
-                </p>
-              </div>
-            </div>
-          </button>
-        )}
-
-        {/* Support section */}
-        <div style={{ marginTop: '2rem' }}>
-          <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
-            Get help
-          </p>
-          <div className="card" style={{ marginBottom: '0.75rem' }}>
-            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
-              <span style={{ fontSize: '1.4rem' }}>✉️</span>
-              <div>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>Email support</p>
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: 'var(--color-primary)' }}>{SUPPORT_EMAIL}</p>
-              </div>
-            </a>
-          </div>
-          <div className="card" style={{ marginBottom: '0.75rem' }}>
-            <a href={IDEAS_URL} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
-              <span style={{ fontSize: '1.4rem' }}>💡</span>
-              <div>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>Suggest an idea</p>
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-                  Tell us what would make Companion better for you
-                </p>
-              </div>
-            </a>
-          </div>
-          <div className="card">
-            <div onClick={() => navigate('/release-notes')}
-              style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', cursor: 'pointer' }}>
-              <span style={{ fontSize: '1.4rem' }}>📋</span>
-              <div>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>Release notes</p>
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-                  See what's new in Companion
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )

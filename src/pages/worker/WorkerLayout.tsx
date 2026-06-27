@@ -81,7 +81,7 @@ export default function WorkerLayout() {
           <span style={{ fontSize: '1.25rem' }}>📌</span>
           Notices
         </NavLink>
-        <NavLink to="/worker/messages" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+        <NavLink to="/messages" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
           <span style={{ fontSize: '1.25rem', position: 'relative', display: 'inline-flex' }}>
             💬
             {unread > 0 && (
@@ -96,6 +96,10 @@ export default function WorkerLayout() {
             )}
           </span>
           Messages
+        </NavLink>
+        <NavLink to="/feedback" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span style={{ fontSize: '1.25rem' }}>📝</span>
+          Feedback
         </NavLink>
         <NavLink to="/help" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
           <span style={{ fontSize: '1.25rem' }}>❓</span>

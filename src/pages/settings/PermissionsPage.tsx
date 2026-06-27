@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { DEFAULT_PERMS, type PermissionKey, type RolePerms, type PermissionsMap } from '../../hooks/usePermissions'
 
-const CONFIGURABLE_ROLES = [
+const ALL_CONFIGURABLE_ROLES = [
   { key: 'family', label: 'Family member', icon: '👨‍👩‍👧' },
   { key: 'trusted_support_worker', label: 'Trusted support worker', icon: '⭐' },
   { key: 'support_worker', label: 'Support worker', icon: '👤' },
@@ -35,7 +35,11 @@ const PERMISSION_LABELS: Record<PermissionKey, { label: string; description: str
   },
   send_messages: {
     label: 'Send messages',
-    description: 'Can send messages to the coordinator or family group thread',
+    description: 'Can send direct messages to other members',
+  },
+  invite_members: {
+    label: 'Invite members',
+    description: 'Can send invitations — coordinators & family can invite any role; workers can only invite other support workers',
   },
 }
 
@@ -46,12 +50,19 @@ const PERM_KEYS: PermissionKey[] = [
   'edit_any_entry',
   'post_notices',
   'send_messages',
+  'invite_members',
 ]
 
 export default function PermissionsPage() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { profile, org } = useAuth()
   const qc = useQueryClient()
+
+  const isFamilyOrg = org?.org_type === 'family'
+  // Therapist is a provider-org-only role — hide it from family plan
+  const CONFIGURABLE_ROLES = isFamilyOrg
+    ? ALL_CONFIGURABLE_ROLES.filter(r => r.key !== 'therapist')
+    : ALL_CONFIGURABLE_ROLES
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 

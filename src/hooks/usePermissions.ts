@@ -9,6 +9,7 @@ export type PermissionKey =
   | 'add_entries'
   | 'post_notices'
   | 'send_messages'
+  | 'invite_members'
 
 type RolePerms = Record<PermissionKey, boolean>
 type PermissionsMap = Partial<Record<string, Partial<RolePerms>>>
@@ -21,6 +22,7 @@ const COORDINATOR_PERMS: RolePerms = {
   add_entries: true,
   post_notices: true,
   send_messages: true,
+  invite_members: true,
 }
 
 const DEFAULT_PERMS: Record<string, RolePerms> = {
@@ -31,6 +33,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     add_entries: true,
     post_notices: true,
     send_messages: true,
+    invite_members: true,
   },
   trusted_support_worker: {
     view_all_entries: false,
@@ -39,6 +42,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     add_entries: true,
     post_notices: true,
     send_messages: true,
+    invite_members: true,
   },
   support_worker: {
     view_all_entries: false,
@@ -47,6 +51,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     add_entries: true,
     post_notices: false,
     send_messages: true,
+    invite_members: false,
   },
   therapist: {
     view_all_entries: true,
@@ -55,6 +60,7 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     add_entries: false,
     post_notices: false,
     send_messages: true,
+    invite_members: false,
   },
 }
 

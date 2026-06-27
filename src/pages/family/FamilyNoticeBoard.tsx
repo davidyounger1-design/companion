@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import FamilyBottomNav from '../../components/FamilyBottomNav'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -74,7 +75,7 @@ export default function FamilyNoticeBoard() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -132,6 +133,7 @@ export default function FamilyNoticeBoard() {
           </div>
         ))}
       </div>
+      <FamilyBottomNav />
     </div>
   )
 }

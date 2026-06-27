@@ -209,7 +209,7 @@ export default function Landing() {
         </a>
 
         {/* Center nav links */}
-        <div style={{ display: 'flex', gap: '2rem', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+        <div className="landing-nav-links">
           {['How it works', 'Features', 'Privacy', 'Pricing'].map(label => (
             <a key={label}
               href={`#${label.toLowerCase().replace(/ /g, '-')}`}
@@ -240,16 +240,7 @@ export default function Landing() {
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <section id="top" style={{
-        maxWidth: 1200,
-        margin: '0 auto',
-        padding: '5rem 2rem 4rem',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '4rem',
-        alignItems: 'center',
-        minHeight: 'calc(100vh - 60px)',
-      }}>
+      <section id="top" className="landing-hero">
         {/* Left: copy */}
         <div>
           {/* Pill badge */}
@@ -336,7 +327,7 @@ export default function Landing() {
         </div>
 
         {/* Right: phone mockup */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="landing-phone-col">
           <PhoneMockup screen="digest" />
         </div>
       </section>
@@ -395,17 +386,10 @@ export default function Landing() {
       </section>
 
       {/* ── Features ─────────────────────────────────────────────────────────── */}
-      <section id="features" style={{ padding: '6rem 2rem' }}>
+      <section id="features" style={{ padding: '5rem 0' }}>
 
         {/* Feature 1: Daily Digest */}
-        <div style={{
-          maxWidth: 1100,
-          margin: '0 auto 6rem',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '5rem',
-          alignItems: 'center',
-        }}>
+        <div className="landing-feature">
           <div>
             <p style={{ fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>The daily digest</p>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 400, lineHeight: 1.2, marginBottom: '1rem' }}>
@@ -423,21 +407,14 @@ export default function Landing() {
               ))}
             </ul>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div className="landing-phone-col">
             <PhoneMockup screen="digest" />
           </div>
         </div>
 
         {/* Feature 2: Behaviour Notes */}
-        <div style={{
-          maxWidth: 1100,
-          margin: '0 auto 6rem',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '5rem',
-          alignItems: 'center',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'center', order: -1 }}>
+        <div className="landing-feature">
+          <div className="landing-phone-col" style={{ order: -1 }}>
             <PhoneMockup screen="behaviour" />
           </div>
           <div>
@@ -460,14 +437,7 @@ export default function Landing() {
         </div>
 
         {/* Feature 3: Privacy & consent */}
-        <div id="privacy" style={{
-          maxWidth: 1100,
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '5rem',
-          alignItems: 'center',
-        }}>
+        <div id="privacy" className="landing-feature" style={{ marginBottom: 0 }}>
           <div>
             <p style={{ fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>Privacy &amp; consent</p>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 400, lineHeight: 1.2, marginBottom: '1rem' }}>
@@ -486,7 +456,7 @@ export default function Landing() {
             </ul>
           </div>
           {/* Privacy illustration */}
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div className="landing-phone-col">
             <div style={{
               background: '#fff',
               border: '1.5px solid rgba(47,44,38,0.08)',
@@ -752,14 +722,7 @@ export default function Landing() {
         borderTop: '1px solid rgba(47,44,38,0.1)',
         padding: '3rem 2rem',
       }}>
-        <div style={{
-          maxWidth: 1100,
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: '1fr auto auto auto',
-          gap: '3rem',
-          alignItems: 'start',
-        }}>
+        <div className="landing-footer-grid">
           {/* Brand */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '0.75rem' }}>
