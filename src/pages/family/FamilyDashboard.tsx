@@ -28,6 +28,29 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
 }
 
+const RETENTION_DAYS = 30
+
+function daysUntilExpiry(occurredAt: string): number {
+  const elapsed = Math.floor((Date.now() - new Date(occurredAt).getTime()) / 86_400_000)
+  return RETENTION_DAYS - elapsed
+}
+
+function ExpiryChip({ daysLeft }: { daysLeft: number }) {
+  if (daysLeft <= 0) {
+    return <span style={{ fontSize: '0.68rem', color: '#ef4444', fontWeight: 700, letterSpacing: '0.01em' }}>Expires today</span>
+  }
+  if (daysLeft === 1) {
+    return <span style={{ fontSize: '0.68rem', color: '#ef4444', fontWeight: 700 }}>1 day left</span>
+  }
+  if (daysLeft <= 7) {
+    return <span style={{ fontSize: '0.68rem', color: '#d97706', fontWeight: 600 }}>{daysLeft} days left</span>
+  }
+  if (daysLeft <= 14) {
+    return <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>{daysLeft} days left</span>
+  }
+  return <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', opacity: 0.7 }}>{daysLeft}d</span>
+}
+
 const TYPE_ICON: Record<string, string> = {
   meal: '🍽️', activity: '🌿', mood: '😊', note: '📝', photo: '📷',
 }
@@ -108,7 +131,7 @@ function MediaEntry({ path, canShare, shareText }: { path: string; canShare: boo
 type EntryWithAuthor = LogEntry & { author_name?: string }
 
 function EntryCard({
-  entry, showAuthor, canEdit, canShare, canDeleteOwn, now, onEdit, onDelete,
+  entry, showAuthor, canEdit, canShare, canDeleteOwn, now, expiryDays, onEdit, onDelete,
 }: {
   entry: EntryWithAuthor
   showAuthor: boolean
@@ -116,6 +139,7 @@ function EntryCard({
   canShare: boolean
   canDeleteOwn: boolean
   now: number
+  expiryDays?: number
   onEdit: (e: EntryWithAuthor) => void
   onDelete: (id: string) => void
 }) {
@@ -159,6 +183,11 @@ function EntryCard({
         </div>
       </div>
       {entry.photo_path && <MediaEntry path={entry.photo_path} canShare={canShare} shareText={shareText} />}
+      {expiryDays !== undefined && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.3rem' }}>
+          <ExpiryChip daysLeft={expiryDays} />
+        </div>
+      )}
     </div>
   )
 }
@@ -476,9 +505,10 @@ function CalendarSheet({
 
 export default function FamilyDashboard() {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, org } = useAuth()
   const qc = useQueryClient()
 
+  const isFamilyPlan = org?.plan === 'family'
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const canEdit = isCoordinator || isFamily
@@ -538,15 +568,21 @@ export default function FamilyDashboard() {
     setEditMode(false)
   }
 
+  const retentionCutoff = isFamilyPlan
+    ? new Date(Date.now() - RETENTION_DAYS * 86_400_000).toISOString()
+    : null
+
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['family-journal', clientId],
+    queryKey: ['family-journal', clientId, retentionCutoff],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('log_entries')
         .select('*')
         .eq('client_id', clientId!)
         .order('occurred_at', { ascending: false })
         .limit(200)
+      if (retentionCutoff) q = q.gte('occurred_at', retentionCutoff)
+      const { data, error } = await q
       if (error) throw error
       return data as LogEntry[]
     },
@@ -638,6 +674,33 @@ export default function FamilyDashboard() {
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [clientId, qc])
+
+  // Delete expired entries (+ their photos) for free Family plan — once per session per client
+  useEffect(() => {
+    if (!isFamilyPlan || !clientId) return
+    const key = `retention-cleanup-${clientId}`
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+
+    async function runCleanup() {
+      const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000).toISOString()
+      const { data: expired } = await supabase
+        .from('log_entries')
+        .select('id, photo_path')
+        .eq('client_id', clientId!)
+        .lt('occurred_at', cutoff)
+      if (!expired?.length) return
+
+      const photoPaths = expired.flatMap(e => e.photo_path ? [e.photo_path as string] : [])
+      if (photoPaths.length) {
+        await supabase.storage.from('journal-photos').remove(photoPaths)
+      }
+      await supabase.from('log_entries').delete().in('id', expired.map(e => e.id))
+      qc.invalidateQueries({ queryKey: ['family-journal', clientId] })
+    }
+
+    runCleanup()
+  }, [isFamilyPlan, clientId, qc])
 
   // Tick every second while any own entry is still within the 60s window
   const hasRecentOwn = entries.some(
@@ -868,6 +931,7 @@ export default function FamilyDashboard() {
                 <EntryCard key={e.id} entry={e} showAuthor={true}
                   canEdit={canEdit} canShare={canShare}
                   canDeleteOwn={canDeleteOwn} now={now}
+                  expiryDays={isFamilyPlan ? daysUntilExpiry(e.occurred_at) : undefined}
                   onEdit={setEditingEntry} onDelete={deleteOwnEntry} />
               )
             })}

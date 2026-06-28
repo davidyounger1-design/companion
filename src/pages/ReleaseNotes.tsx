@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.4.6'
+const APP_VERSION = '0.4.7'
 
 const RELEASES = [
+  {
+    version: '0.4.7',
+    date: '28 June 2026',
+    title: '30-day journal retention for Family plan',
+    changes: [
+      { type: 'new', text: 'Free Family plan: journal entries are kept for 30 days — each entry shows how many days remain' },
+      { type: 'new', text: 'Entries expiring within 7 days are highlighted in orange; the last 2 days show red' },
+      { type: 'new', text: 'Expired entries and their photos are automatically deleted when you open the journal' },
+    ],
+  },
   {
     version: '0.4.6',
     date: '28 June 2026',
