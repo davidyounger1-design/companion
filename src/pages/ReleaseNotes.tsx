@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.4.5'
+const APP_VERSION = '0.4.6'
 
 const RELEASES = [
+  {
+    version: '0.4.6',
+    date: '28 June 2026',
+    title: 'Upload & help screen fixes',
+    changes: [
+      { type: 'fix', text: 'Photo and video uploads now work — fixed file type restrictions that were blocking all uploads' },
+      { type: 'fix', text: 'Help & feedback now shows a "Try again" button if the widgets fail to load' },
+    ],
+  },
   {
     version: '0.4.5',
     date: '28 June 2026',

@@ -25,6 +25,7 @@ export default function Feedback() {
     () => !!customElements.get('myappbuddy-support') && !!customElements.get('myappbuddy-ideas')
   )
   const [scriptsError, setScriptsError] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
 
   const userEmail = user?.email ?? ''
   const userName = profile?.full_name ?? ''
@@ -45,7 +46,14 @@ export default function Feedback() {
       if (defined) setScriptsReady(true)
       else setScriptsError(true)
     })
-  }, [scriptsReady])
+  }, [scriptsReady, loadAttempt])
+
+  const retryScripts = () => {
+    document.getElementById('mab-support')?.remove()
+    document.getElementById('mab-ideas')?.remove()
+    setScriptsError(false)
+    setLoadAttempt(n => n + 1)
+  }
 
   const ready = scriptsReady && !!user
 
@@ -64,9 +72,10 @@ export default function Feedback() {
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
         {scriptsError ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
-            Couldn't load the help widgets. Email us at{' '}
-            <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>.
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+            <span>Couldn't load the help widgets.</span>
+            <button className="btn btn-primary" onClick={retryScripts} style={{ fontSize: '0.875rem' }}>Try again</button>
+            <span>Or email <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a></span>
           </div>
         ) : !ready ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
