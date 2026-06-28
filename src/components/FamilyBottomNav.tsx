@@ -90,11 +90,27 @@ export default function FamilyBottomNav() {
     refetchInterval: 30_000,
   })
 
+  const { data: pendingTickets = 0 } = useQuery({
+    queryKey: ['help-pending', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return 0
+      try {
+        const res = await fetch(
+          `https://myappbuddy.com.au/api/v1/embed/support?app_id=companion&app_ref=${encodeURIComponent(user.email)}`
+        )
+        const data = await res.json()
+        return (data.tickets || []).filter((t: { status: string }) => t.status === 'pending').length
+      } catch { return 0 }
+    },
+    enabled: !!user?.email,
+    refetchInterval: 60_000,
+  })
+
   const items: NavEntry[] = [
     { label: 'Journal',  icon: <JournalIcon />,  path: '/family' },
     { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
     { label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread },
-    { label: 'Help',     icon: <HelpIcon />,     path: '/feedback' },
+    { label: 'Help',     icon: <HelpIcon />,     path: '/feedback', badge: pendingTickets },
     ...(isOrgOwner && !isCoordinator ? [{ label: 'Plan', icon: <PlanIcon />, path: '/account' }] : []),
   ]
 

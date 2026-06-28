@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { MobileFooter } from '../../components/SiteFooter'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
@@ -118,7 +119,7 @@ export default function MessagesHub() {
         <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Messages</h1>
       </div>
 
-      <div style={{ maxWidth: 520, margin: '0 auto' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto' }}>
         {/* Family group thread (visible to family + coordinator) */}
         {isFamily && (
           <ContactRow
@@ -149,6 +150,7 @@ export default function MessagesHub() {
             onClick={() => navigate(`/messages/${m.id}`)}
           />
         ))}
+        <MobileFooter />
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
+import { MobileFooter } from '../../components/SiteFooter'
 import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
@@ -613,6 +614,31 @@ export default function FamilyDashboard() {
     qc.invalidateQueries({ queryKey: ['family-journal', clientId] })
   }
 
+  // Realtime subscription — push new/updated/deleted entries to all viewers
+  useEffect(() => {
+    if (!clientId) return
+    const ch = supabase
+      .channel(`journal-${clientId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'log_entries',
+        filter: `client_id=eq.${clientId}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['family-journal', clientId] })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notices',
+        filter: `client_id=eq.${clientId}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['client-notices', clientId] })
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [clientId, qc])
+
   // Tick every second while any own entry is still within the 60s window
   const hasRecentOwn = entries.some(
     e => e.author_id === user?.id && Date.now() - new Date(e.created_at).getTime() < 60_000
@@ -656,9 +682,13 @@ export default function FamilyDashboard() {
             <>
               <button
                 onClick={() => setShowMenu(m => !m)}
-                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, color: 'var(--color-muted)' }}
+                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.4rem 0.6rem', cursor: 'pointer', lineHeight: 1, color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}
                 title="Menu"
-              >⋯</button>
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                </svg>
+              </button>
               {showMenu && (
                 <>
                   <div onClick={() => setShowMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
@@ -678,10 +708,21 @@ export default function FamilyDashboard() {
                         {label}
                       </button>
                     ))}
+                    <button onClick={() => {
+                        setShowMenu(false)
+                        navigator.serviceWorker?.getRegistration().then(r => r?.update())
+                        window.location.reload()
+                      }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--color-text)' }}>
+                      🔄 Check for updates
+                    </button>
                     <button onClick={() => { handleSignOut(); setShowMenu(false) }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: '#ef4444' }}>
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: '#ef4444' }}>
                       Sign out
                     </button>
+                    <div style={{ padding: '0.4rem 1rem', fontSize: '0.7rem', color: 'var(--color-muted)', textAlign: 'right' }}>
+                      v0.4.3
+                    </div>
                   </div>
                 </>
               )}
@@ -694,7 +735,7 @@ export default function FamilyDashboard() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
 
         {/* Participant name + edit */}
         {editMode ? (
@@ -868,8 +909,10 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {/* Notification permission banner */}
-        {pushPermission === 'default' && !pushDismissed && (
+        {/* Notification permission banner — only on touch devices or when installed as PWA */}
+        {pushPermission === 'default' && !pushDismissed &&
+         (window.matchMedia('(display-mode: standalone)').matches ||
+          window.matchMedia('(hover: none) and (pointer: coarse)').matches) && (
           <div className="card" style={{ marginTop: '1rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <span style={{ fontSize: '1.4rem' }}>🔔</span>
             <div style={{ flex: 1 }}>
@@ -923,6 +966,7 @@ export default function FamilyDashboard() {
           </div>
         )}
 
+        <MobileFooter />
       </div>
 
       {editingEntry && (

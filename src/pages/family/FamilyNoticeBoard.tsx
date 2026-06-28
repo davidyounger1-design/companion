@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
+import { MobileFooter } from '../../components/SiteFooter'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -86,7 +87,7 @@ export default function FamilyNoticeBoard() {
         <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>📌 Notice Board</h1>
       </div>
 
-      <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <p style={{ margin: '0 0 0.75rem', fontWeight: 600, fontSize: '0.875rem' }}>Post a notice</p>
           <textarea className="input" rows={3} value={newBody}
@@ -132,6 +133,7 @@ export default function FamilyNoticeBoard() {
             )}
           </div>
         ))}
+        <MobileFooter />
       </div>
       <FamilyBottomNav />
     </div>

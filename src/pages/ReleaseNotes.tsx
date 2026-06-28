@@ -1,8 +1,55 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.2.0'
+const APP_VERSION = '0.4.4'
 
 const RELEASES = [
+  {
+    version: '0.4.4',
+    date: '28 June 2026',
+    title: 'Live journal updates & privacy pages',
+    changes: [
+      { type: 'new', text: 'Journal entries appear in real time — no refresh needed when someone else adds an entry' },
+      { type: 'new', text: 'Privacy Policy and Terms of Service pages now live at myappbuddy.com.au' },
+      { type: 'fix', text: 'App version in footer now always stays in sync with the release notes' },
+    ],
+  },
+  {
+    version: '0.4.3',
+    date: '28 June 2026',
+    title: 'Support thread view, footer & wider layout',
+    changes: [
+      { type: 'new', text: 'Support ticket thread view — tap any ticket to read the full conversation and send a reply' },
+      { type: 'new', text: 'Automatic update banner — a prompt appears when a new version of Companion is ready' },
+      { type: 'new', text: '"Check for updates" in ⋯ menu — manually trigger an update at any time' },
+      { type: 'new', text: 'Footer on every page — shows copyright, app version, Privacy and Terms links' },
+      { type: 'change', text: 'Content cards are now wider to make better use of available screen space' },
+      { type: 'fix', text: 'Help & feedback page was blank — fixed a browser compatibility issue with embedded widgets' },
+    ],
+  },
+  {
+    version: '0.4.2',
+    date: '28 June 2026',
+    title: 'Help & feedback polish',
+    changes: [
+      { type: 'new', text: 'Help nav badge — shows a count when a support ticket has been replied to' },
+      { type: 'new', text: 'Support ticket list shows a preview of each message body' },
+      { type: 'new', text: 'Replied tickets highlighted green with a reply indicator' },
+      { type: 'new', text: 'App version number visible in the ⋯ menu' },
+      { type: 'fix', text: 'Delete journal entry now works correctly' },
+      { type: 'fix', text: 'Help & feedback page was blank on browser refresh' },
+      { type: 'fix', text: 'Push notification banner no longer shows on desktop PCs' },
+    ],
+  },
+  {
+    version: '0.4.1',
+    date: '27 June 2026',
+    title: 'PWA & coordinator tools',
+    changes: [
+      { type: 'new', text: 'Progressive Web App — install Companion to your home screen on iOS and Android' },
+      { type: 'new', text: '⋯ menu for coordinators — quick access to Members, Permissions, and Release notes' },
+      { type: 'new', text: 'Larger, more visible ⋯ menu button' },
+    ],
+  },
   {
     version: '0.2.0',
     date: '27 June 2026',

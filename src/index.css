@@ -466,6 +466,61 @@ select.input {
   }
 }
 
+/* ── Mobile footer — inline, shown on small screens only ───────── */
+.mobile-footer {
+  padding: 0.75rem 1rem 0.5rem;
+  font-size: 0.65rem;
+  color: var(--color-muted-light);
+  text-align: center;
+  border-top: 1px solid color-mix(in srgb, var(--color-muted) 12%, transparent);
+  margin-top: 1.5rem;
+  line-height: 1.8;
+}
+.mobile-footer a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.mobile-footer a:hover { color: var(--color-primary); }
+@media (min-width: 640px) {
+  .mobile-footer { display: none; }
+}
+
+/* ── Site footer — fixed bar below content, right of sidebar ──── */
+.site-footer {
+  display: none;
+}
+@media (min-width: 640px) {
+  .site-footer {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: var(--nav-sw);
+    right: 0;
+    height: 34px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.25rem;
+    background: var(--color-surface);
+    border-top: 1px solid color-mix(in srgb, var(--color-muted) 15%, transparent);
+    z-index: 45;
+    font-size: 0.6875rem;
+    color: var(--color-muted-light);
+    gap: 1rem;
+    white-space: nowrap;
+  }
+  .site-footer a {
+    color: var(--color-muted-light);
+    text-decoration: none;
+  }
+  .site-footer a:hover { color: var(--color-primary); }
+  .site-footer strong { color: var(--color-muted); }
+  /* Push page content above the footer */
+  #root:has(.bottom-nav) { padding-bottom: 34px; }
+}
+@media (min-width: 900px) {
+  .site-footer { left: var(--nav-swl); }
+}
+
 /* ── Log entry type chips ──────────────────────────────────────── */
 .log-type-grid {
   display: grid;

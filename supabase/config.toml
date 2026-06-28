@@ -1,6 +1,5 @@
 # Supabase configuration for Companion app
 
-[project]
 project_id = "oprsmhyvihrahxpfvdih"
 
 [auth]

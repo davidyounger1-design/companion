@@ -38,6 +38,39 @@ import Feedback from './pages/Feedback'
 import Account from './pages/Account'
 import PermissionsPage from './pages/settings/PermissionsPage'
 import Deck from './pages/Deck'
+import SiteFooter from './components/SiteFooter'
+import { useState, useEffect } from 'react'
+
+function UpdateBanner() {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    // Fires when a new SW takes over — skipWaiting() makes this happen on next page load
+    const handler = () => setReady(true)
+    navigator.serviceWorker.addEventListener('controllerchange', handler)
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', handler)
+  }, [])
+
+  if (!ready) return null
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+      background: 'var(--color-primary)', color: '#fff',
+      padding: '0.75rem 1rem', display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between', gap: '1rem', fontSize: '0.875rem',
+    }}>
+      <span>A new version of Companion is ready.</span>
+      <button
+        onClick={() => window.location.reload()}
+        style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: '#fff', padding: '0.35rem 0.875rem', borderRadius: 6, cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }}
+      >
+        Update now
+      </button>
+    </div>
+  )
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
@@ -141,6 +174,8 @@ export default function App() {
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      <SiteFooter />
+      <UpdateBanner />
     </QueryClientProvider>
   )
 }
