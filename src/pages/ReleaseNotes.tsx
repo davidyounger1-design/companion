@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.1'
+const APP_VERSION = '0.5.2'
 
 const RELEASES = [
+  {
+    version: '0.5.2',
+    date: '28 June 2026',
+    title: 'Groundwork for role-tailored help',
+    changes: [
+      { type: 'fix', text: 'Behind the scenes: help articles can now be tailored to your role — takes effect automatically once articles are tagged (no change to what you see today)' },
+    ],
+  },
   {
     version: '0.5.1',
     date: '28 June 2026',

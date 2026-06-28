@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import {
-  cachedHelpList, fetchHelpList, cachedHelpArticle, fetchHelpArticle,
+  cachedHelpList, fetchHelpList, filterGroupsByRole, cachedHelpArticle, fetchHelpArticle,
   type HelpGroup, type HelpArticleFull,
 } from '../lib/help'
 
@@ -105,20 +106,24 @@ function HelpArticleView({ slug }: { slug: string }) {
 /* ── Article list (route /help) ─────────────────────────────────────── */
 function HelpList() {
   const navigate = useNavigate()
-  const [groups, setGroups] = useState<HelpGroup[] | null>(() => cachedHelpList())
+  const { profile } = useAuth()
+  const role = profile?.role
+  const [groups, setGroups] = useState<HelpGroup[] | null>(() => cachedHelpList(role))
   const [loading, setLoading] = useState(!groups)
 
   useEffect(() => {
     let alive = true
-    fetchHelpList().then((res) => {
+    fetchHelpList(role).then((res) => {
       if (!alive) return
       if (res && (res.changed || !groups)) setGroups(res.groups)
       setLoading(false)
     })
     return () => { alive = false }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [role]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isEmpty = useMemo(() => !!groups && groups.every((g) => !g.articles?.length), [groups])
+  // Tailor to the signed-in role (no-op until MAB tags articles with `roles`).
+  const visibleGroups = useMemo(() => (groups ? filterGroupsByRole(groups, role) : null), [groups, role])
+  const isEmpty = useMemo(() => !!visibleGroups && visibleGroups.every((g) => !g.articles?.length), [visibleGroups])
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
@@ -129,14 +134,14 @@ function HelpList() {
       </div>
 
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '1rem' }}>
-        {!groups && loading ? (
+        {!visibleGroups && loading ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
-        ) : !groups || isEmpty ? (
+        ) : !visibleGroups || isEmpty ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
             No help articles yet. Need a hand? <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>
           </div>
         ) : (
-          groups.filter((g) => g.articles?.length).map((g) => (
+          visibleGroups.filter((g) => g.articles?.length).map((g) => (
             <section key={g.category} style={{ marginBottom: '1.25rem' }}>
               <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
                 {g.category}

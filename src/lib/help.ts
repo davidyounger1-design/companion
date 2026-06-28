@@ -8,7 +8,8 @@
 // CORS allows companion.myappbuddy.com.au.
 
 const BASE = 'https://myappbuddy.com.au/api/v1/help'
-const LIST_KEY = 'companion-help-list-v1'
+// Cache is keyed by role so a future server-side ?role= filter caches correctly.
+const LIST_KEY = (role?: string) => `companion-help-list-${role || 'all'}-v1`
 const ART_KEY = (slug: string) => `companion-help-article-${slug}-v1`
 
 export type HelpArticle = {
@@ -19,6 +20,9 @@ export type HelpArticle = {
   planLabel?: string
   appId?: string | null
   audience?: string
+  // Platform role tags. Empty/absent = applies to all roles. MAB is expected to
+  // emit an array; we also accept a comma-separated string defensively.
+  roles?: string[] | string
 }
 export type HelpGroup = { category: string; articles: HelpArticle[] }
 export type HelpArticleFull = HelpArticle & { body: string }
@@ -41,28 +45,54 @@ function writeCache(key: string, value: unknown) {
 }
 
 /** Last-known article list from cache (sync, no network). */
-export function cachedHelpList(): HelpGroup[] | null {
-  return readCache<HelpGroup[]>(LIST_KEY)
+export function cachedHelpList(role?: string): HelpGroup[] | null {
+  return readCache<HelpGroup[]>(LIST_KEY(role))
 }
 
 /**
  * Fetch the latest article list and cache it. Returns the fresh groups, or
  * `changed: false` when the payload matches what was already cached so callers
- * can skip a re-render.
+ * can skip a re-render. Passes ?role= so MAB can filter server-side once it
+ * supports it; harmless today (unknown params are ignored).
  */
-export async function fetchHelpList(): Promise<{ groups: HelpGroup[]; changed: boolean } | null> {
+export async function fetchHelpList(role?: string): Promise<{ groups: HelpGroup[]; changed: boolean } | null> {
   try {
-    const res = await fetch(`${BASE}?app_id=companion`, { headers: { accept: 'application/json' } })
+    const url = `${BASE}?app_id=companion${role ? `&role=${encodeURIComponent(role)}` : ''}`
+    const res = await fetch(url, { headers: { accept: 'application/json' } })
     if (!res.ok) return null
     const data = await res.json()
     const groups: HelpGroup[] = Array.isArray(data?.groups) ? data.groups : []
-    const prev = localStorage.getItem(LIST_KEY)
+    const key = LIST_KEY(role)
+    const prev = localStorage.getItem(key)
     const next = JSON.stringify(groups)
-    writeCache(LIST_KEY, groups)
+    writeCache(key, groups)
     return { groups, changed: prev !== next }
   } catch {
     return null
   }
+}
+
+/** Role tags for an article, normalized to a string[] (empty = applies to all). */
+function rolesOf(a: HelpArticle): string[] {
+  const r = a.roles
+  if (!r) return []
+  return (Array.isArray(r) ? r : String(r).split(',')).map((s) => s.trim()).filter(Boolean)
+}
+
+/**
+ * Forward-compatible client-side role filter. Keeps articles whose role tags are
+ * empty/absent (apply to everyone) or include the given role; drops emptied
+ * groups. A no-op today because MAB doesn't emit `roles` yet — every article has
+ * no tags, so all pass — and it activates automatically once tags appear.
+ */
+export function filterGroupsByRole(groups: HelpGroup[], role?: string): HelpGroup[] {
+  if (!role) return groups
+  return groups
+    .map((g) => ({ ...g, articles: (g.articles ?? []).filter((a) => {
+      const roles = rolesOf(a)
+      return roles.length === 0 || roles.includes(role)
+    }) }))
+    .filter((g) => g.articles.length > 0)
 }
 
 /** Last-known full article from cache (sync, no network). */
