@@ -19,6 +19,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- MAB embed widgets — loaded eagerly so custom elements are registered
+         before the user navigates to the Help & Feedback page. Static script
+         tags are handled correctly in iOS PWA standalone mode, unlike
+         dynamically injected ones. -->
+    <script defer id="mab-support" src="https://myappbuddy.com.au/embed/support.js"></script>
+    <script defer id="mab-ideas" src="https://myappbuddy.com.au/embed/ideas.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.4.7'
+const APP_VERSION = '0.4.8'
 
 const RELEASES = [
+  {
+    version: '0.4.8',
+    date: '28 June 2026',
+    title: 'Fix Help & Feedback loading on iOS',
+    changes: [
+      { type: 'fix', text: 'Help & Feedback widgets now load correctly on iOS — switched from dynamic to static script loading which iOS PWA mode requires' },
+    ],
+  },
   {
     version: '0.4.7',
     date: '28 June 2026',
