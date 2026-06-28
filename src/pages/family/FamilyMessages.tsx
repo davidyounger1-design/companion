@@ -19,6 +19,7 @@ export default function FamilyMessages() {
   const qc = useQueryClient()
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Get client_id for family
@@ -81,19 +82,25 @@ export default function FamilyMessages() {
 
   async function send() {
     if (!body.trim() || !user || !profile?.org_id || !clientId) return
+    const text = body.trim()
     setSending(true)
-    try {
-      await supabase.from('messages').insert({
-        org_id: profile.org_id,
-        client_id: clientId,
-        sender_id: user.id,
-        recipient_id: null, // group thread
-        body: body.trim(),
-      })
-      setBody('')
+    setSendError('')
+    setBody('')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from('messages').insert({
+      org_id: profile.org_id,
+      client_id: clientId,
+      sender_id: user.id,
+      recipient_id: null,
+      body: text,
+    })
+    setSending(false)
+    if (error) {
+      setBody(text)
+      setSendError('Could not send — please try again.')
+      console.error('Message insert error:', error)
+    } else {
       qc.invalidateQueries({ queryKey: ['family-messages', clientId] })
-    } finally {
-      setSending(false)
     }
   }
 
@@ -148,6 +155,11 @@ export default function FamilyMessages() {
         <div ref={bottomRef} />
       </div>
 
+      {sendError && (
+        <div style={{ padding: '0.5rem 1rem', background: '#fee2e2', color: '#b91c1c', fontSize: '0.8rem', textAlign: 'center' }}>
+          {sendError}
+        </div>
+      )}
       <div style={{
         padding: '0.75rem 1rem', borderTop: '1px solid var(--color-border)',
         background: 'var(--color-bg)', display: 'flex', gap: '0.5rem', alignItems: 'flex-end',

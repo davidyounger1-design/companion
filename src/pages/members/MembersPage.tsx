@@ -189,7 +189,7 @@ export default function MembersPage() {
         .order('created_at', { ascending: false })
       return data ?? []
     },
-    enabled: !!profile?.org_id && isCoordinator,
+    enabled: !!profile?.org_id && ['coordinator', 'family', 'trusted_support_worker'].includes(profile?.role ?? ''),
   })
 
   const { data: firstClient, isLoading: firstClientLoading } = useQuery({
@@ -261,11 +261,10 @@ export default function MembersPage() {
         : ['support_worker', 'trusted_support_worker']
     }
     if (!perms.invite_members) return []
-    // Family members can invite the same set as a coordinator
-    if (profile?.role === 'family') {
+    // Family members and trusted workers can invite the same set as a coordinator
+    if (profile?.role === 'family' || profile?.role === 'trusted_support_worker') {
       return ['family', 'support_worker', 'trusted_support_worker']
     }
-    // Workers (trusted or standard) can only invite other support workers
     return ['support_worker']
   })()
 

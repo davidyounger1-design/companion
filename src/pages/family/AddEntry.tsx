@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import MoodSlider from '../../components/MoodSlider'
+import { encryptFile } from '../../lib/photoEncryption'
 
 type EntryType = 'meal' | 'activity' | 'mood' | 'note'
 
@@ -74,12 +75,16 @@ export default function AddEntry() {
     try {
       let photoPath: string | null = null
       if (media) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: keyHex, error: keyErr } = await (supabase.rpc as any)('get_or_create_photo_key')
+        if (keyErr || !keyHex) throw keyErr ?? new Error('Could not get encryption key')
         const ext = fileExt(media)
         const uuid = crypto.randomUUID()
         photoPath = `${profile.org_id}/${clientId}/${user.id}/${uuid}.${ext}`
+        const encryptedBlob = await encryptFile(media, keyHex)
         const { error: uploadErr } = await supabase.storage
           .from('journal-photos')
-          .upload(photoPath, media, { upsert: false })
+          .upload(photoPath, encryptedBlob, { upsert: false, contentType: 'application/octet-stream' })
         if (uploadErr) throw uploadErr
       }
 

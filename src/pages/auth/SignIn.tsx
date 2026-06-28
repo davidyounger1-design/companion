@@ -24,69 +24,102 @@ export default function SignIn() {
     resolver: zodResolver(schema),
   })
 
+  async function navigateAfterSignIn() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Accept a pending invite if one is in the URL
+    if (inviteToken) {
+      const { data: result } = await supabase.rpc('accept_invite', { p_token: inviteToken })
+      const r = result as { ok?: boolean; role?: string; error?: string } | null
+      if (r?.ok) {
+        const workerRoles = ['support_worker', 'trusted_support_worker']
+        navigate(workerRoles.includes(r.role ?? '') ? '/worker' : r.role === 'family' ? '/family' : '/dashboard', { replace: true })
+        return
+      }
+    }
+
+    const [{ data: profile }, planInfo] = await Promise.all([
+      supabase.from('profiles').select('role, org_id').eq('id', user.id).single(),
+      checkPlan().catch(() => ({ plan: null })),
+    ])
+
+    const planIsFamily = isFamilyPlan(planInfo.plan)
+
+    if (!profile?.org_id) {
+      navigate('/setup/account')
+      return
+    }
+
+    let orgType: string | null = null
+    if (profile.org_id) {
+      const { data: org } = await supabase
+        .from('organisations')
+        .select('org_type')
+        .eq('id', profile.org_id)
+        .single()
+      orgType = org?.org_type ?? null
+    }
+
+    const isCoordinator = profile.role === 'coordinator'
+    const isFamilyOrg = orgType === 'family'
+
+    if (planIsFamily && isCoordinator && !isFamilyOrg) {
+      navigate('/setup/family/participant')
+    } else if (!planIsFamily && planInfo.plan !== null && profile.role === 'family') {
+      navigate('/setup/service')
+    } else if (profile.role === 'family') {
+      navigate('/family')
+    } else if (profile.role === 'support_worker' || profile.role === 'trusted_support_worker') {
+      navigate('/worker')
+    } else if (isCoordinator && isFamilyOrg) {
+      navigate('/family')
+    } else {
+      navigate('/dashboard')
+    }
+  }
+
   async function onSubmit(data: FormData) {
     setServerError('')
     try {
+      // Step 1: already have an account — sign in directly
       await signIn(data.email, data.password)
+      await navigateAfterSignIn()
+    } catch {
+      // Step 2: check if this email is a registered MAB subscriber; if so, auto-create account
+      try {
+        const { data: regData, error: regErr } = await supabase.functions.invoke('auto-register', {
+          body: { email: data.email, password: data.password },
+        })
 
-      // Accept a pending invite if one is in the URL
-      if (inviteToken) {
-        const { data: result } = await supabase.rpc('accept_invite', { p_token: inviteToken })
-        const r = result as { ok?: boolean; role?: string; error?: string } | null
-        if (r?.ok) {
-          const workerRoles = ['support_worker', 'trusted_support_worker']
-          navigate(workerRoles.includes(r.role ?? '') ? '/worker' : r.role === 'family' ? '/family' : '/dashboard', { replace: true })
+        if (!regErr && regData?.ok) {
+          // Account created — sign in with the same credentials
+          await signIn(data.email, data.password)
+          await navigateAfterSignIn()
           return
         }
+
+        if (!regErr && regData?.error === 'account_exists') {
+          setServerError('Incorrect password. Please try again or use "Forgot password?".')
+          return
+        }
+      } catch {
+        // auto-register network failure — fall through to invite check
       }
 
-      // Determine where to send the user based on their role + live plan + org type
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const [{ data: profile }, planInfo] = await Promise.all([
-        supabase.from('profiles').select('role, org_id').eq('id', user.id).single(),
-        checkPlan().catch(() => ({ plan: null })),
-      ])
-
-      const planIsFamily = isFamilyPlan(planInfo.plan)
-
-      if (!profile?.org_id) {
-        navigate('/setup/account')
-        return
+      // Step 3: check for a pending invite for this email
+      try {
+        const { data: inviteCheck } = await supabase.rpc('check_pending_invite', { p_email: data.email })
+        if ((inviteCheck as { found?: boolean })?.found) {
+          setServerError('We found a pending invitation for this email. Please check your inbox for the invite link to complete registration.')
+          return
+        }
+      } catch {
+        // ignore RPC error — fall through to step 4
       }
 
-      // Fetch org type for coordinator routing
-      let orgType: string | null = null
-      if (profile.org_id) {
-        const { data: org } = await supabase
-          .from('organisations')
-          .select('org_type')
-          .eq('id', profile.org_id)
-          .single()
-        orgType = org?.org_type ?? null
-      }
-
-      const isCoordinator = profile.role === 'coordinator'
-      const isFamilyOrg = orgType === 'family'
-
-      if (planIsFamily && isCoordinator && !isFamilyOrg) {
-        // Plan switched to family but org isn't set up as family yet
-        navigate('/setup/family/participant')
-      } else if (!planIsFamily && planInfo.plan !== null && profile.role === 'family') {
-        // Upgraded away from family — go through provider onboarding
-        navigate('/setup/service')
-      } else if (profile.role === 'family') {
-        navigate('/family')
-      } else if (profile.role === 'support_worker' || profile.role === 'trusted_support_worker') {
-        navigate('/worker')
-      } else if (isCoordinator && isFamilyOrg) {
-        navigate('/family')
-      } else {
-        navigate('/dashboard')
-      }
-    } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Sign-in failed. Please check your credentials.')
+      // Step 4: no account, no subscription, no invite — block
+      setServerError('No account found for this email address. Please check your email or contact your coordinator.')
     }
   }
 

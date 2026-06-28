@@ -1,68 +1,86 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
-const MAB_EMBED_SRC = 'https://myappbuddy.com.au/embed/v1.js'
+const MAB_BASE = 'https://myappbuddy.com.au'
 
-function loadMabEmbed() {
-  if (document.getElementById('mab-embed')) return
+function loadScript(id: string, src: string) {
+  if (document.getElementById(id)) return
   const s = document.createElement('script')
-  s.id = 'mab-embed'
-  s.src = MAB_EMBED_SRC
+  s.id = id
+  s.src = src
   document.head.appendChild(s)
 }
 
 export default function Feedback() {
   const navigate = useNavigate()
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [embedHeight, setEmbedHeight] = useState('500px')
+  const { user, profile } = useAuth()
+
+  const userEmail = user?.email ?? ''
+  const userName = profile?.full_name ?? ''
 
   useEffect(() => {
-    loadMabEmbed()
-    function updateHeight() {
-      if (containerRef.current) {
-        setEmbedHeight(`${containerRef.current.clientHeight}px`)
-      }
-    }
-    updateHeight()
-    window.addEventListener('resize', updateHeight)
-    return () => window.removeEventListener('resize', updateHeight)
+    loadScript('mab-support', `${MAB_BASE}/embed/support.js`)
+    loadScript('mab-ideas', `${MAB_BASE}/embed/ideas.js`)
   }, [])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--color-bg)' }}>
-      {/* Header */}
+    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{
         padding: '0.875rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
-        background: 'var(--color-bg)', flexShrink: 0,
+        background: 'var(--color-surface)', position: 'sticky', top: 0, zIndex: 10,
       }}>
         <button className="btn btn-ghost" onClick={() => navigate(-1)}
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
-        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Feedback &amp; support</h1>
+        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help &amp; feedback</h1>
       </div>
 
-      {/* MAB support embed — scoped to Companion */}
-      <div ref={containerRef} style={{ flex: 1, minHeight: 0 }}>
-        {React.createElement('myappbuddy-support', {
-          mode: 'embed',
-          app: 'companion',
-          height: embedHeight,
-          style: { display: 'block', height: '100%' },
-        })}
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+        <section>
+          <h2 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
+            Support tickets
+          </h2>
+          {React.createElement('myappbuddy-support', {
+            'app-id': 'companion',
+            'app-ref': userEmail,
+            'user-email': userEmail,
+            'user-name': userName,
+            'app-name': 'Companion',
+            'base-url': MAB_BASE,
+            accent: '#6f8c78',
+            style: { display: 'block' },
+          })}
+        </section>
+
+        <section>
+          <h2 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
+            Ideas &amp; roadmap
+          </h2>
+          {React.createElement('myappbuddy-ideas', {
+            'app-id': 'companion',
+            'user-email': userEmail,
+            'user-name': userName,
+            'app-name': 'Companion',
+            'base-url': MAB_BASE,
+            accent: '#6f8c78',
+            style: { display: 'block' },
+          })}
+        </section>
+
       </div>
     </div>
   )
 }
 
+import React from 'react'
+
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
-      'myappbuddy-support': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        mode?: string
-        app?: string
-        height?: string
-      }
+      'myappbuddy-support': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & Record<string, string>
+      'myappbuddy-ideas': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & Record<string, string>
     }
   }
 }

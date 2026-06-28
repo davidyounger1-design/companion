@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
@@ -10,8 +10,9 @@ import FamilyBottomNav from '../../components/FamilyBottomNav'
 import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
+import { usePhotoKey } from '../../hooks/usePhotoKey'
+import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
 
-const APP_VERSION = '0.4.1'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -41,27 +42,64 @@ function isVideoPath(path: string) {
   return /\.(mp4|mov|webm|m4v|avi|ogv)(\?|$)/i.test(path)
 }
 
-function MediaEntry({ path }: { path: string }) {
-  const [lightbox, setLightbox] = useState<string | null>(null)
-  const { data: url } = useQuery({
+function MediaEntry({ path, canShare, shareText }: { path: string; canShare: boolean; shareText?: string }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
+  const [lightbox, setLightbox] = useState(false)
+  const { data: keyHex } = usePhotoKey()
+  const isVid = isVideoPath(path)
+
+  const { data: signedUrl } = useQuery({
     queryKey: ['media-url', path],
     queryFn: async () => {
-      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(path, 3600)
+      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(path, 900)
       return data?.signedUrl ?? null
     },
-    staleTime: 3_500_000,
+    staleTime: 840_000,
   })
-  if (!url) return null
-  const video = isVideoPath(path)
+
+  useEffect(() => {
+    if (!signedUrl || !keyHex) return
+    let active = true
+    ;(async () => {
+      try {
+        const res = await fetch(signedUrl)
+        const buf = await res.arrayBuffer()
+        if (!active) return
+        const url = await decryptToObjectURL(buf, keyHex, mimeFromPath(path))
+        if (!active) { URL.revokeObjectURL(url); return }
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = url
+        setObjectUrl(url)
+      } catch (err) {
+        if (active) console.warn('Photo decrypt error:', err)
+      }
+    })()
+    return () => { active = false }
+  }, [signedUrl, keyHex, path])
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    }
+  }, [])
+
+  if (!objectUrl) return (
+    <div style={{ width: '100%', height: 160, borderRadius: 8, marginTop: '0.75rem',
+      background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+      <span className="spinner" style={{ width: 24, height: 24 }} />
+    </div>
+  )
+
   return (
     <>
-      {video ? (
-        <video src={url} controls style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, display: 'block' }} />
+      {isVid ? (
+        <video src={objectUrl} controls style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, display: 'block' }} />
       ) : (
-        <img src={url} alt="" onClick={() => setLightbox(url)}
+        <img src={objectUrl} alt="" onClick={() => setLightbox(true)}
           style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }} />
       )}
-      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox && <Lightbox src={objectUrl} video={isVid} canShare={canShare} shareText={shareText} onClose={() => setLightbox(false)} />}
     </>
   )
 }
@@ -69,16 +107,27 @@ function MediaEntry({ path }: { path: string }) {
 type EntryWithAuthor = LogEntry & { author_name?: string }
 
 function EntryCard({
-  entry, showAuthor, canEdit, onEdit,
+  entry, showAuthor, canEdit, canShare, canDeleteOwn, now, onEdit, onDelete,
 }: {
   entry: EntryWithAuthor
   showAuthor: boolean
   canEdit: boolean
+  canShare: boolean
+  canDeleteOwn: boolean
+  now: number
   onEdit: (e: EntryWithAuthor) => void
+  onDelete: (id: string) => void
 }) {
+  const [confirmDel, setConfirmDel] = useState(false)
+  const secondsLeft = canDeleteOwn
+    ? Math.max(0, 60 - Math.floor((now - new Date(entry.created_at).getTime()) / 1000))
+    : 0
+
+  useEffect(() => { if (!canDeleteOwn) setConfirmDel(false) }, [canDeleteOwn])
+
+  const shareText = entry.label !== '📷' && entry.label !== '🎥' ? entry.label : undefined
   return (
-    <div className="card" style={{ marginBottom: '0.75rem', cursor: canEdit ? 'pointer' : 'default' }}
-      onClick={() => canEdit && onEdit(entry)}>
+    <div className="card" style={{ marginBottom: '0.75rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flex: 1 }}>
           <span style={{ fontSize: '1.1rem', marginTop: 2 }}>{TYPE_ICON[entry.type] ?? '📝'}</span>
@@ -92,31 +141,54 @@ function EntryCard({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.75rem' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>{formatTime(entry.occurred_at)}</span>
-          {canEdit && <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>✏️</span>}
+          {canDeleteOwn && !confirmDel && (
+            <button onClick={() => setConfirmDel(true)} title={`Delete (${secondsLeft}s)`}
+              style={{ background: 'none', border: 'none', padding: '0.15rem 0.3rem', cursor: 'pointer', fontSize: '0.7rem', color: '#ef4444', lineHeight: 1 }}>✕</button>
+          )}
+          {canDeleteOwn && confirmDel && (
+            <button onClick={() => onDelete(entry.id)}
+              style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, padding: '0.15rem 0.4rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.4 }}>
+              Delete?
+            </button>
+          )}
+          {canEdit && !confirmDel && (
+            <button onClick={() => onEdit(entry)} title="Edit entry"
+              style={{ background: 'none', border: 'none', padding: '0.15rem 0.25rem', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--color-muted)', lineHeight: 1 }}>✏️</button>
+          )}
         </div>
       </div>
-      {entry.photo_path && <MediaEntry path={entry.photo_path} />}
+      {entry.photo_path && <MediaEntry path={entry.photo_path} canShare={canShare} shareText={shareText} />}
     </div>
   )
 }
 
 function EditEntryModal({
-  entry, onSave, onClose,
+  entry, canDelete, onSave, onDelete, onClose,
 }: {
   entry: EntryWithAuthor
+  canDelete: boolean
   onSave: (id: string, label: string, type: LogType, moodScore: number) => Promise<void>
+  onDelete: (id: string) => Promise<void>
   onClose: () => void
 }) {
   const [editLabel, setEditLabel] = useState(entry.label === '📷' || entry.label === '🎥' ? '' : entry.label)
   const [editType, setEditType] = useState<LogType>((LOG_TYPES.find(t => t.type === entry.type)?.type ?? 'note') as LogType)
   const [editMood, setEditMood] = useState(entry.mood_score ?? 50)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSave() {
     setSaving(true)
     try { await onSave(entry.id, editLabel, editType, editMood) }
     catch (e) { setError(e instanceof Error ? e.message : 'Could not save.'); setSaving(false) }
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    try { await onDelete(entry.id) }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not delete.'); setDeleting(false); setConfirmDelete(false) }
   }
 
   return (
@@ -155,20 +227,38 @@ function EditEntryModal({
 
         {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>{error}</div>}
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave}
-            disabled={saving || (!editLabel.trim() && !entry.photo_path)} style={{ flex: 2 }}>
-            {saving ? <span className="spinner" /> : 'Save changes'}
-          </button>
-        </div>
+        {confirmDelete ? (
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)} style={{ flex: 1 }}>Keep it</button>
+            <button onClick={handleDelete} disabled={deleting}
+              style={{ flex: 2, background: '#dc2626', color: '#fff', border: 'none', borderRadius: 'var(--radius)', padding: '0.6rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}>
+              {deleting ? <span className="spinner" /> : 'Yes, delete'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            {canDelete && (
+              <button onClick={() => setConfirmDelete(true)}
+                style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 }}>
+                Delete
+              </button>
+            )}
+            <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave}
+              disabled={saving || (!editLabel.trim() && !entry.photo_path)} style={{ flex: 2 }}>
+              {saving ? <span className="spinner" /> : 'Save changes'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-// Simple SVG mood chart
+// Collapsible SVG mood chart — tap the header row to expand/collapse
 function MoodChart({ entries }: { entries: Array<{ occurred_at: string; mood_score: number | null }> }) {
+  const [expanded, setExpanded] = useState(false)
+
   const last14 = Array.from({ length: 14 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - (13 - i))
@@ -192,7 +282,7 @@ function MoodChart({ entries }: { entries: Array<{ occurred_at: string; mood_sco
   if (filled.length === 0) return null
   const avg = Math.round(filled.reduce((a, b) => a + b, 0) / filled.length)
 
-  const W = 280, H = 80, PAD = 8
+  const W = 280, H = 64, PAD = 8
   const xStep = (W - PAD * 2) / 13
   const yScale = (v: number) => H - PAD - ((v / 100) * (H - PAD * 2))
 
@@ -203,31 +293,41 @@ function MoodChart({ entries }: { entries: Array<{ occurred_at: string; mood_sco
   const pathD = linePts.reduce((acc, pt, i) => acc + (i === 0 ? `M ${pt}` : ` L ${pt}`), '')
 
   return (
-    <div style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
-        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-muted)' }}>
-          Mood · last 14 days
-        </p>
-        <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-          avg {moodEmoji(avg)} {avg}/100
+    <div style={{ marginTop: '0.75rem', marginBottom: '0.25rem' }}>
+      <button
+        onClick={() => setExpanded(x => !x)}
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          width: '100%', background: 'none', border: 'none', padding: '0.3rem 0',
+          cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <span style={{ fontSize: '0.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-muted)' }}>
+          Mood · 14 days
         </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H, overflow: 'visible' }}>
-        {/* Avg line */}
-        <line x1={PAD} y1={yScale(avg)} x2={W - PAD} y2={yScale(avg)}
-          stroke="var(--color-border)" strokeWidth={1} strokeDasharray="4 3" />
-        {/* Mood line */}
-        {pathD && <path d={pathD} fill="none" stroke="var(--color-primary)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
-        {/* Points */}
-        {points.map((p, i) => p !== null ? (
-          <circle key={i} cx={PAD + i * xStep} cy={yScale(p)} r={3}
-            fill={moodColor(p)} stroke="#fff" strokeWidth={1.5} />
-        ) : null)}
-      </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.2rem' }}>
-        <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>14 days ago</span>
-        <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Today</span>
-      </div>
+        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          avg {moodEmoji(avg)} {avg}/100
+          <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>{expanded ? '▲' : '▼'}</span>
+        </span>
+      </button>
+
+      {expanded && (
+        <>
+          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H, overflow: 'visible', marginTop: '0.25rem' }}>
+            <line x1={PAD} y1={yScale(avg)} x2={W - PAD} y2={yScale(avg)}
+              stroke="var(--color-border)" strokeWidth={1} strokeDasharray="4 3" />
+            {pathD && <path d={pathD} fill="none" stroke="var(--color-primary)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+            {points.map((p, i) => p !== null ? (
+              <circle key={i} cx={PAD + i * xStep} cy={yScale(p)} r={3}
+                fill={moodColor(p)} stroke="#fff" strokeWidth={1.5} />
+            ) : null)}
+          </svg>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.15rem' }}>
+            <span style={{ fontSize: '0.6rem', color: 'var(--color-muted)' }}>14 days ago</span>
+            <span style={{ fontSize: '0.6rem', color: 'var(--color-muted)' }}>Today</span>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -381,9 +481,10 @@ export default function FamilyDashboard() {
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const canEdit = isCoordinator || isFamily
+  const canShare = isCoordinator || isFamily
 
   const { canInstall, isIOS, install } = useInstallPrompt()
-  const { permission: pushPermission, subscribing, subscribe } = usePushNotifications()
+  const { permission: pushPermission, subscribing, subscribe, notifyOnEntry, setNotifyOnEntry } = usePushNotifications()
   const [showIOSTip, setShowIOSTip] = useState(false)
   const [pushDismissed, setPushDismissed] = useState(
     () => localStorage.getItem('push_dismissed') === '1'
@@ -396,6 +497,8 @@ export default function FamilyDashboard() {
   const [editName, setEditName] = useState('')
   const [editDob, setEditDob] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const [now, setNow] = useState(Date.now())
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -497,6 +600,29 @@ export default function FamilyDashboard() {
     setEditingEntry(null)
   }
 
+  async function deleteEntry(id: string) {
+    const { error } = await supabase.from('log_entries').delete().eq('id', id)
+    if (error) throw error
+    qc.invalidateQueries({ queryKey: ['family-journal', clientId] })
+    setEditingEntry(null)
+  }
+
+  async function deleteOwnEntry(id: string) {
+    const { error } = await supabase.from('log_entries').delete().eq('id', id)
+    if (error) throw error
+    qc.invalidateQueries({ queryKey: ['family-journal', clientId] })
+  }
+
+  // Tick every second while any own entry is still within the 60s window
+  const hasRecentOwn = entries.some(
+    e => e.author_id === user?.id && Date.now() - new Date(e.created_at).getTime() < 60_000
+  )
+  useEffect(() => {
+    if (!hasRecentOwn) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [hasRecentOwn])
+
   async function deleteNotice(id: string) {
     await supabase.from('notices').delete().eq('id', id)
     qc.invalidateQueries({ queryKey: ['client-notices', clientId] })
@@ -505,7 +631,7 @@ export default function FamilyDashboard() {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
 
-      {/* Header — same pattern as WorkerLayout */}
+      {/* Header */}
       <header style={{
         background: 'var(--color-surface)',
         borderBottom: '1px solid color-mix(in srgb, var(--color-muted) 20%, transparent)',
@@ -519,14 +645,51 @@ export default function FamilyDashboard() {
             {isCoordinator ? 'Coordinator' : 'Family'}
           </span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-          <button className="btn btn-ghost" onClick={handleSignOut}
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>Sign out</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
           {(currentUserName || user?.email) && (
-            <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)', paddingRight: '0.5rem', textAlign: 'right', lineHeight: 1.4 }}>
+            <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', textAlign: 'right', lineHeight: 1.35 }}>
               {currentUserName && <>{currentUserName}<br /></>}
-              {user?.email}
+              <span style={{ opacity: 0.75 }}>{user?.email}</span>
             </span>
+          )}
+          {isCoordinator && (
+            <>
+              <button
+                onClick={() => setShowMenu(m => !m)}
+                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, color: 'var(--color-muted)' }}
+                title="Menu"
+              >⋯</button>
+              {showMenu && (
+                <>
+                  <div onClick={() => setShowMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 20,
+                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                    borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    minWidth: 180, overflow: 'hidden',
+                  }}>
+                    {[
+                      { label: '👥 Members', path: '/members' },
+                      { label: '🔐 Permissions', path: '/settings/permissions' },
+                      { label: '📋 Release notes', path: '/release-notes' },
+                    ].map(({ label, path }) => (
+                      <button key={path} onClick={() => { navigate(path); setShowMenu(false) }}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--color-text)' }}>
+                        {label}
+                      </button>
+                    ))}
+                    <button onClick={() => { handleSignOut(); setShowMenu(false) }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: '#ef4444' }}>
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+          {!isCoordinator && (
+            <button className="btn btn-ghost" onClick={handleSignOut}
+              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>Sign out</button>
           )}
         </div>
       </header>
@@ -660,10 +823,16 @@ export default function FamilyDashboard() {
               fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase',
               letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '1.25rem 0 0.5rem',
             }}>{date}</p>
-            {dayEntries.map((e) => (
-              <EntryCard key={e.id} entry={e} showAuthor={true}
-                canEdit={canEdit} onEdit={setEditingEntry} />
-            ))}
+            {dayEntries.map((e) => {
+              const canDeleteOwn = e.author_id === user?.id &&
+                (now - new Date(e.created_at).getTime()) < 60_000
+              return (
+                <EntryCard key={e.id} entry={e} showAuthor={true}
+                  canEdit={canEdit} canShare={canShare}
+                  canDeleteOwn={canDeleteOwn} now={now}
+                  onEdit={setEditingEntry} onDelete={deleteOwnEntry} />
+              )
+            })}
           </div>
         ))}
 
@@ -718,29 +887,52 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {/* Footer links */}
-        <div style={{ textAlign: 'center', marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-          {isCoordinator && (
-            <button onClick={() => navigate('/members')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
-              👥 Members
+        {/* Journal entry notification toggle — shown when push is active */}
+        {pushPermission === 'granted' && notifyOnEntry !== null && (
+          <div className="card" style={{ marginTop: '1rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.4rem' }}>📓</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>New entry alerts</p>
+              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>
+                Notify me when a new journal entry is logged.
+              </p>
+            </div>
+            {/* Toggle switch */}
+            <button
+              role="switch"
+              aria-checked={!!notifyOnEntry}
+              onClick={() => setNotifyOnEntry(!notifyOnEntry)}
+              style={{
+                position: 'relative', flexShrink: 0,
+                width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
+                background: notifyOnEntry ? 'var(--color-primary)' : 'var(--color-border)',
+                transition: 'background 0.2s',
+                padding: 0,
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 3,
+                left: notifyOnEntry ? 21 : 3,
+                width: 20, height: 20, borderRadius: '50%',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                transition: 'left 0.18s',
+                display: 'block',
+              }} />
             </button>
-          )}
-          {isCoordinator && (
-            <button onClick={() => navigate('/settings/permissions')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
-              🔐 Permissions
-            </button>
-          )}
-          <button onClick={() => navigate('/release-notes')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
-            Companion v{APP_VERSION}
-          </button>
-        </div>
+          </div>
+        )}
+
       </div>
 
       {editingEntry && (
-        <EditEntryModal entry={editingEntry} onSave={saveEntryEdit} onClose={() => setEditingEntry(null)} />
+        <EditEntryModal
+          entry={editingEntry}
+          canDelete={isCoordinator}
+          onSave={saveEntryEdit}
+          onDelete={deleteEntry}
+          onClose={() => setEditingEntry(null)}
+        />
       )}
 
       {showCalendar && (

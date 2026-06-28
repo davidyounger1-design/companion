@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updatePassword } from '../../lib/auth'
+import { supabase } from '../../lib/supabase'
 
 const schema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -27,7 +28,8 @@ export default function ResetPassword() {
     setServerError('')
     try {
       await updatePassword(data.password)
-      navigate('/dashboard')
+      await supabase.auth.signOut()
+      navigate('/sign-in')
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Could not update password. Please try again.')
     }

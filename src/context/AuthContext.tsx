@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { ensureProfile } from '../lib/auth'
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthState>({
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
@@ -55,7 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // User clicked a password-reset link — send them to the reset form
+        setState((prev) => ({ ...prev, user: session?.user ?? null, session: session ?? null, loading: false }))
+        navigate('/reset-password')
+        return
+      }
       if (session?.user) {
         hydrateUser(session.user, session).then(({ profile, org }) =>
           setState((prev) => ({ ...prev, user: session.user, session, profile, org, loading: false })),

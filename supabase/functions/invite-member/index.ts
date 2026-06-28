@@ -49,7 +49,10 @@ Deno.serve(async (req) => {
       .single()
 
     if (caller?.org_id !== org_id) return json({ ok: false, error: 'Forbidden' }, 403)
-    if (!['coordinator', 'trusted_support_worker'].includes(caller?.role ?? ''))
+    if (!['coordinator', 'trusted_support_worker', 'family'].includes(caller?.role ?? ''))
+      return json({ ok: false, error: 'Forbidden' }, 403)
+    // Family members cannot invite coordinators (privilege escalation guard)
+    if (caller?.role === 'family' && role === 'coordinator')
       return json({ ok: false, error: 'Forbidden' }, 403)
 
     // Fetch names for the email copy

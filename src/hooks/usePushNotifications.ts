@@ -17,6 +17,7 @@ export function usePushNotifications() {
   const { user, profile } = useAuth()
   const [permission, setPermission] = useState<PushState>('default')
   const [subscribing, setSubscribing] = useState(false)
+  const [notifyOnEntry, setNotifyOnEntryState] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!('Notification' in window)) {
@@ -25,6 +26,21 @@ export function usePushNotifications() {
       setPermission(Notification.permission as PushState)
     }
   }, [])
+
+  // Load notify_on_entry preference from the user's subscription row
+  useEffect(() => {
+    if (!user) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(supabase as any)
+      .from('push_subscriptions')
+      .select('notify_on_entry')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: { data: { notify_on_entry: boolean } | null }) => {
+        if (data != null) setNotifyOnEntryState(data.notify_on_entry ?? false)
+      })
+  }, [user])
 
   async function subscribe(): Promise<boolean> {
     if (!user || !('serviceWorker' in navigator) || !VAPID_PUBLIC) return false
@@ -53,6 +69,16 @@ export function usePushNotifications() {
         auth:     keys.auth,
       }, { onConflict: 'user_id,endpoint' })
 
+      // Load preference after subscribing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
+        .from('push_subscriptions')
+        .select('notify_on_entry')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+      if (data != null) setNotifyOnEntryState(data.notify_on_entry ?? false)
+
       return true
     } catch (err) {
       console.warn('Push subscribe failed:', err)
@@ -75,7 +101,18 @@ export function usePushNotifications() {
         .eq('endpoint', sub.endpoint)
     }
     setPermission('default')
+    setNotifyOnEntryState(null)
   }
 
-  return { permission, subscribing, subscribe, unsubscribe }
+  async function setNotifyOnEntry(value: boolean) {
+    if (!user) return
+    setNotifyOnEntryState(value)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from('push_subscriptions')
+      .update({ notify_on_entry: value })
+      .eq('user_id', user.id)
+  }
+
+  return { permission, subscribing, subscribe, unsubscribe, notifyOnEntry, setNotifyOnEntry }
 }

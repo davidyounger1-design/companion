@@ -74,8 +74,8 @@ function FullPageSpinner() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
           <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />
@@ -86,8 +86,8 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route path="/release-notes" element={<ReleaseNotes />} />
-            <Route path="/help" element={<RequireAuth><Help /></RequireAuth>} />
-            <Route path="/feedback" element={<RequireAuth><Feedback /></RequireAuth>} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
             <Route path="/settings/permissions" element={<RequireAuth><PermissionsPage /></RequireAuth>} />
 
@@ -139,8 +139,8 @@ export default function App() {
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   )
 }

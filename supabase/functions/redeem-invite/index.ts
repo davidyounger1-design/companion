@@ -61,12 +61,20 @@ Deno.serve(async (req) => {
       userId = created.user.id
     }
 
-    // Upsert profile — ensures the row exists even if the auth trigger hasn't fired yet
+    // Upsert profile — ensures the row exists even if the auth trigger hasn't fired yet.
+    // Guard: never downgrade an existing coordinator to a lower-privilege role.
+    const { data: existingProfile } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+    const safeRole = existingProfile?.role === 'coordinator' ? 'coordinator' : invite.role
+
     await admin.from('profiles').upsert({
       id: userId,
       full_name: name.trim(),
       org_id: invite.org_id,
-      role: invite.role,
+      role: safeRole,
     }, { onConflict: 'id' })
 
     // Link to participant (mirrors what accept_invite RPC does)

@@ -14,7 +14,6 @@ function b64uEncode(buf: ArrayBuffer): string {
 }
 
 async function makeVapidJWT(audience: string): Promise<string> {
-  // Extract x and y from the uncompressed public key: 0x04 || x(32) || y(32)
   const pub = b64uDecode(VAPID_PUBLIC)
   const x = b64uEncode(pub.slice(1, 33).buffer as ArrayBuffer)
   const y = b64uEncode(pub.slice(33, 65).buffer as ArrayBuffer)
@@ -41,8 +40,6 @@ async function makeVapidJWT(audience: string): Promise<string> {
   return `${sigInput}.${b64uEncode(sig)}`
 }
 
-// Send a signal-only push (no body). The service worker shows a fallback notification.
-// Full payload encryption (RFC 8291) can be added later for richer notifications.
 async function sendPush(endpoint: string): Promise<number> {
   const jwt = await makeVapidJWT(endpoint)
   const res = await fetch(endpoint, {
@@ -70,25 +67,61 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
 
-  let body: { record?: { org_id?: string; sender_id?: string; user_id?: string } }
+  let body: {
+    record?: { org_id?: string; client_id?: string; sender_id?: string; author_id?: string; user_id?: string }
+    type?: string
+  }
   try { body = await req.json() } catch { return new Response('bad json', { status: 400 }) }
 
-  const msg = body.record
-  if (!msg?.org_id) return new Response('no org_id', { status: 200 })
+  const record = body.record
+  if (!record?.org_id) return new Response('no org_id', { status: 200 })
 
-  const senderId = msg.sender_id ?? msg.user_id
-  const query = supabase
-    .from('push_subscriptions')
-    .select('endpoint')
-    .eq('org_id', msg.org_id)
+  let subs: { endpoint: string }[] | null = null
 
-  if (senderId) query.neq('user_id', senderId)
+  if (body.type === 'entry') {
+    // Journal entry notification: only family members who opted in for this client
+    const authorId = record.author_id ?? record.user_id
 
-  const { data: subs } = await query
+    // Find family members linked to this client
+    const { data: familyLinks } = await supabase
+      .from('client_family')
+      .select('family_id')
+      .eq('client_id', record.client_id!)
+      .eq('status', 'active')
+
+    const familyIds = (familyLinks ?? []).map((l: { family_id: string }) => l.family_id)
+    if (!familyIds.length) return new Response('no family', { status: 200 })
+
+    // Filter to those who subscribed with notify_on_entry = true, excluding the author
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const q = (supabase as any)
+      .from('push_subscriptions')
+      .select('endpoint')
+      .in('user_id', familyIds)
+      .eq('notify_on_entry', true)
+
+    if (authorId) q.neq('user_id', authorId)
+
+    const { data } = await q
+    subs = data
+  } else {
+    // Message notification: all org members with push subscriptions except the sender
+    const senderId = record.sender_id ?? record.user_id
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const q = (supabase as any)
+      .from('push_subscriptions')
+      .select('endpoint')
+      .eq('org_id', record.org_id)
+
+    if (senderId) q.neq('user_id', senderId)
+
+    const { data } = await q
+    subs = data
+  }
 
   if (!subs?.length) return new Response('no subs', { status: 200 })
 
-  const results = await Promise.allSettled(subs.map(s => sendPush(s.endpoint)))
+  const results = await Promise.allSettled(subs.map((s: { endpoint: string }) => sendPush(s.endpoint)))
   const sent = results.filter(r => r.status === 'fulfilled' && (r.value === 201 || r.value === 200)).length
 
   return new Response(JSON.stringify({ sent, total: subs.length }), { status: 200 })

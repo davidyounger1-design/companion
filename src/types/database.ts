@@ -406,6 +406,10 @@ export interface Database {
         Args: Record<string, never>
         Returns: Array<{ id: string; full_name: string; role: string }>
       }
+      check_pending_invite: {
+        Args: { p_email: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
