@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.4.8'
+const APP_VERSION = '0.4.9'
 
 const RELEASES = [
+  {
+    version: '0.4.9',
+    date: '28 June 2026',
+    title: 'Fix journal entries spinning indefinitely',
+    changes: [
+      { type: 'fix', text: 'Family plan journal no longer spins forever — fixed a query key that changed on every render, causing a fetch loop' },
+    ],
+  },
   {
     version: '0.4.8',
     date: '28 June 2026',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
@@ -568,9 +568,12 @@ export default function FamilyDashboard() {
     setEditMode(false)
   }
 
-  const retentionCutoff = isFamilyPlan
-    ? new Date(Date.now() - RETENTION_DAYS * 86_400_000).toISOString()
-    : null
+  const retentionCutoff = useMemo(() => {
+    if (!isFamilyPlan) return null
+    const d = new Date(Date.now() - RETENTION_DAYS * 86_400_000)
+    d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }, [isFamilyPlan])
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['family-journal', clientId, retentionCutoff],
