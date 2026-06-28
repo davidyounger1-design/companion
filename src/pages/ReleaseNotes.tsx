@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.4.9'
+const APP_VERSION = '0.5.0'
 
 const RELEASES = [
+  {
+    version: '0.5.0',
+    date: '28 June 2026',
+    title: 'App now follows your platform branding',
+    changes: [
+      { type: 'new', text: 'Companion now picks up the accent colour, corner style, and fonts set for it in MyAppBuddy — change the branding there and the app updates to match' },
+    ],
+  },
   {
     version: '0.4.9',
     date: '28 June 2026',
