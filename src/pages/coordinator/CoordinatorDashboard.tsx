@@ -75,9 +75,14 @@ export default function CoordinatorDashboard() {
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 600 }}>Companion</span>
           <span className="badge badge-sage" style={{ marginLeft: '0.6rem' }}>Coordinator</span>
         </div>
-        <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.85rem' }}>
-          Sign out
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <Link to="/help" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>
+            Help
+          </Link>
+          <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.85rem' }}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       <main style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>

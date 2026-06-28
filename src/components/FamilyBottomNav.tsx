@@ -110,7 +110,7 @@ export default function FamilyBottomNav() {
     { label: 'Journal',  icon: <JournalIcon />,  path: '/family' },
     { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
     { label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread },
-    { label: 'Help',     icon: <HelpIcon />,     path: '/feedback', badge: pendingTickets },
+    { label: 'Help',     icon: <HelpIcon />,     path: '/help', badge: pendingTickets },
     ...(isOrgOwner && !isCoordinator ? [{ label: 'Plan', icon: <PlanIcon />, path: '/account' }] : []),
   ]
 

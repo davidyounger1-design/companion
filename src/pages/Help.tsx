@@ -156,6 +156,16 @@ function HelpList() {
             </section>
           ))
         )}
+
+        {/* Always-available route to the support tickets + ideas widgets. */}
+        <button className="card" onClick={() => navigate('/feedback')}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%', textAlign: 'left', marginTop: '0.5rem', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+          <span>
+            <span style={{ display: 'block', fontWeight: 600, fontSize: '0.9375rem' }}>Contact support &amp; ideas</span>
+            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>Open a support ticket or share a feature idea.</span>
+          </span>
+          <span aria-hidden="true" style={{ color: 'var(--color-muted)', fontSize: '1.1rem' }}>→</span>
+        </button>
       </div>
     </div>
   )

@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.2'
+const APP_VERSION = '0.5.3'
 
 const RELEASES = [
+  {
+    version: '0.5.3',
+    date: '28 June 2026',
+    title: 'Help is easier to find',
+    changes: [
+      { type: 'new', text: 'The Help page (with how-to articles) is now reachable from every role — the family Help tab opens it, and coordinators have a new Help link in the dashboard' },
+      { type: 'new', text: 'Added a "Contact support & ideas" link on the Help page so you can open a ticket or share a feature idea from one place' },
+    ],
+  },
   {
     version: '0.5.2',
     date: '28 June 2026',
