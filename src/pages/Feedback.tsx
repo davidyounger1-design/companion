@@ -24,6 +24,7 @@ export default function Feedback() {
   const [scriptsReady, setScriptsReady] = useState(
     () => !!customElements.get('myappbuddy-support') && !!customElements.get('myappbuddy-ideas')
   )
+  const [scriptsError, setScriptsError] = useState(false)
 
   const userEmail = user?.email ?? ''
   const userName = profile?.full_name ?? ''
@@ -39,7 +40,11 @@ export default function Feedback() {
     ]).then(() => Promise.all([
       whenDefinedOrTimeout('myappbuddy-support'),
       whenDefinedOrTimeout('myappbuddy-ideas'),
-    ])).then(() => setScriptsReady(true))
+    ])).then(() => {
+      const defined = !!customElements.get('myappbuddy-support') && !!customElements.get('myappbuddy-ideas')
+      if (defined) setScriptsReady(true)
+      else setScriptsError(true)
+    })
   }, [scriptsReady])
 
   const ready = scriptsReady && !!user
@@ -58,7 +63,12 @@ export default function Feedback() {
 
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-        {!ready ? (
+        {scriptsError ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+            Couldn't load the help widgets. Email us at{' '}
+            <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>.
+          </div>
+        ) : !ready ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
         ) : (
           <>

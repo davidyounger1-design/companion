@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import MoodSlider from '../../components/MoodSlider'
-import { encryptFile } from '../../lib/photoEncryption'
+import { encryptFile, mimeFromPath } from '../../lib/photoEncryption'
 
 type EntryType = 'meal' | 'activity' | 'mood' | 'note'
 
@@ -81,10 +81,11 @@ export default function AddEntry() {
         const ext = fileExt(media)
         const uuid = crypto.randomUUID()
         photoPath = `${profile.org_id}/${clientId}/${user.id}/${uuid}.${ext}`
+        const mimeType = media.type || mimeFromPath(media.name)
         const encryptedBlob = await encryptFile(media, keyHex)
         const { error: uploadErr } = await supabase.storage
           .from('journal-photos')
-          .upload(photoPath, encryptedBlob, { upsert: false, contentType: 'application/octet-stream' })
+          .upload(photoPath, encryptedBlob, { upsert: false, contentType: mimeType })
         if (uploadErr) throw uploadErr
       }
 
