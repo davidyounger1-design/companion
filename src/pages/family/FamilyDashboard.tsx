@@ -720,9 +720,6 @@ export default function FamilyDashboard() {
                       style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: '#ef4444' }}>
                       Sign out
                     </button>
-                    <div style={{ padding: '0.4rem 1rem', fontSize: '0.7rem', color: 'var(--color-muted)', textAlign: 'right' }}>
-                      v0.4.3
-                    </div>
                   </div>
                 </>
               )}
