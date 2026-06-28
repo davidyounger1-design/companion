@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.0'
+const APP_VERSION = '0.5.1'
 
 const RELEASES = [
+  {
+    version: '0.5.1',
+    date: '28 June 2026',
+    title: 'Help articles & Help & Feedback fixes',
+    changes: [
+      { type: 'new', text: 'The Help page now shows live help articles — tap any to read it, and they load instantly from a cached copy then refresh in the background' },
+      { type: 'fix', text: 'Help & Feedback widgets now load reliably — removed an overzealous timeout that could hide the working support and ideas forms' },
+      { type: 'fix', text: 'Installed app now refreshes to the latest version more reliably' },
+    ],
+  },
   {
     version: '0.5.0',
     date: '28 June 2026',

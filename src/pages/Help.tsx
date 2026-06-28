@@ -1,177 +1,162 @@
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  cachedHelpList, fetchHelpList, cachedHelpArticle, fetchHelpArticle,
+  type HelpGroup, type HelpArticleFull,
+} from '../lib/help'
 
-type Section = { icon: string; title: string; body: string }
-
-const GUIDE: Record<string, { heading: string; sections: Section[] }> = {
-  coordinator: {
-    heading: 'Coordinator guide',
-    sections: [
-      {
-        icon: '👥',
-        title: 'Managing members',
-        body: 'Go to Members (top of the journal screen) to invite family members, support workers, and therapists. Send invite links by email — they click the link and land straight in the app. Use the ↑/↓ arrows to promote or demote a member\'s role, and ✕ to remove them entirely.',
-      },
-      {
-        icon: '🔐',
-        title: 'Permissions',
-        body: 'Go to Settings → Permissions to control exactly what each role can do. For example you can prevent support workers from editing entries, or allow family members to post notices. Changes take effect immediately.',
-      },
-      {
-        icon: '📔',
-        title: 'Journal',
-        body: 'The family journal shows all entries logged by everyone in the care circle. Click any entry to edit it. Use the + Add button to log a new meal, activity, mood, or note — you can attach a photo or video to any entry type.',
-      },
-      {
-        icon: '📊',
-        title: 'Mood tracker',
-        body: 'The mood chart on the dashboard shows the participant\'s average mood score each day over the last 14 days. Each log entry has a mood slider (😔 to 😊) — the chart averages all entries for the day.',
-      },
-      {
-        icon: '📌',
-        title: 'Notice board',
-        body: 'Post important notices (appointments, reminders, alerts) from the 📌 button on the dashboard. Notices appear prominently at the top of every team member\'s view.',
-      },
-      {
-        icon: '💬',
-        title: 'Messages',
-        body: 'The messages tab opens the hub showing all org members. Tap any person for a direct thread, or tap the family group for the shared thread visible to all family members and coordinators.',
-      },
-      {
-        icon: '↩️',
-        title: 'Resending invites',
-        body: 'In the Members page, pending invites appear at the top with a Resend button. Use this if someone didn\'t receive the email or the link expired.',
-      },
-    ],
-  },
-  family: {
-    heading: 'Family guide',
-    sections: [
-      {
-        icon: '📔',
-        title: 'Adding entries',
-        body: 'Tap + Add to log a moment from the day. Choose a type (Meal, Activity, Mood, or Note), write a short description, set the mood slider, and optionally attach a photo or video. Tap any entry to edit it.',
-      },
-      {
-        icon: '😊',
-        title: 'Mood tracking',
-        body: 'Every entry has a mood slider from 😔 (0) to 😊 (100). The dashboard shows a chart of mood over the last 14 days. Default is 50 — move it up or down to reflect how the participant was feeling.',
-      },
-      {
-        icon: '🖼️',
-        title: 'Photos & videos',
-        body: 'Every entry type can have a photo or video attached. On your phone, you can take a photo from the camera or pick one from your gallery. Tap any photo in the journal to view it full-screen.',
-      },
-      {
-        icon: '📌',
-        title: 'Notice board',
-        body: 'Tap the 📌 button to open the notice board. Post important reminders (appointments, dietary changes, things to remember). Notices show at the top of the journal for everyone.',
-      },
-      {
-        icon: '💬',
-        title: 'Messages',
-        body: 'Tap the 💬 button to open the message hub. Send a direct message to any team member, or use the family group thread for shared updates visible to all family members and the coordinator.',
-      },
-    ],
-  },
-  trusted_support_worker: {
-    heading: 'Worker guide',
-    sections: [
-      {
-        icon: '📋',
-        title: 'Logging entries',
-        body: 'Open a client from your client list, then tap + Add log entry. Choose the type, write a description, set the mood, and optionally attach a photo or video. Your entries appear in "Today so far". Tap any of your entries to edit them.',
-      },
-      {
-        icon: '😊',
-        title: 'Mood rating',
-        body: 'Every log entry includes a mood rating slider (😔 to 😊, 0–100). Set it to reflect how the participant seemed during that moment. Default is 50 — move it to reflect reality.',
-      },
-      {
-        icon: '📌',
-        title: 'Notice board',
-        body: 'Check the notice board (📌 in the bottom nav) for important notices from the coordinator or family. You can also post notices — useful for shift handover notes.',
-      },
-      {
-        icon: '💬',
-        title: 'Messages',
-        body: 'Use the messages tab (💬 in the bottom nav) to message any team member directly, or the family group thread.',
-      },
-    ],
-  },
-  support_worker: {
-    heading: 'Worker guide',
-    sections: [
-      {
-        icon: '📋',
-        title: 'Logging entries',
-        body: 'Open a client from your client list, then tap + Add log entry. Choose the type, write a description, set the mood, and optionally attach a photo or video. Your entries appear in "Today so far". Tap any of your entries to edit them.',
-      },
-      {
-        icon: '😊',
-        title: 'Mood rating',
-        body: 'Every log entry includes a mood rating slider (😔 to 😊, 0–100). Set it to reflect how the participant seemed during that moment. Default is 50.',
-      },
-      {
-        icon: '💬',
-        title: 'Messages',
-        body: 'Use the messages tab (💬 in the bottom nav) to send a direct message to the coordinator or other team members.',
-      },
-    ],
-  },
-  therapist: {
-    heading: 'Therapist guide',
-    sections: [
-      {
-        icon: '📔',
-        title: 'Viewing the journal',
-        body: 'You can view journal entries for participants in your care circle. The coordinator shares access with you — contact them if you need visibility of additional clients.',
-      },
-      {
-        icon: '💬',
-        title: 'Messages',
-        body: 'Use the messages feature to communicate directly with the coordinator or other team members.',
-      },
-    ],
-  },
+/* Minimal markdown renderer for article bodies. Handles the subset the help API
+   emits: ## headings, - bullet lists, **bold** inline, and blank-line paragraphs.
+   Content is from our own trusted API; we still build React nodes (no innerHTML). */
+function inline(text: string, keyBase: string) {
+  return text.split('**').map((part, i) =>
+    i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{part}</strong> : <span key={`${keyBase}-${i}`}>{part}</span>
+  )
 }
 
-export default function Help() {
+function Markdown({ body }: { body: string }) {
+  const blocks: React.ReactNode[] = []
+  const lines = body.split('\n')
+  let list: string[] = []
+  const flushList = (k: string) => {
+    if (!list.length) return
+    blocks.push(
+      <ul key={k} style={{ margin: '0 0 0.75rem', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+        {list.map((li, i) => <li key={i} style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>{inline(li, `${k}-${i}`)}</li>)}
+      </ul>
+    )
+    list = []
+  }
+  lines.forEach((raw, idx) => {
+    const line = raw.trimEnd()
+    if (line.startsWith('## ')) {
+      flushList(`l${idx}`)
+      blocks.push(<h2 key={idx} style={{ fontSize: '0.95rem', fontWeight: 700, margin: '1rem 0 0.4rem' }}>{inline(line.slice(3), `h${idx}`)}</h2>)
+    } else if (line.startsWith('- ')) {
+      list.push(line.slice(2))
+    } else if (line.trim() === '') {
+      flushList(`l${idx}`)
+    } else {
+      flushList(`l${idx}`)
+      blocks.push(<p key={idx} style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--color-text)' }}>{inline(line, `p${idx}`)}</p>)
+    }
+  })
+  flushList('end')
+  return <>{blocks}</>
+}
+
+const headerStyle: React.CSSProperties = {
+  padding: '0.875rem 1rem', borderBottom: '1px solid var(--color-border)',
+  display: 'flex', alignItems: 'center', gap: '0.75rem',
+  position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 10,
+}
+
+/* ── Article reader (route /help/:slug) ─────────────────────────────── */
+function HelpArticleView({ slug }: { slug: string }) {
   const navigate = useNavigate()
-  const { profile } = useAuth()
-  const role = profile?.role ?? 'support_worker'
-  const guide = GUIDE[role] ?? GUIDE.support_worker
+  const [article, setArticle] = useState<HelpArticleFull | null>(() => cachedHelpArticle(slug))
+  const [loading, setLoading] = useState(!article)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    setError(false)
+    fetchHelpArticle(slug).then((a) => {
+      if (!alive) return
+      if (a) setArticle(a)
+      else if (!cachedHelpArticle(slug)) setError(true)
+      setLoading(false)
+    })
+    return () => { alive = false }
+  }, [slug])
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
-      <div style={{
-        padding: '0.875rem 1rem', borderBottom: '1px solid var(--color-border)',
-        display: 'flex', alignItems: 'center', gap: '0.75rem',
-        position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 10,
-      }}>
-        <button className="btn btn-ghost" onClick={() => navigate(-1)}
+      <div style={headerStyle}>
+        <button className="btn btn-ghost" onClick={() => navigate('/help')}
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
-        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help guide</h1>
+        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {article?.title ?? 'Help'}
+        </h1>
       </div>
-
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '1rem' }}>
-        <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 1rem' }}>
-          {guide.heading}
-        </p>
-
-        {guide.sections.map((s) => (
-          <div key={s.title} className="card" style={{ marginBottom: '0.75rem' }}>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 2 }}>{s.icon}</span>
-              <div>
-                <p style={{ margin: '0 0 0.4rem', fontWeight: 600, fontSize: '0.9375rem' }}>{s.title}</p>
-                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-muted)', lineHeight: 1.6 }}>{s.body}</p>
-              </div>
-            </div>
+        {article ? (
+          <>
+            {article.category && (
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
+                {article.category}
+              </p>
+            )}
+            <h2 style={{ margin: '0 0 1rem', fontSize: '1.25rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>{article.title}</h2>
+            <Markdown body={article.body} />
+          </>
+        ) : loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
+        ) : error ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+            Couldn't load this article. <button className="btn btn-ghost" onClick={() => navigate('/help')} style={{ fontSize: '0.875rem' }}>Back to help</button>
           </div>
-        ))}
-
+        ) : null}
       </div>
     </div>
   )
+}
+
+/* ── Article list (route /help) ─────────────────────────────────────── */
+function HelpList() {
+  const navigate = useNavigate()
+  const [groups, setGroups] = useState<HelpGroup[] | null>(() => cachedHelpList())
+  const [loading, setLoading] = useState(!groups)
+
+  useEffect(() => {
+    let alive = true
+    fetchHelpList().then((res) => {
+      if (!alive) return
+      if (res && (res.changed || !groups)) setGroups(res.groups)
+      setLoading(false)
+    })
+    return () => { alive = false }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isEmpty = useMemo(() => !!groups && groups.every((g) => !g.articles?.length), [groups])
+
+  return (
+    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
+      <div style={headerStyle}>
+        <button className="btn btn-ghost" onClick={() => navigate(-1)}
+          style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
+        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help</h1>
+      </div>
+
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: '1rem' }}>
+        {!groups && loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
+        ) : !groups || isEmpty ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+            No help articles yet. Need a hand? <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>
+          </div>
+        ) : (
+          groups.filter((g) => g.articles?.length).map((g) => (
+            <section key={g.category} style={{ marginBottom: '1.25rem' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
+                {g.category}
+              </p>
+              {g.articles.map((a) => (
+                <button key={a.slug} className="card" onClick={() => navigate(`/help/${a.slug}`)}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: '0.5rem', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+                  <p style={{ margin: '0 0 0.2rem', fontWeight: 600, fontSize: '0.9375rem' }}>{a.title}</p>
+                  {a.summary && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>{a.summary}</p>}
+                </button>
+              ))}
+            </section>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function Help() {
+  const { slug } = useParams()
+  return slug ? <HelpArticleView slug={slug} /> : <HelpList />
 }

@@ -3,6 +3,12 @@ import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
 
 declare const self: ServiceWorkerGlobalScope
 
+// Bump on releases that must force installed PWAs onto a fresh app shell (the
+// precache manifest is content-hashed per build, but this guarantees the SW
+// bytes change so autoUpdate + skipWaiting/clientsClaim reliably take over).
+const SW_VERSION = '0.5.1'
+void SW_VERSION
+
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 

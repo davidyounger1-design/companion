@@ -1,61 +1,45 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import React from 'react'
 import { MobileFooter } from '../components/SiteFooter'
+import { WidgetBoundary } from '../components/WidgetBoundary'
+import { MabEmbed } from '../components/MabEmbed'
 
 const MAB_BASE = 'https://myappbuddy.com.au'
 
-function loadScript(id: string, src: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (document.getElementById(id)) { resolve(); return }
-    const s = document.createElement('script')
-    s.id = id
-    s.src = src
-    s.onload = () => resolve()
-    s.onerror = () => resolve() // resolve anyway so we don't hang
-    document.head.appendChild(s)
-  })
+function WidgetUnavailable({ label }: { label: string }) {
+  return (
+    <div style={{ padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+      {label} isn't available right now. You can email <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>.
+    </div>
+  )
 }
 
+// The MAB embed scripts are loaded eagerly from index.html (static <script defer>
+// tags). The custom elements register on their own and auto-upgrade any matching
+// tags already in the DOM, and each element renders its own header, form, list,
+// and loading/empty/error states — so we just drop them in. We only wait on
+// whenDefined to show a brief spinner instead of a flash of empty elements; we do
+// NOT show a hard "couldn't load" fallback, which previously masked working widgets.
 export default function Feedback() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
-  const [scriptsReady, setScriptsReady] = useState(
+  const [ready, setReady] = useState(
     () => !!customElements.get('myappbuddy-support') && !!customElements.get('myappbuddy-ideas')
   )
-  const [scriptsError, setScriptsError] = useState(false)
-  const [loadAttempt, setLoadAttempt] = useState(0)
 
   const userEmail = user?.email ?? ''
   const userName = profile?.full_name ?? ''
 
   useEffect(() => {
-    if (scriptsReady) return
-    const timeout = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
-    const whenDefinedOrTimeout = (name: string) =>
-      Promise.race([customElements.whenDefined(name).then(() => {}), timeout(8000)])
+    if (ready) return
+    let alive = true
     Promise.all([
-      loadScript('mab-support', `${MAB_BASE}/embed/support.js`),
-      loadScript('mab-ideas',   `${MAB_BASE}/embed/ideas.js`),
-    ]).then(() => Promise.all([
-      whenDefinedOrTimeout('myappbuddy-support'),
-      whenDefinedOrTimeout('myappbuddy-ideas'),
-    ])).then(() => {
-      const defined = !!customElements.get('myappbuddy-support') && !!customElements.get('myappbuddy-ideas')
-      if (defined) setScriptsReady(true)
-      else setScriptsError(true)
-    })
-  }, [scriptsReady, loadAttempt])
-
-  const retryScripts = () => {
-    document.getElementById('mab-support')?.remove()
-    document.getElementById('mab-ideas')?.remove()
-    setScriptsError(false)
-    setLoadAttempt(n => n + 1)
-  }
-
-  const ready = scriptsReady && !!user
+      customElements.whenDefined('myappbuddy-support'),
+      customElements.whenDefined('myappbuddy-ideas'),
+    ]).then(() => { if (alive) setReady(true) })
+    return () => { alive = false }
+  }, [ready])
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
@@ -71,13 +55,7 @@ export default function Feedback() {
 
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-        {scriptsError ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
-            <span>Couldn't load the help widgets.</span>
-            <button className="btn btn-primary" onClick={retryScripts} style={{ fontSize: '0.875rem' }}>Try again</button>
-            <span>Or email <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a></span>
-          </div>
-        ) : !ready ? (
+        {!ready ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
         ) : (
           <>
@@ -85,31 +63,31 @@ export default function Feedback() {
               <h2 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
                 Support tickets
               </h2>
-              {React.createElement('myappbuddy-support', {
-                'app-id': 'companion',
-                'app-ref': userEmail,
-                'user-email': userEmail,
-                'user-name': userName,
-                'app-name': 'Companion',
-                'base-url': MAB_BASE,
-                accent: '#6f8c78',
-                style: { display: 'block' },
-              })}
+              <WidgetBoundary fallback={<WidgetUnavailable label="Support" />}>
+                <MabEmbed tag="myappbuddy-support" attrs={{
+                  'app-id': 'companion',
+                  'app-ref': userEmail,
+                  'user-email': userEmail,
+                  'user-name': userName,
+                  'app-name': 'Companion',
+                  'base-url': MAB_BASE,
+                  accent: '#6f8c78',
+                }} />
+              </WidgetBoundary>
             </section>
 
             <section>
               <h2 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
                 Ideas &amp; roadmap
               </h2>
-              {React.createElement('myappbuddy-ideas', {
-                'app-id': 'companion',
-                'user-email': userEmail,
-                'user-name': userName,
-                'app-name': 'Companion',
-                'base-url': MAB_BASE,
-                accent: '#6f8c78',
-                style: { display: 'block' },
-              })}
+              <WidgetBoundary fallback={<WidgetUnavailable label="Ideas & roadmap" />}>
+                <MabEmbed tag="myappbuddy-ideas" attrs={{
+                  'app-id': 'companion',
+                  'app-name': 'Companion',
+                  'base-url': MAB_BASE,
+                  accent: '#6f8c78',
+                }} />
+              </WidgetBoundary>
             </section>
           </>
         )}
@@ -118,13 +96,4 @@ export default function Feedback() {
       </div>
     </div>
   )
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'myappbuddy-support': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & Record<string, string>
-      'myappbuddy-ideas': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & Record<string, string>
-    }
-  }
 }
