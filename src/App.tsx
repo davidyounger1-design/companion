@@ -34,7 +34,6 @@ import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
 import MembersPage from './pages/members/MembersPage'
 import ReleaseNotes from './pages/ReleaseNotes'
 import Help from './pages/Help'
-import Feedback from './pages/Feedback'
 import Account from './pages/Account'
 import PermissionsPage from './pages/settings/PermissionsPage'
 import Deck from './pages/Deck'
@@ -121,7 +120,7 @@ export default function App() {
             <Route path="/release-notes" element={<ReleaseNotes />} />
             <Route path="/help" element={<Help />} />
             <Route path="/help/:slug" element={<Help />} />
-            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/feedback" element={<Navigate to="/help?tab=support" replace />} />
             <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
             <Route path="/settings/permissions" element={<RequireAuth><PermissionsPage /></RequireAuth>} />
 

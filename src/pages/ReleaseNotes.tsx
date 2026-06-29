@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.4'
+const APP_VERSION = '0.5.5'
 
 const RELEASES = [
+  {
+    version: '0.5.5',
+    date: '28 June 2026',
+    title: 'Help split into tabs',
+    changes: [
+      { type: 'new', text: 'Help now has three tabs — Articles, Support, and Ideas — so each is on its own screen instead of one long page' },
+    ],
+  },
   {
     version: '0.5.4',
     date: '28 June 2026',

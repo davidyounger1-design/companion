@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { WidgetBoundary } from '../components/WidgetBoundary'
+import { MabEmbed } from '../components/MabEmbed'
 import {
   cachedHelpList, fetchHelpList, filterGroupsForApp, filterGroupsByRole,
   cachedHelpArticle, fetchHelpArticle,
   type HelpGroup, type HelpArticleFull,
 } from '../lib/help'
+
+const MAB_BASE = 'https://myappbuddy.com.au'
 
 /* Minimal markdown renderer for article bodies. Handles the subset the help API
    emits: ## headings, - bullet lists, **bold** inline, and blank-line paragraphs.
@@ -51,6 +55,32 @@ const headerStyle: React.CSSProperties = {
   padding: '0.875rem 1rem', borderBottom: '1px solid var(--color-border)',
   display: 'flex', alignItems: 'center', gap: '0.75rem',
   position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 10,
+}
+
+function WidgetUnavailable({ label }: { label: string }) {
+  return (
+    <div style={{ padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+      {label} isn't available right now. You can email <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>.
+    </div>
+  )
+}
+
+/* Brief readiness gate so the embed tabs show a spinner rather than a flash of
+   empty custom elements before the MAB scripts (loaded in index.html) register. */
+function useEmbedReady() {
+  const [ready, setReady] = useState(
+    () => !!customElements.get('myappbuddy-support') && !!customElements.get('myappbuddy-ideas')
+  )
+  useEffect(() => {
+    if (ready) return
+    let alive = true
+    Promise.all([
+      customElements.whenDefined('myappbuddy-support'),
+      customElements.whenDefined('myappbuddy-ideas'),
+    ]).then(() => { if (alive) setReady(true) })
+    return () => { alive = false }
+  }, [ready])
+  return ready
 }
 
 /* ── Article reader (route /help/:slug) ─────────────────────────────── */
@@ -104,8 +134,8 @@ function HelpArticleView({ slug }: { slug: string }) {
   )
 }
 
-/* ── Article list (route /help) ─────────────────────────────────────── */
-function HelpList() {
+/* ── Articles tab ───────────────────────────────────────────────────── */
+function ArticlesPane() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const role = profile?.role
@@ -130,6 +160,85 @@ function HelpList() {
   )
   const isEmpty = useMemo(() => !!visibleGroups && visibleGroups.every((g) => !g.articles?.length), [visibleGroups])
 
+  if (!visibleGroups && loading) {
+    return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
+  }
+  if (!visibleGroups || isEmpty) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+        No help articles yet. Need a hand? <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>
+      </div>
+    )
+  }
+  return (
+    <>
+      {visibleGroups.filter((g) => g.articles?.length).map((g) => (
+        <section key={g.category} style={{ marginBottom: '1.25rem' }}>
+          <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
+            {g.category}
+          </p>
+          {g.articles.map((a) => (
+            <button key={a.slug} className="card" onClick={() => navigate(`/help/${a.slug}`)}
+              style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: '0.5rem', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+              <p style={{ margin: '0 0 0.2rem', fontWeight: 600, fontSize: '0.9375rem' }}>{a.title}</p>
+              {a.summary && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>{a.summary}</p>}
+            </button>
+          ))}
+        </section>
+      ))}
+    </>
+  )
+}
+
+/* ── Support tab ────────────────────────────────────────────────────── */
+function SupportPane() {
+  const { user, profile } = useAuth()
+  const ready = useEmbedReady()
+  const email = user?.email ?? ''
+  if (!ready) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
+  return (
+    <WidgetBoundary fallback={<WidgetUnavailable label="Support" />}>
+      <MabEmbed tag="myappbuddy-support" attrs={{
+        'app-id': 'companion',
+        'app-ref': email,
+        'user-email': email,
+        'user-name': profile?.full_name ?? '',
+        'app-name': 'Companion',
+        'base-url': MAB_BASE,
+        accent: '#6f8c78',
+      }} />
+    </WidgetBoundary>
+  )
+}
+
+/* ── Ideas tab ──────────────────────────────────────────────────────── */
+function IdeasPane() {
+  const ready = useEmbedReady()
+  if (!ready) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
+  return (
+    <WidgetBoundary fallback={<WidgetUnavailable label="Ideas & roadmap" />}>
+      <MabEmbed tag="myappbuddy-ideas" attrs={{
+        'app-id': 'companion',
+        'app-name': 'Companion',
+        'base-url': MAB_BASE,
+        accent: '#6f8c78',
+      }} />
+    </WidgetBoundary>
+  )
+}
+
+/* ── Hub with tabs (route /help) ────────────────────────────────────── */
+const TABS = [
+  { key: 'articles', label: 'Articles' },
+  { key: 'support',  label: 'Support' },
+  { key: 'ideas',    label: 'Ideas' },
+] as const
+
+function HelpHub() {
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const tab = (TABS.find((t) => t.key === params.get('tab'))?.key) ?? 'articles'
+
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
       <div style={headerStyle}>
@@ -138,39 +247,33 @@ function HelpList() {
         <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help</h1>
       </div>
 
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '1rem' }}>
-        {/* Tickets + ideas up top, so support is the first thing you can reach. */}
-        <button className="card" onClick={() => navigate('/feedback')}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%', textAlign: 'left', marginBottom: '1.25rem', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
-          <span>
-            <span style={{ display: 'block', fontWeight: 600, fontSize: '0.9375rem' }}>Support tickets &amp; ideas</span>
-            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>Open a support ticket or share a feature idea.</span>
-          </span>
-          <span aria-hidden="true" style={{ color: 'var(--color-muted)', fontSize: '1.1rem' }}>→</span>
-        </button>
+      {/* Tab bar */}
+      <div role="tablist" style={{
+        display: 'flex', gap: '0.25rem', padding: '0 1rem', maxWidth: 560, margin: '0 auto',
+        borderBottom: '1px solid var(--color-border)',
+      }}>
+        {TABS.map((t) => {
+          const active = t.key === tab
+          return (
+            <button key={t.key} role="tab" aria-selected={active}
+              onClick={() => setParams(t.key === 'articles' ? {} : { tab: t.key }, { replace: true })}
+              style={{
+                appearance: 'none', background: 'none', border: 'none', cursor: 'pointer',
+                padding: '0.75rem 0.5rem', fontSize: '0.875rem', fontWeight: active ? 700 : 500,
+                color: active ? 'var(--color-primary)' : 'var(--color-muted)',
+                borderBottom: `2px solid ${active ? 'var(--color-primary)' : 'transparent'}`,
+                marginBottom: -1,
+              }}>
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
 
-        {!visibleGroups && loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
-        ) : !visibleGroups || isEmpty ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
-            No help articles yet. Need a hand? <a href="mailto:hello@myappbuddy.com.au" style={{ color: 'var(--color-primary)' }}>hello@myappbuddy.com.au</a>
-          </div>
-        ) : (
-          visibleGroups.filter((g) => g.articles?.length).map((g) => (
-            <section key={g.category} style={{ marginBottom: '1.25rem' }}>
-              <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>
-                {g.category}
-              </p>
-              {g.articles.map((a) => (
-                <button key={a.slug} className="card" onClick={() => navigate(`/help/${a.slug}`)}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: '0.5rem', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
-                  <p style={{ margin: '0 0 0.2rem', fontWeight: 600, fontSize: '0.9375rem' }}>{a.title}</p>
-                  {a.summary && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>{a.summary}</p>}
-                </button>
-              ))}
-            </section>
-          ))
-        )}
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: '1rem' }}>
+        {tab === 'articles' && <ArticlesPane />}
+        {tab === 'support' && <SupportPane />}
+        {tab === 'ideas' && <IdeasPane />}
       </div>
     </div>
   )
@@ -178,5 +281,5 @@ function HelpList() {
 
 export default function Help() {
   const { slug } = useParams()
-  return slug ? <HelpArticleView slug={slug} /> : <HelpList />
+  return slug ? <HelpArticleView slug={slug} /> : <HelpHub />
 }
