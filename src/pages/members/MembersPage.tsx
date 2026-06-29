@@ -156,6 +156,7 @@ export default function MembersPage() {
   const [showInvite, setShowInvite] = useState(false)
   const [actionError, setActionError] = useState('')
   const [resendingId, setResendingId] = useState<string | null>(null)
+  const [rescindingId, setRescindingId] = useState<string | null>(null)
 
   const perms = usePermissions()
   const isCoordinator = profile?.role === 'coordinator'
@@ -252,6 +253,20 @@ export default function MembersPage() {
     }
   }
 
+  async function rescindInvite(invite: { id: string; email: string }) {
+    if (!confirm(`Rescind the invite for ${invite.email}? Their invite link will stop working.`)) return
+    setActionError('')
+    setRescindingId(invite.id)
+    try {
+      // RLS scopes this to the caller's own org + coordinator role.
+      const { error } = await supabase.from('invites').delete().eq('id', invite.id)
+      if (error) { setActionError(error.message || 'Could not rescind invite'); return }
+      qc.invalidateQueries({ queryKey: ['pending-invites'] })
+    } finally {
+      setRescindingId(null)
+    }
+  }
+
   // Roles the current user is allowed to invite
   const invitableRoles: string[] = (() => {
     if (isCoordinator) {
@@ -318,11 +333,19 @@ export default function MembersPage() {
                   <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 500 }}>{inv.email}</p>
                   <span style={roleBadgeStyle(inv.role)}>{ROLE_LABEL[inv.role] ?? inv.role}</span>
                 </div>
-                <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}
-                  disabled={resendingId === inv.id}
-                  onClick={() => resendInvite(inv)}>
-                  {resendingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '↩ Resend'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
+                  <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}
+                    disabled={resendingId === inv.id || rescindingId === inv.id}
+                    onClick={() => resendInvite(inv)}>
+                    {resendingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '↩ Resend'}
+                  </button>
+                  <button className="btn btn-ghost" title="Rescind invite"
+                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--color-danger, #c0392b)' }}
+                    disabled={resendingId === inv.id || rescindingId === inv.id}
+                    onClick={() => rescindInvite(inv)}>
+                    {rescindingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '✕'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

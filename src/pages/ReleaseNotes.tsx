@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.5'
+const APP_VERSION = '0.5.6'
 
 const RELEASES = [
+  {
+    version: '0.5.6',
+    date: '28 June 2026',
+    title: 'Rescind pending invites',
+    changes: [
+      { type: 'new', text: 'Coordinators can now rescind a pending invite from the Members page — the invite link stops working immediately' },
+    ],
+  },
   {
     version: '0.5.5',
     date: '28 June 2026',
