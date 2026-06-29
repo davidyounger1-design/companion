@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { usePendingTickets } from '../hooks/usePendingTickets'
 
 // ── SVG icons — consistent stroke-based rendering on all platforms ─────────
 
@@ -64,6 +65,7 @@ type NavEntry = {
   icon: React.ReactNode
   path: string
   badge?: number
+  badgeLabel?: string
 }
 
 export default function FamilyBottomNav() {
@@ -90,39 +92,29 @@ export default function FamilyBottomNav() {
     refetchInterval: 30_000,
   })
 
-  const { data: pendingTickets = 0 } = useQuery({
-    queryKey: ['help-pending', user?.email],
-    queryFn: async () => {
-      if (!user?.email) return 0
-      try {
-        const res = await fetch(
-          `https://myappbuddy.com.au/api/v1/embed/support?app_id=companion&app_ref=${encodeURIComponent(user.email)}`
-        )
-        const data = await res.json()
-        return (data.tickets || []).filter((t: { status: string }) => t.status === 'pending').length
-      } catch { return 0 }
-    },
-    enabled: !!user?.email,
-    refetchInterval: 60_000,
-  })
+  const pendingTickets = usePendingTickets()
 
   const items: NavEntry[] = [
     { label: 'Journal',  icon: <JournalIcon />,  path: '/family' },
     { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
-    { label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread },
-    { label: 'Help',     icon: <HelpIcon />,     path: '/help', badge: pendingTickets },
+    { label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread, badgeLabel: 'unread messages' },
+    // When a ticket is awaiting the user's reply, send Help straight to the
+    // Support tab so the badge points at what needs attention.
+    { label: 'Help',     icon: <HelpIcon />,     path: pendingTickets > 0 ? '/help?tab=support' : '/help', badge: pendingTickets, badgeLabel: 'support tickets awaiting your reply' },
     ...(isOrgOwner && !isCoordinator ? [{ label: 'Plan', icon: <PlanIcon />, path: '/account' }] : []),
   ]
 
   return (
     <nav className="bottom-nav" aria-label="Main navigation">
-      {items.map(({ label, icon, path, badge }) => {
-        const active = path === '/family'
+      {items.map(({ label, icon, path, badge, badgeLabel }) => {
+        // Compare against the path without any query string (pathname has none).
+        const base = path.split('?')[0]
+        const active = base === '/family'
           ? pathname === '/family'
-          : pathname.startsWith(path)
+          : pathname.startsWith(base)
         return (
           <button
-            key={path}
+            key={label}
             onClick={() => navigate(path)}
             className={`bottom-nav-item${active ? ' active' : ''}`}
             aria-label={label}
@@ -131,7 +123,7 @@ export default function FamilyBottomNav() {
             <span className="nav-icon-wrap">
               {icon}
               {(badge ?? 0) > 0 && (
-                <span className="nav-badge" aria-label={`${badge} unread`}>
+                <span className="nav-badge" aria-label={`${badge} ${badgeLabel ?? 'unread'}`}>
                   {(badge ?? 0) > 9 ? '9+' : badge}
                 </span>
               )}

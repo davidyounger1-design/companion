@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { WidgetBoundary } from '../components/WidgetBoundary'
 import { MabEmbed } from '../components/MabEmbed'
+import { usePendingTickets } from '../hooks/usePendingTickets'
 import {
   cachedHelpList, fetchHelpList, filterGroupsForApp, filterGroupsByRole,
   cachedHelpArticle, fetchHelpArticle,
@@ -238,6 +239,7 @@ function HelpHub() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const tab = (TABS.find((t) => t.key === params.get('tab'))?.key) ?? 'articles'
+  const pendingTickets = usePendingTickets()
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
@@ -262,9 +264,17 @@ function HelpHub() {
                 padding: '0.75rem 0.5rem', fontSize: '0.875rem', fontWeight: active ? 700 : 500,
                 color: active ? 'var(--color-primary)' : 'var(--color-muted)',
                 borderBottom: `2px solid ${active ? 'var(--color-primary)' : 'transparent'}`,
-                marginBottom: -1,
+                marginBottom: -1, display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
               }}>
               {t.label}
+              {t.key === 'support' && pendingTickets > 0 && (
+                <span aria-label={`${pendingTickets} awaiting your reply`} style={{
+                  fontSize: '0.7rem', fontWeight: 700, lineHeight: 1, color: '#fff',
+                  background: 'var(--color-error, #c0392b)', borderRadius: 999,
+                  minWidth: 16, height: 16, padding: '0 4px',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}>{pendingTickets > 9 ? '9+' : pendingTickets}</span>
+              )}
             </button>
           )
         })}

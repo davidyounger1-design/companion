@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.8'
+const APP_VERSION = '0.5.9'
 
 const RELEASES = [
+  {
+    version: '0.5.9',
+    date: '28 June 2026',
+    title: 'Help badge points to your ticket',
+    changes: [
+      { type: 'fix', text: 'The number on the Help tab counts support tickets awaiting your reply — tapping Help now opens the Support tab directly, and that tab shows the count, so it\'s clear what needs attention' },
+    ],
+  },
   {
     version: '0.5.8',
     date: '28 June 2026',
