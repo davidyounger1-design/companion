@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
-  cachedHelpList, fetchHelpList, filterGroupsByRole, cachedHelpArticle, fetchHelpArticle,
+  cachedHelpList, fetchHelpList, filterGroupsForApp, filterGroupsByRole,
+  cachedHelpArticle, fetchHelpArticle,
   type HelpGroup, type HelpArticleFull,
 } from '../lib/help'
 
@@ -121,8 +122,12 @@ function HelpList() {
     return () => { alive = false }
   }, [role]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tailor to the signed-in role (no-op until MAB tags articles with `roles`).
-  const visibleGroups = useMemo(() => (groups ? filterGroupsByRole(groups, role) : null), [groups, role])
+  // Companion-only articles, then tailored to the signed-in role (role filter is
+  // a no-op until MAB tags articles with `roles`).
+  const visibleGroups = useMemo(
+    () => (groups ? filterGroupsByRole(filterGroupsForApp(groups), role) : null),
+    [groups, role],
+  )
   const isEmpty = useMemo(() => !!visibleGroups && visibleGroups.every((g) => !g.articles?.length), [visibleGroups])
 
   return (
@@ -134,6 +139,16 @@ function HelpList() {
       </div>
 
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '1rem' }}>
+        {/* Tickets + ideas up top, so support is the first thing you can reach. */}
+        <button className="card" onClick={() => navigate('/feedback')}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%', textAlign: 'left', marginBottom: '1.25rem', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+          <span>
+            <span style={{ display: 'block', fontWeight: 600, fontSize: '0.9375rem' }}>Support tickets &amp; ideas</span>
+            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>Open a support ticket or share a feature idea.</span>
+          </span>
+          <span aria-hidden="true" style={{ color: 'var(--color-muted)', fontSize: '1.1rem' }}>→</span>
+        </button>
+
         {!visibleGroups && loading ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>Loading…</div>
         ) : !visibleGroups || isEmpty ? (
@@ -156,16 +171,6 @@ function HelpList() {
             </section>
           ))
         )}
-
-        {/* Always-available route to the support tickets + ideas widgets. */}
-        <button className="card" onClick={() => navigate('/feedback')}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%', textAlign: 'left', marginTop: '0.5rem', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
-          <span>
-            <span style={{ display: 'block', fontWeight: 600, fontSize: '0.9375rem' }}>Contact support &amp; ideas</span>
-            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>Open a support ticket or share a feature idea.</span>
-          </span>
-          <span aria-hidden="true" style={{ color: 'var(--color-muted)', fontSize: '1.1rem' }}>→</span>
-        </button>
       </div>
     </div>
   )

@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.3'
+const APP_VERSION = '0.5.4'
 
 const RELEASES = [
+  {
+    version: '0.5.4',
+    date: '28 June 2026',
+    title: 'Help shows only Companion articles',
+    changes: [
+      { type: 'fix', text: 'The Help page now shows only Companion articles — other products and general platform pages (e.g. Leave Planner, pricing) no longer appear' },
+      { type: 'fix', text: 'Support tickets & ideas now sits at the top of the Help page so it\'s easy to find' },
+    ],
+  },
   {
     version: '0.5.3',
     date: '28 June 2026',

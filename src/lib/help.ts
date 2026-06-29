@@ -72,6 +72,18 @@ export async function fetchHelpList(role?: string): Promise<{ groups: HelpGroup[
   }
 }
 
+/**
+ * Keep only Companion's own articles. The API's ?app_id=companion also returns
+ * all `appId: null` global articles (platform billing/pricing, and even other
+ * products like Leave Planner), which don't belong in Companion's help. Filter
+ * to appId === 'companion' so we show only Companion content.
+ */
+export function filterGroupsForApp(groups: HelpGroup[]): HelpGroup[] {
+  return groups
+    .map((g) => ({ ...g, articles: (g.articles ?? []).filter((a) => a.appId === 'companion') }))
+    .filter((g) => g.articles.length > 0)
+}
+
 /** Role tags for an article, normalized to a string[] (empty = applies to all). */
 function rolesOf(a: HelpArticle): string[] {
   const r = a.roles
