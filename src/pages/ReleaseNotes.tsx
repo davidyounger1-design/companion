@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.7'
+const APP_VERSION = '0.5.8'
 
 const RELEASES = [
+  {
+    version: '0.5.8',
+    date: '28 June 2026',
+    title: 'New invites show immediately',
+    changes: [
+      { type: 'fix', text: 'A newly sent invite now appears in the pending-invites list right away, without needing to refresh' },
+    ],
+  },
   {
     version: '0.5.7',
     date: '28 June 2026',

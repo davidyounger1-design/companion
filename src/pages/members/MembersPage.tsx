@@ -462,7 +462,11 @@ export default function MembersPage() {
           orgId={org.id}
           allowedRoles={invitableRoles}
           clientId={firstClient?.id ?? null}
-          onClose={() => { setShowInvite(false); qc.invalidateQueries({ queryKey: ['org-members', 'pending-invites'] }) }}
+          onClose={() => {
+            setShowInvite(false)
+            qc.invalidateQueries({ queryKey: ['org-members'] })
+            qc.invalidateQueries({ queryKey: ['pending-invites'] })
+          }}
         />
       )}
     </div>
