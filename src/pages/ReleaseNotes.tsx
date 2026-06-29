@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.6'
+const APP_VERSION = '0.5.7'
 
 const RELEASES = [
+  {
+    version: '0.5.7',
+    date: '28 June 2026',
+    title: 'Family can see pending invites',
+    changes: [
+      { type: 'new', text: 'Family members can now see the list of pending invites on the Members page (read-only) — resending and rescinding stay with coordinators' },
+    ],
+  },
   {
     version: '0.5.6',
     date: '28 June 2026',

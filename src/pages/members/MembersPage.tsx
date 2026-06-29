@@ -160,6 +160,7 @@ export default function MembersPage() {
 
   const perms = usePermissions()
   const isCoordinator = profile?.role === 'coordinator'
+  const isFamily = profile?.role === 'family'
   const isFamilyOrg = org?.org_type === 'family'
 
   const { data: members = [], isLoading } = useQuery({
@@ -317,8 +318,8 @@ export default function MembersPage() {
           <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{actionError}</div>
         )}
 
-        {/* Pending invites */}
-        {isCoordinator && pendingInvites.length > 0 && (
+        {/* Pending invites — coordinators can act on them; family sees them read-only */}
+        {(isCoordinator || isFamily) && pendingInvites.length > 0 && (
           <div style={{ marginBottom: '1.5rem' }}>
             <p style={{
               fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
@@ -333,19 +334,23 @@ export default function MembersPage() {
                   <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 500 }}>{inv.email}</p>
                   <span style={roleBadgeStyle(inv.role)}>{ROLE_LABEL[inv.role] ?? inv.role}</span>
                 </div>
-                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
-                  <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}
-                    disabled={resendingId === inv.id || rescindingId === inv.id}
-                    onClick={() => resendInvite(inv)}>
-                    {resendingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '↩ Resend'}
-                  </button>
-                  <button className="btn btn-ghost" title="Rescind invite"
-                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--color-danger, #c0392b)' }}
-                    disabled={resendingId === inv.id || rescindingId === inv.id}
-                    onClick={() => rescindInvite(inv)}>
-                    {rescindingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '✕'}
-                  </button>
-                </div>
+                {isCoordinator ? (
+                  <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
+                    <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}
+                      disabled={resendingId === inv.id || rescindingId === inv.id}
+                      onClick={() => resendInvite(inv)}>
+                      {resendingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '↩ Resend'}
+                    </button>
+                    <button className="btn btn-ghost" title="Rescind invite"
+                      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--color-danger, #c0392b)' }}
+                      disabled={resendingId === inv.id || rescindingId === inv.id}
+                      onClick={() => rescindInvite(inv)}>
+                      {rescindingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '✕'}
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-muted)', flexShrink: 0 }}>Pending</span>
+                )}
               </div>
             ))}
           </div>
