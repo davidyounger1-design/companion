@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.9'
+const APP_VERSION = '0.5.10'
 
 const RELEASES = [
+  {
+    version: '0.5.10',
+    date: '28 June 2026',
+    title: 'Quieter updates',
+    changes: [
+      { type: 'fix', text: 'New versions now install quietly and apply the next time you open the app — no more repeated "update now" banner' },
+    ],
+  },
   {
     version: '0.5.9',
     date: '28 June 2026',
