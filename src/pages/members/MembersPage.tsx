@@ -12,17 +12,19 @@ type RpcResult = { ok: boolean; error?: string; new_role?: string }
 const ROLE_LABEL: Record<string, string> = {
   coordinator: 'Coordinator',
   family: 'Family member',
+  recipient: 'Care recipient',
   trusted_support_worker: 'Trusted worker',
   support_worker: 'Support worker',
   therapist: 'Therapist',
 }
 
-const ROLE_ORDER = ['coordinator', 'family', 'trusted_support_worker', 'support_worker', 'therapist']
+const ROLE_ORDER = ['coordinator', 'family', 'recipient', 'trusted_support_worker', 'support_worker', 'therapist']
 
 function roleBadgeStyle(role: string): React.CSSProperties {
   const map: Record<string, string> = {
     coordinator: 'var(--color-primary)',
     family: '#7c6be8',
+    recipient: '#1a73c0',
     trusted_support_worker: '#2e7d52',
     support_worker: 'var(--color-muted)',
     therapist: '#c06b1a',
@@ -273,12 +275,16 @@ export default function MembersPage() {
     if (isCoordinator) {
       // Coordinator can always invite; family org includes 'family' role
       return isFamilyOrg
-        ? ['family', 'support_worker', 'trusted_support_worker']
-        : ['support_worker', 'trusted_support_worker']
+        ? ['family', 'recipient', 'support_worker', 'trusted_support_worker']
+        : ['recipient', 'support_worker', 'trusted_support_worker']
     }
     if (!perms.invite_members) return []
-    // Family members and trusted workers can invite the same set as a coordinator
-    if (profile?.role === 'family' || profile?.role === 'trusted_support_worker') {
+    // Family members can invite the same set as a coordinator, including the recipient
+    // (trusted workers keep the prior set — they can't invite a recipient)
+    if (profile?.role === 'family') {
+      return ['family', 'recipient', 'support_worker', 'trusted_support_worker']
+    }
+    if (profile?.role === 'trusted_support_worker') {
       return ['family', 'support_worker', 'trusted_support_worker']
     }
     return ['support_worker']

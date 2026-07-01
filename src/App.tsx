@@ -26,6 +26,7 @@ import EditParticipant from './pages/family/EditParticipant'
 import FamilyNoticeBoard from './pages/family/FamilyNoticeBoard'
 import MessagesHub from './pages/messages/MessagesHub'
 import MessageThread from './pages/messages/MessageThread'
+import RecipientDashboard from './pages/recipient/RecipientDashboard'
 import WorkerLayout from './pages/worker/WorkerLayout'
 import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
@@ -63,6 +64,7 @@ function RequireNoAuth({ children }: { children: React.ReactNode }) {
     const role = profile?.role
     if (role === 'support_worker' || role === 'trusted_support_worker') return <Navigate to="/worker" replace />
     if (role === 'family') return <Navigate to="/family" replace />
+    if (role === 'recipient') return <Navigate to="/recipient" replace />
     if (role === 'coordinator' && org?.org_type === 'family') return <Navigate to="/family" replace />
     return <Navigate to="/dashboard" replace />
   }
@@ -142,6 +144,9 @@ export default function App() {
 
             {/* Worker notice board (outside WorkerLayout — full-page) */}
             <Route path="/worker/notices" element={<RequireAuth><WorkerNoticeBoard /></RequireAuth>} />
+
+            {/* Recipient portal (the person being cared for) */}
+            <Route path="/recipient" element={<RequireAuth><RecipientDashboard /></RequireAuth>} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -10,6 +10,7 @@ const ROLE_LABEL: Record<string, string> = {
   support_worker: 'support worker',
   trusted_support_worker: 'trusted support worker',
   therapist: 'therapist',
+  recipient: 'care recipient',
 }
 
 Deno.serve(async (req) => {
@@ -54,6 +55,13 @@ Deno.serve(async (req) => {
     // Family members cannot invite coordinators (privilege escalation guard)
     if (caller?.role === 'family' && role === 'coordinator')
       return json({ ok: false, error: 'Forbidden' }, 403)
+    // Only coordinators/family can invite the person being cared for, and it must
+    // be tied to a specific client record (their own login is linked 1:1 to it).
+    if (role === 'recipient') {
+      if (!['coordinator', 'family'].includes(caller?.role ?? ''))
+        return json({ ok: false, error: 'Forbidden' }, 403)
+      if (!client_id) return json({ ok: false, error: 'client_id is required for recipient invites' }, 400)
+    }
 
     // Fetch names for the email copy
     const [{ data: org }, { data: client }, { data: inviter }] = await Promise.all([

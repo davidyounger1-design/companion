@@ -2,7 +2,7 @@ type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 
-export type Role = 'coordinator' | 'support_worker' | 'trusted_support_worker' | 'family' | 'therapist'
+export type Role = 'coordinator' | 'support_worker' | 'trusted_support_worker' | 'family' | 'therapist' | 'recipient'
 export type OrgType = 'family' | 'provider'
 export type LogType = 'meal' | 'activity' | 'mood' | 'note' | 'photo'
 export type CircleStatus = 'proposed' | 'pending_approval' | 'in_circle' | 'removed'
@@ -97,6 +97,7 @@ export interface Database {
           decision_maker_kind: DecisionMakerKind | null
           goals: Array<{ id: string; title: string; description?: string }>
           active: boolean
+          recipient_profile_id: string | null
           created_at: string
         }
         Insert: {
@@ -110,6 +111,7 @@ export interface Database {
           decision_maker_kind?: DecisionMakerKind | null
           goals?: Array<{ id: string; title: string; description?: string }>
           active?: boolean
+          recipient_profile_id?: string | null
           created_at?: string
         }
         Update: {
@@ -122,7 +124,28 @@ export interface Database {
           decision_maker_kind?: DecisionMakerKind | null
           goals?: Array<{ id: string; title: string; description?: string }>
           active?: boolean
+          recipient_profile_id?: string | null
         }
+        Relationships: []
+      }
+      client_feedback: {
+        Row: {
+          id: string
+          client_id: string
+          org_id: string
+          author_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          org_id: string
+          author_id: string
+          body: string
+          created_at?: string
+        }
+        Update: { body?: string }
         Relationships: []
       }
       client_workers: {
@@ -436,3 +459,4 @@ export type Invite       = Tables['invites']['Row']
 export type OrgSettings  = Tables['org_settings']['Row']
 export type Notice       = Tables['notices']['Row']
 export type Message      = Tables['messages']['Row']
+export type ClientFeedback = Tables['client_feedback']['Row']

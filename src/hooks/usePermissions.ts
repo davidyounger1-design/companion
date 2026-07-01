@@ -62,6 +62,15 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     send_messages: true,
     invite_members: false,
   },
+  recipient: {
+    view_all_entries: false,
+    edit_any_entry: false,
+    edit_own_entry: false,
+    add_entries: false,
+    post_notices: false,
+    send_messages: false,
+    invite_members: false,
+  },
 }
 
 export function usePermissions() {

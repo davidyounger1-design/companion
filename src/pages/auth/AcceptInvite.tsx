@@ -17,6 +17,7 @@ const ROLE_LABEL: Record<string, string> = {
   coordinator:    'Coordinator',
   family:         'Family Member',
   therapist:      'Therapist',
+  recipient:      'Care Recipient',
 }
 
 export default function AcceptInvite() {
@@ -55,6 +56,7 @@ export default function AcceptInvite() {
     navigate(
       workerRoles.includes(role) ? '/worker' :
       role === 'family' ? '/family' :
+      role === 'recipient' ? '/recipient' :
       '/dashboard',
       { replace: true }
     )
