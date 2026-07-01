@@ -7,6 +7,7 @@ import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
+import EntryComments from '../../components/EntryComments'
 import { MobileFooter } from '../../components/SiteFooter'
 import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
@@ -188,6 +189,7 @@ function EntryCard({
           <ExpiryChip daysLeft={expiryDays} />
         </div>
       )}
+      <EntryComments entryId={entry.id} clientId={entry.client_id} orgId={entry.org_id} />
     </div>
   )
 }

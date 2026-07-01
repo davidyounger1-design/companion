@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import MoodSlider from '../../components/MoodSlider'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import Lightbox from '../../components/Lightbox'
+import EntryComments from '../../components/EntryComments'
 import type { LogType } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -404,6 +405,7 @@ export default function WorkerClientDetail() {
                     </p>
                     <MoodBar score={log.mood_score} />
                     {log.photo_path && <MediaCell path={log.photo_path} />}
+                    <EntryComments entryId={log.id} clientId={log.client_id} orgId={log.org_id} />
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2, flexShrink: 0 }}>✏️</span>
                 </div>
