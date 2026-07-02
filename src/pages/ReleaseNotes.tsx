@@ -1,8 +1,25 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.10'
+const APP_VERSION = '0.5.12'
 
 const RELEASES = [
+  {
+    version: '0.5.12',
+    date: '2 July 2026',
+    title: 'Comment on journal entries',
+    changes: [
+      { type: 'new', text: 'Add comments to any journal entry you can see — coordinators, family, and support workers can now discuss entries directly on the entry itself' },
+    ],
+  },
+  {
+    version: '0.5.11',
+    date: '2 July 2026',
+    title: 'Care recipients can log in',
+    changes: [
+      { type: 'new', text: 'The person being cared for can now get their own login — invite them from Members as a "Care recipient"' },
+      { type: 'new', text: 'Care recipients can leave feedback about their own care, visible to their coordinator, family, and support team' },
+    ],
+  },
   {
     version: '0.5.10',
     date: '28 June 2026',
