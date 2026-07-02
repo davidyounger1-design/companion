@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.14'
+const APP_VERSION = '0.5.15'
 
 const RELEASES = [
+  {
+    version: '0.5.15',
+    date: '2 July 2026',
+    title: 'Fix care recipient login',
+    changes: [
+      { type: 'fix', text: 'Care recipients signing in no longer get bounced to the coordinator dashboard — a missing case sent them there right after correctly loading their journal' },
+    ],
+  },
   {
     version: '0.5.14',
     date: '2 July 2026',
