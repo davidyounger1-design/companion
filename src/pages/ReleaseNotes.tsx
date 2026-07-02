@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.16'
+const APP_VERSION = '0.5.17'
 
 const RELEASES = [
+  {
+    version: '0.5.17',
+    date: '2 July 2026',
+    title: 'React to entries, edit only your own',
+    changes: [
+      { type: 'new', text: 'Add a 👍 or ❤️ to any journal entry you can see' },
+      { type: 'fix', text: "You can now only edit journal entries you wrote yourself — editing someone else's entry is no longer possible" },
+    ],
+  },
   {
     version: '0.5.16',
     date: '2 July 2026',
