@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import FeedbackComments from './FeedbackComments'
 import type { ClientFeedback as ClientFeedbackRow } from '../types/database'
 
 type FeedbackWithAuthor = ClientFeedbackRow & { author_name?: string }
@@ -91,6 +92,7 @@ export default function ClientFeedback({
           <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: 'var(--color-muted)' }}>
             {f.author_name ?? 'Someone'} · {formatDate(f.created_at)}
           </p>
+          <FeedbackComments feedbackId={f.id} clientId={clientId} orgId={orgId} />
         </div>
       ))}
     </div>
