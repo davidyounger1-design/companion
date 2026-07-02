@@ -56,6 +56,18 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RequireCoordinator({ children }: { children: React.ReactNode }) {
+  const { user, loading, profile } = useAuth()
+  if (loading) return <FullPageSpinner />
+  if (!user) return <Navigate to="/sign-in" replace />
+  if (profile?.role !== 'coordinator') {
+    const role = profile?.role
+    if (role === 'support_worker' || role === 'trusted_support_worker') return <Navigate to="/worker" replace />
+    return <Navigate to="/family" replace />
+  }
+  return <>{children}</>
+}
+
 function RequireNoAuth({ children }: { children: React.ReactNode }) {
   const { user, loading, profile, org } = useAuth()
   if (loading) return <FullPageSpinner />
@@ -129,7 +141,7 @@ export default function App() {
             <Route path="/family/notices" element={<RequireAuth><FamilyNoticeBoard /></RequireAuth>} />
 
             {/* Coordinator dashboard */}
-            <Route path="/dashboard" element={<RequireAuth><CoordinatorDashboard /></RequireAuth>} />
+            <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />
 
             {/* Member management */}
             <Route path="/members" element={<RequireAuth><MembersPage /></RequireAuth>} />
