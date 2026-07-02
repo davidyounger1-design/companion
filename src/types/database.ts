@@ -471,7 +471,7 @@ export interface Database {
       }
       get_org_members: {
         Args: Record<string, never>
-        Returns: Array<{ id: string; full_name: string; role: string }>
+        Returns: Array<{ id: string; full_name: string; role: string; email: string }>
       }
       check_pending_invite: {
         Args: { p_email: string }
