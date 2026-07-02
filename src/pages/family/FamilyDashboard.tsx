@@ -8,6 +8,7 @@ import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import EntryComments from '../../components/EntryComments'
+import ClientFeedback from '../../components/ClientFeedback'
 import { MobileFooter } from '../../components/SiteFooter'
 import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
@@ -526,6 +527,7 @@ export default function FamilyDashboard() {
   const [editingEntry, setEditingEntry] = useState<EntryWithAuthor | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDob, setEditDob] = useState('')
@@ -866,6 +868,28 @@ export default function FamilyDashboard() {
             )}
           </div>
         ))}
+
+        {/* Feedback about the participant, from the whole care team */}
+        {clientId && org && (
+          <div className="card" style={{ marginBottom: '1rem', padding: '0.875rem 1rem' }}>
+            <button
+              onClick={() => setShowFeedback((x) => !x)}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                width: '100%', background: 'none', border: 'none', padding: 0,
+                cursor: 'pointer', textAlign: 'left', fontSize: '0.9375rem', fontWeight: 500,
+              }}
+            >
+              💬 Feedback for {participantName}
+              <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showFeedback ? '▲' : '▼'}</span>
+            </button>
+            {showFeedback && (
+              <div style={{ marginTop: '0.875rem' }}>
+                <ClientFeedback clientId={clientId} orgId={org.id} />
+              </div>
+            )}
+          </div>
+        )}
 
         {isLoading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>

@@ -11,6 +11,7 @@ import MoodSlider from '../../components/MoodSlider'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import Lightbox from '../../components/Lightbox'
 import EntryComments from '../../components/EntryComments'
+import ClientFeedback from '../../components/ClientFeedback'
 import type { LogType } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -66,6 +67,7 @@ export default function WorkerClientDetail() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
+  const [showFeedback, setShowFeedback] = useState(false)
   const [selectedType, setSelectedType] = useState<LogType>('activity')
   const [showForm, setShowForm] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
@@ -223,6 +225,25 @@ export default function WorkerClientDetail() {
           <p style={{ fontSize: '0.85rem', marginTop: '0.75rem', margin: '0.75rem 0 0' }}>
             <span style={{ color: 'var(--color-muted)' }}>Loves: </span>{client.about.loves}
           </p>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: '1.25rem', padding: '0.875rem 1rem' }}>
+        <button
+          onClick={() => setShowFeedback((x) => !x)}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            width: '100%', background: 'none', border: 'none', padding: 0,
+            cursor: 'pointer', textAlign: 'left', fontSize: '0.9375rem', fontWeight: 500,
+          }}
+        >
+          💬 Feedback for {client.full_name}
+          <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showFeedback ? '▲' : '▼'}</span>
+        </button>
+        {showFeedback && (
+          <div style={{ marginTop: '0.875rem' }}>
+            <ClientFeedback clientId={client.id} orgId={client.org_id} />
+          </div>
         )}
       </div>
 
