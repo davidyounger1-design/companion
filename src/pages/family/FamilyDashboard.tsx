@@ -8,6 +8,7 @@ import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import EntryComments from '../../components/EntryComments'
+import EntryReactions from '../../components/EntryReactions'
 import ClientFeedback from '../../components/ClientFeedback'
 import { MobileFooter } from '../../components/SiteFooter'
 import type { LogType } from '../../types/database'
@@ -190,6 +191,7 @@ function EntryCard({
           <ExpiryChip daysLeft={expiryDays} />
         </div>
       )}
+      <EntryReactions entryId={entry.id} />
       <EntryComments entryId={entry.id} clientId={entry.client_id} orgId={entry.org_id} />
     </div>
   )
@@ -515,7 +517,6 @@ export default function FamilyDashboard() {
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const isRecipient = profile?.role === 'recipient'
-  const canEdit = isCoordinator || isFamily || isRecipient
   const canShare = isCoordinator || isFamily || isRecipient
 
   const { canInstall, isIOS, install } = useInstallPrompt()
@@ -963,11 +964,11 @@ export default function FamilyDashboard() {
               letterSpacing: '0.08em', color: 'var(--color-muted)', margin: '1.25rem 0 0.5rem',
             }}>{date}</p>
             {dayEntries.map((e) => {
-              const canDeleteOwn = e.author_id === user?.id &&
-                (now - new Date(e.created_at).getTime()) < 60_000
+              const isOwnEntry = e.author_id === user?.id
+              const canDeleteOwn = isOwnEntry && (now - new Date(e.created_at).getTime()) < 60_000
               return (
                 <EntryCard key={e.id} entry={e} showAuthor={true}
-                  canEdit={canEdit} canShare={canShare}
+                  canEdit={isOwnEntry} canShare={canShare}
                   canDeleteOwn={canDeleteOwn} now={now}
                   expiryDays={isFamilyPlan ? daysUntilExpiry(e.occurred_at) : undefined}
                   onEdit={setEditingEntry} onDelete={deleteOwnEntry} />

@@ -192,6 +192,24 @@ export interface Database {
         Update: { body?: string }
         Relationships: []
       }
+      log_entry_reactions: {
+        Row: {
+          id: string
+          entry_id: string
+          author_id: string
+          reaction: 'thumbs_up' | 'heart'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          entry_id: string
+          author_id: string
+          reaction: 'thumbs_up' | 'heart'
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
       client_workers: {
         Row: { client_id: string; worker_id: string; status?: string }
         Insert: { client_id: string; worker_id: string; status?: string }
@@ -505,4 +523,5 @@ export type Notice       = Tables['notices']['Row']
 export type Message      = Tables['messages']['Row']
 export type ClientFeedback = Tables['client_feedback']['Row']
 export type LogEntryComment = Tables['log_entry_comments']['Row']
+export type LogEntryReaction = Tables['log_entry_reactions']['Row']
 export type ClientFeedbackComment = Tables['client_feedback_comments']['Row']
