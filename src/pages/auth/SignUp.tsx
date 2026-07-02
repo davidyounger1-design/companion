@@ -40,7 +40,7 @@ export default function SignUp() {
           const { data: inv } = await supabase.rpc('accept_invite', { p_token: inviteToken })
           const r = inv as { ok?: boolean; role?: string } | null
           const workerRoles = ['support_worker', 'trusted_support_worker']
-          navigate(workerRoles.includes(r?.role ?? '') ? '/worker' : r?.role === 'family' ? '/family' : '/dashboard', { replace: true })
+          navigate(workerRoles.includes(r?.role ?? '') ? '/worker' : (r?.role === 'family' || r?.role === 'recipient') ? '/family' : '/dashboard', { replace: true })
         } else {
           navigate('/setup/account')
         }

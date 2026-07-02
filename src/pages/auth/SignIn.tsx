@@ -34,7 +34,7 @@ export default function SignIn() {
       const r = result as { ok?: boolean; role?: string; error?: string } | null
       if (r?.ok) {
         const workerRoles = ['support_worker', 'trusted_support_worker']
-        navigate(workerRoles.includes(r.role ?? '') ? '/worker' : r.role === 'family' ? '/family' : '/dashboard', { replace: true })
+        navigate(workerRoles.includes(r.role ?? '') ? '/worker' : (r.role === 'family' || r.role === 'recipient') ? '/family' : '/dashboard', { replace: true })
         return
       }
     }
@@ -68,7 +68,7 @@ export default function SignIn() {
       navigate('/setup/family/participant')
     } else if (!planIsFamily && planInfo.plan !== null && profile.role === 'family') {
       navigate('/setup/service')
-    } else if (profile.role === 'family') {
+    } else if (profile.role === 'family' || profile.role === 'recipient') {
       navigate('/family')
     } else if (profile.role === 'support_worker' || profile.role === 'trusted_support_worker') {
       navigate('/worker')
