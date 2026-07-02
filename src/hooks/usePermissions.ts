@@ -63,10 +63,10 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     invite_members: false,
   },
   recipient: {
-    view_all_entries: false,
+    view_all_entries: true,
     edit_any_entry: false,
-    edit_own_entry: false,
-    add_entries: false,
+    edit_own_entry: true,
+    add_entries: true,
     post_notices: false,
     send_messages: false,
     invite_members: false,

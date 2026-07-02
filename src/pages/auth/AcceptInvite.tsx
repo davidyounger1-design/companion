@@ -55,8 +55,7 @@ export default function AcceptInvite() {
     const workerRoles = ['support_worker', 'trusted_support_worker']
     navigate(
       workerRoles.includes(role) ? '/worker' :
-      role === 'family' ? '/family' :
-      role === 'recipient' ? '/recipient' :
+      role === 'family' || role === 'recipient' ? '/family' :
       '/dashboard',
       { replace: true }
     )

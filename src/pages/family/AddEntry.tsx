@@ -38,8 +38,16 @@ export default function AddEntry() {
   const [error, setError] = useState('')
 
   const { data: clientRow } = useQuery({
-    queryKey: ['family-client-id', user?.id],
+    queryKey: ['family-client-id', user?.id, profile?.role],
     queryFn: async () => {
+      if (profile?.role === 'recipient') {
+        const { data } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('recipient_profile_id', user!.id)
+          .maybeSingle()
+        return data ? { client_id: data.id } : null
+      }
       const { data } = await supabase
         .from('client_family')
         .select('client_id')
@@ -48,7 +56,7 @@ export default function AddEntry() {
         .maybeSingle()
       return data
     },
-    enabled: !!user,
+    enabled: !!user && !!profile,
   })
 
   const clientId = clientRow?.client_id

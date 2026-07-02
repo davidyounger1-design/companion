@@ -514,8 +514,9 @@ export default function FamilyDashboard() {
   const isFamilyPlan = org?.plan === 'family'
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
-  const canEdit = isCoordinator || isFamily
-  const canShare = isCoordinator || isFamily
+  const isRecipient = profile?.role === 'recipient'
+  const canEdit = isCoordinator || isFamily || isRecipient
+  const canShare = isCoordinator || isFamily || isRecipient
 
   const { canInstall, isIOS, install } = useInstallPrompt()
   const { permission: pushPermission, subscribing, subscribe, notifyOnEntry, setNotifyOnEntry } = usePushNotifications()
@@ -540,8 +541,16 @@ export default function FamilyDashboard() {
   }
 
   const { data: clientRow } = useQuery({
-    queryKey: ['family-client', user?.id],
+    queryKey: ['family-client', user?.id, profile?.role],
     queryFn: async () => {
+      if (profile?.role === 'recipient') {
+        const { data } = await supabase
+          .from('clients')
+          .select('id, full_name, dob')
+          .eq('recipient_profile_id', user!.id)
+          .maybeSingle()
+        return data ? { client_id: data.id, clients: { full_name: data.full_name, dob: data.dob } } : null
+      }
       const { data } = await supabase
         .from('client_family')
         .select('client_id, clients(full_name, dob)')
@@ -550,7 +559,7 @@ export default function FamilyDashboard() {
         .maybeSingle()
       return data
     },
-    enabled: !!user,
+    enabled: !!user && !!profile,
   })
 
   const clientId = clientRow?.client_id
@@ -738,7 +747,7 @@ export default function FamilyDashboard() {
         <div>
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>Companion</span>
           <span className="badge badge-sage" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
-            {isCoordinator ? 'Coordinator' : 'Family'}
+            {isCoordinator ? 'Coordinator' : isRecipient ? 'Recipient' : 'Family'}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
