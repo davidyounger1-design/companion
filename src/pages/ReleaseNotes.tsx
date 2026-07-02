@@ -1,8 +1,25 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.12'
+const APP_VERSION = '0.5.14'
 
 const RELEASES = [
+  {
+    version: '0.5.14',
+    date: '2 July 2026',
+    title: 'Member emails visible on Members page',
+    changes: [
+      { type: 'fix', text: 'Each member\'s email now shows on the Members page — it was already designed to display but the server was never sending it' },
+    ],
+  },
+  {
+    version: '0.5.13',
+    date: '2 July 2026',
+    title: 'Care recipients can use the full journal',
+    changes: [
+      { type: 'new', text: 'Care recipients can now view and add entries in their own care journal — meals, activities, mood, notes, and photos — and comment on them, the same as a family member' },
+      { type: 'change', text: 'Care recipients now land on the same journal view as family, instead of a separate simplified page' },
+    ],
+  },
   {
     version: '0.5.12',
     date: '2 July 2026',
