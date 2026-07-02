@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.15'
+const APP_VERSION = '0.5.16'
 
 const RELEASES = [
+  {
+    version: '0.5.16',
+    date: '2 July 2026',
+    title: 'Lock the coordinator dashboard to coordinators',
+    changes: [
+      { type: 'fix', text: 'The coordinator dashboard now checks your role before showing anything — care recipients, family, and support workers are sent to their own home screen instead' },
+    ],
+  },
   {
     version: '0.5.15',
     date: '2 July 2026',
