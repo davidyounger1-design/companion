@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
+import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import { MobileFooter } from '../../components/SiteFooter'
 
 function formatDate(iso: string) {
@@ -86,6 +87,8 @@ export default function FamilyNoticeBoard() {
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
         <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>📌 Notice Board</h1>
       </div>
+
+      <ScheduleStatusBar />
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
         <div className="card" style={{ marginBottom: '1.5rem' }}>

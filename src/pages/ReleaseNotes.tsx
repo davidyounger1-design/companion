@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.21'
+const APP_VERSION = '0.5.22'
 
 const RELEASES = [
+  {
+    version: '0.5.22',
+    date: '3 July 2026',
+    title: 'A timer that follows you, and themes to make it yours',
+    changes: [
+      { type: 'new', text: 'A "what\'s on now" banner appears across Journal, Notices, Help, and the Timer — always shows the current or next scheduled item' },
+      { type: 'new', text: 'Family and coordinators can start a timer remotely for the person they support — it appears counting down on their Timer screen automatically, no action needed from them' },
+      { type: 'new', text: 'Choose between a clock face or a digital countdown, and theme your timer — Ocean, Space, Rainbow, Candy, Garden, Sunset, or Classic — each with its own colours and floating decorations' },
+    ],
+  },
   {
     version: '0.5.21',
     date: '3 July 2026',

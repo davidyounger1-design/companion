@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { useClientId } from '../../hooks/useClientId'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
+import MiniDisk from '../../components/MiniDisk'
 import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../types/database'
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
-  occursOnDate, getItemStatus, formatCountdown,
+  occursOnDate, getItemStatus, formatCountdown, itemDiskFraction,
 } from '../../lib/schedule'
-import { pieSlicePath } from '../../lib/timer'
 
 /** Minutes remaining in the activity if it's running now, else its total duration, else a sensible default. */
 function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMinutes: number): number {
@@ -21,17 +22,6 @@ function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMin
   if (status === 'current' && end != null) return Math.max(1, end - nowMinutes)
   if (end != null) return Math.max(1, end - start)
   return 15
-}
-
-function MiniDisk({ fraction, color, size = 40 }: { fraction: number; color: string; size?: number }) {
-  const c = size / 2
-  const r = c - 2
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
-      <circle cx={c} cy={c} r={r} fill="var(--color-surface)" stroke={color} strokeWidth={1.5} opacity={0.5} />
-      {fraction > 0.001 && <path d={pieSlicePath(c, c, r, fraction)} fill={color} />}
-    </svg>
-  )
 }
 
 export default function FamilySchedule() {
@@ -48,40 +38,14 @@ export default function FamilySchedule() {
   const [view, setView] = useState<'day' | 'week'>('day')
   const [now, setNow] = useState(() => Date.now())
   const [formItem, setFormItem] = useState<ScheduleItem | 'new' | null>(null)
+  const [showTimerModal, setShowTimerModal] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(id)
   }, [])
 
-  // Same client-resolution logic as FamilyDashboard: recipients look up their
-  // own client row, family/coordinator go via client_family.
-  const { data: clientRow } = useQuery({
-    queryKey: ['schedule-client', user?.id, profile?.role],
-    queryFn: async () => {
-      if (profile?.role === 'recipient') {
-        const { data } = await supabase
-          .from('clients')
-          .select('id, full_name')
-          .eq('recipient_profile_id', user!.id)
-          .maybeSingle()
-        return data ? { client_id: data.id, full_name: data.full_name } : null
-      }
-      const { data } = await supabase
-        .from('client_family')
-        .select('client_id, clients(full_name)')
-        .eq('family_id', user!.id)
-        .eq('status', 'active')
-        .maybeSingle()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const clients = data?.clients as any
-      return data ? { client_id: data.client_id, full_name: clients?.full_name } : null
-    },
-    enabled: !!user && !!profile,
-  })
-
-  const clientId = clientRow?.client_id
-  const participantName = clientRow?.full_name ?? 'their'
+  const { clientId, participantName, recipientProfileId } = useClientId()
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['schedule-items', clientId],
@@ -136,6 +100,18 @@ export default function FamilySchedule() {
   async function deleteItem(id: string) {
     await supabase.from('schedule_items').delete().eq('id', id)
     invalidateAll()
+  }
+
+  async function startRemoteTimer(remoteLabel: string, minutes: number, notify: boolean) {
+    if (!clientId || !user || !profile?.org_id) return
+    const endsAt = new Date(Date.now() + minutes * 60_000).toISOString()
+    await supabase.from('active_timers').upsert({
+      client_id: clientId, org_id: profile.org_id, created_by: user.id, label: remoteLabel, ends_at: endsAt,
+    }, { onConflict: 'client_id' })
+    if (notify && recipientProfileId) {
+      await supabase.from('timer_alerts').insert({ user_id: recipientProfileId, org_id: profile.org_id, label: remoteLabel, fires_at: endsAt })
+    }
+    setShowTimerModal(false)
   }
 
   const todayStr = toLocalDateStr(new Date())
@@ -197,6 +173,12 @@ export default function FamilySchedule() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
+        {canManage && clientId && (
+          <button onClick={() => setShowTimerModal(true)} className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem', fontSize: '0.85rem' }}>
+            ⏱️ Start a timer for {participantName}
+          </button>
+        )}
+
         {/* Day / Week toggle */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
           <div style={{ display: 'inline-flex', borderRadius: 99, background: 'color-mix(in srgb, var(--color-muted) 10%, transparent)', padding: 3 }}>
@@ -322,21 +304,20 @@ export default function FamilySchedule() {
         />
       )}
 
+      {showTimerModal && (
+        <RemoteTimerModal
+          participantName={participantName}
+          canNotify={!!recipientProfileId}
+          onClose={() => setShowTimerModal(false)}
+          onStart={startRemoteTimer}
+        />
+      )}
+
       <FamilyBottomNav />
     </div>
   )
 }
 
-/** Disk fill: for the current item, how much of ITS OWN duration is left; for an upcoming item, how close it is within a 60-min face. */
-function itemDiskFraction(item: ScheduleItem, isCurrent: boolean, nowMinutes: number) {
-  const start = timeToMinutes(item.start_time)
-  const end = item.end_time ? timeToMinutes(item.end_time) : start + 1
-  if (isCurrent) {
-    const total = Math.max(1, end - start)
-    return Math.max(0, (end - nowMinutes) / total)
-  }
-  return Math.max(0, Math.min(1, (start - nowMinutes) / 60))
-}
 
 function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCurrent: boolean; nowMinutes: number }) {
   const meta = CATEGORY_META[item.category]
@@ -659,6 +640,80 @@ function ScheduleItemForm({
           <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ flex: 2 }}>
             {saving ? <span className="spinner" /> : item ? 'Save changes' : 'Add to schedule'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function RemoteTimerModal({
+  participantName, canNotify, onClose, onStart,
+}: {
+  participantName: string
+  canNotify: boolean
+  onClose: () => void
+  onStart: (label: string, minutes: number, notify: boolean) => Promise<void>
+}) {
+  const [label, setLabel] = useState('Timer')
+  const [minutes, setMinutes] = useState(10)
+  const [notify, setNotify] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const quickPicks = [1, 5, 10, 15, 20, 30]
+
+  async function handleStart() {
+    setSaving(true)
+    await onStart(label.trim() || 'Timer', minutes, notify)
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '85dvh', overflowY: 'auto',
+        background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
+        padding: '1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.15)', maxWidth: 480, margin: '0 auto',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        </div>
+
+        <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '1.05rem' }}>⏱️ Start a timer for {participantName}</p>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+          It'll appear counting down on {participantName}'s own Timer screen automatically.
+        </p>
+
+        <div className="field" style={{ marginBottom: '0.75rem' }}>
+          <label>What's it for?</label>
+          <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Quiet time" />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>Duration</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {quickPicks.map((m) => (
+              <button key={m} type="button" onClick={() => setMinutes(m)} style={{
+                padding: '0.4rem 0.8rem', borderRadius: 99, fontSize: '0.82rem', cursor: 'pointer', fontWeight: minutes === m ? 700 : 400,
+                border: `1.5px solid ${minutes === m ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                background: minutes === m ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'transparent',
+              }}>{m} min</button>
+            ))}
+          </div>
+        </div>
+
+        {canNotify && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginBottom: '1rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+            🔔 Notify {participantName} even if they're not looking at their phone
+          </label>
+        )}
+
+        <div style={{ display: 'flex', gap: '0.6rem' }}>
+          <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleStart} disabled={saving} style={{ flex: 2 }}>
+            {saving ? <span className="spinner" /> : 'Start timer'}
           </button>
         </div>
       </div>
