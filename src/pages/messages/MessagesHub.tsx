@@ -105,7 +105,10 @@ export default function MessagesHub() {
     return () => { supabase.removeChannel(ch) }
   }, [profile?.org_id, qc])
 
-  const backPath = isFamily ? '/family' : '/worker'
+  // Workers go back to their portal; everyone else (family, coordinator,
+  // recipient) belongs in the family journal — never send a recipient to /worker.
+  const isWorker = profile?.role === 'support_worker' || profile?.role === 'trusted_support_worker'
+  const backPath = isWorker ? '/worker' : '/family'
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
