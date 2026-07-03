@@ -26,4 +26,4 @@ jobs:
           ssh-keyscan -p 65002 153.92.11.14 >> ~/.ssh/known_hosts
 
       - name: Deploy to companion.myappbuddy.com.au
-        run: ./deploy.sh live
+        run: bash deploy.sh live
