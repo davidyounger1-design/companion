@@ -24,6 +24,7 @@ import FamilyDashboard from './pages/family/FamilyDashboard'
 import AddEntry from './pages/family/AddEntry'
 import EditParticipant from './pages/family/EditParticipant'
 import FamilyNoticeBoard from './pages/family/FamilyNoticeBoard'
+import FamilySchedule from './pages/family/FamilySchedule'
 import MessagesHub from './pages/messages/MessagesHub'
 import MessageThread from './pages/messages/MessageThread'
 import WorkerLayout from './pages/worker/WorkerLayout'
@@ -149,6 +150,7 @@ export default function App() {
             <Route path="/family/add" element={<RequireAuth><AddEntry /></RequireAuth>} />
             <Route path="/family/participant" element={<RequireAuth><EditParticipant /></RequireAuth>} />
             <Route path="/family/notices" element={<RequireAuth><FamilyNoticeBoard /></RequireAuth>} />
+            <Route path="/family/schedule" element={<RequireAuth><FamilySchedule /></RequireAuth>} />
 
             {/* Coordinator dashboard */}
             <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />

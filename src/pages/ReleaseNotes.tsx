@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.18'
+const APP_VERSION = '0.5.19'
 
 const RELEASES = [
+  {
+    version: '0.5.19',
+    date: '3 July 2026',
+    title: 'Day schedule',
+    changes: [
+      { type: 'new', text: 'Family and coordinators can build a day schedule — once-off or repeating weekly — for the person they support' },
+      { type: 'new', text: 'A colourful, live "what\'s on and what\'s next" schedule view, with notes on any item and a done checkmark for the day' },
+    ],
+  },
   {
     version: '0.5.18',
     date: '3 July 2026',
