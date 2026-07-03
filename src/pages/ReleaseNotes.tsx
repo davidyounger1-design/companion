@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.19'
+const APP_VERSION = '0.5.20'
 
 const RELEASES = [
+  {
+    version: '0.5.20',
+    date: '3 July 2026',
+    title: 'Visual timer',
+    changes: [
+      { type: 'new', text: 'A new Timer tool for care recipients — a colourful shrinking disk that makes time easy to feel, not just read, with a chime, vibration, and pulse when it\'s done' },
+      { type: 'new', text: 'The day schedule\'s "up next" banner and current activity now show the same shrinking disk, and any item has a one-tap "Start a timer for this"' },
+    ],
+  },
   {
     version: '0.5.19',
     date: '3 July 2026',

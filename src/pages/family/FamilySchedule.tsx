@@ -12,6 +12,27 @@ import {
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange,
   occursOnDate, getItemStatus, formatCountdown,
 } from '../../lib/schedule'
+import { pieSlicePath } from '../../lib/timer'
+
+/** Minutes remaining in the activity if it's running now, else its total duration, else a sensible default. */
+function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMinutes: number): number {
+  const start = timeToMinutes(item.start_time)
+  const end = item.end_time ? timeToMinutes(item.end_time) : null
+  if (status === 'current' && end != null) return Math.max(1, end - nowMinutes)
+  if (end != null) return Math.max(1, end - start)
+  return 15
+}
+
+function MiniDisk({ fraction, color, size = 40 }: { fraction: number; color: string; size?: number }) {
+  const c = size / 2
+  const r = c - 2
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={c} cy={c} r={r} fill="var(--color-surface)" stroke={color} strokeWidth={1.5} opacity={0.5} />
+      {fraction > 0.001 && <path d={pieSlicePath(c, c, r, fraction)} fill={color} />}
+    </svg>
+  )
+}
 
 export default function FamilySchedule() {
   const navigate = useNavigate()
@@ -20,6 +41,7 @@ export default function FamilySchedule() {
 
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
+  const isRecipient = profile?.role === 'recipient'
   const canManage = isCoordinator || isFamily
 
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
@@ -200,9 +222,12 @@ export default function FamilySchedule() {
             status={isToday ? getItemStatus(item, nowMinutes) : null}
             isNext={nextItem?.id === item.id}
             canManage={canManage}
+            showTimerButton={isRecipient}
+            nowMinutes={nowMinutes}
             onToggleDone={() => toggleComplete(item)}
             onEdit={() => setFormItem(item)}
             onDelete={() => deleteItem(item.id)}
+            onStartTimer={() => navigate(`/family/timer?minutes=${minutesForTimerButton(item, isToday ? getItemStatus(item, nowMinutes) : null, nowMinutes)}&label=${encodeURIComponent(item.title)}`)}
           />
         ))}
 
@@ -240,6 +265,17 @@ export default function FamilySchedule() {
   )
 }
 
+/** Disk fill: for the current item, how much of ITS OWN duration is left; for an upcoming item, how close it is within a 60-min face. */
+function itemDiskFraction(item: ScheduleItem, isCurrent: boolean, nowMinutes: number) {
+  const start = timeToMinutes(item.start_time)
+  const end = item.end_time ? timeToMinutes(item.end_time) : start + 1
+  if (isCurrent) {
+    const total = Math.max(1, end - start)
+    return Math.max(0, (end - nowMinutes) / total)
+  }
+  return Math.max(0, Math.min(1, (start - nowMinutes) / 60))
+}
+
 function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCurrent: boolean; nowMinutes: number }) {
   const meta = CATEGORY_META[item.category]
   return (
@@ -251,10 +287,10 @@ function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCur
       <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: meta.color }}>
         {isCurrent ? '🟢 Happening now' : '⏰ Up next'}
       </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        <span style={{ fontSize: '1.75rem' }}>{meta.emoji}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <MiniDisk fraction={itemDiskFraction(item, isCurrent, nowMinutes)} color={meta.color} size={52} />
         <div>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem' }}>{item.title}</p>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem' }}>{meta.emoji} {item.title}</p>
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
             {formatTimeRange(item.start_time, item.end_time)}
             {!isCurrent && ` · ${formatCountdown(nowMinutes, timeToMinutes(item.start_time))}`}
@@ -266,7 +302,8 @@ function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCur
 }
 
 function ScheduleCard({
-  item, occurrenceDate, clientId, orgId, done, status, isNext, canManage, onToggleDone, onEdit, onDelete,
+  item, occurrenceDate, clientId, orgId, done, status, isNext, canManage, showTimerButton, nowMinutes,
+  onToggleDone, onEdit, onDelete, onStartTimer,
 }: {
   item: ScheduleItem
   occurrenceDate: string
@@ -276,9 +313,12 @@ function ScheduleCard({
   status: 'current' | 'next' | 'upcoming' | 'past' | null
   isNext: boolean
   canManage: boolean
+  showTimerButton: boolean
+  nowMinutes: number
   onToggleDone: () => void
   onEdit: () => void
   onDelete: () => void
+  onStartTimer: () => void
 }) {
   const meta = CATEGORY_META[item.category]
   const isCurrent = status === 'current'
@@ -310,7 +350,12 @@ function ScheduleCard({
             <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', textDecoration: done ? 'line-through' : 'none' }}>
               {item.title}
             </p>
-            {isCurrent && <span className="badge badge-terra">Now</span>}
+            {isCurrent && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span className="badge badge-terra">Now</span>
+                <MiniDisk fraction={itemDiskFraction(item, true, nowMinutes)} color={meta.color} size={22} />
+              </span>
+            )}
             {isNext && !isCurrent && <span className="badge badge-sage">Next</span>}
             {item.recurrence === 'weekly' && <span className="badge badge-muted">🔁 Weekly</span>}
           </div>
@@ -322,6 +367,13 @@ function ScheduleCard({
           )}
 
           <ScheduleItemNotes scheduleItemId={item.id} occurrenceDate={occurrenceDate} clientId={clientId} orgId={orgId} />
+
+          {showTimerButton && (
+            <button onClick={onStartTimer} style={{
+              marginTop: '0.5rem', background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              fontSize: '0.75rem', color: meta.color, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem',
+            }}>⏱️ Start a timer for this</button>
+          )}
         </div>
 
         {canManage && (

@@ -18,6 +18,18 @@ function JournalIcon() {
   )
 }
 
+function TimerIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l3 2" />
+      <path d="M10 2h4" />
+      <path d="M18.5 5.5l1.5-1.5" />
+    </svg>
+  )
+}
+
 function ScheduleIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -114,6 +126,8 @@ export default function FamilyBottomNav() {
     { label: 'Journal',  icon: <JournalIcon />,  path: '/family' },
     { label: 'Schedule', icon: <ScheduleIcon />, path: '/family/schedule' },
     { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
+    // The visual timer is a recipient-only tool.
+    ...(isRecipient ? [{ label: 'Timer', icon: <TimerIcon />, path: '/family/timer' }] : []),
     // Recipients don't have a messaging inbox — omit the Messages tab for them.
     ...(isRecipient ? [] : [{ label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread, badgeLabel: 'unread messages' }]),
     // When a ticket is awaiting the user's reply, send Help straight to the
