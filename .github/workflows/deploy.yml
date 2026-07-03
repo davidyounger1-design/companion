@@ -27,3 +27,6 @@ jobs:
 
       - name: Deploy to companion.myappbuddy.com.au
         run: bash deploy.sh live
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
