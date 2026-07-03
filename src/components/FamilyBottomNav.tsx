@@ -74,6 +74,7 @@ export default function FamilyBottomNav() {
   const { user, profile, org } = useAuth()
   const isOrgOwner = !!user && !!org?.owner_id && org.owner_id === user.id
   const isCoordinator = profile?.role === 'coordinator'
+  const isRecipient = profile?.role === 'recipient'
 
   const { data: unread = 0 } = useQuery({
     queryKey: ['family-unread', user?.id],
@@ -97,7 +98,8 @@ export default function FamilyBottomNav() {
   const items: NavEntry[] = [
     { label: 'Journal',  icon: <JournalIcon />,  path: '/family' },
     { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
-    { label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread, badgeLabel: 'unread messages' },
+    // Recipients don't have a messaging inbox — omit the Messages tab for them.
+    ...(isRecipient ? [] : [{ label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread, badgeLabel: 'unread messages' }]),
     // When a ticket is awaiting the user's reply, send Help straight to the
     // Support tab so the badge points at what needs attention.
     { label: 'Help',     icon: <HelpIcon />,     path: pendingTickets > 0 ? '/help?tab=support' : '/help', badge: pendingTickets, badgeLabel: 'support tickets awaiting your reply' },

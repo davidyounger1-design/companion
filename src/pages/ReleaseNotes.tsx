@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.17'
+const APP_VERSION = '0.5.18'
 
 const RELEASES = [
+  {
+    version: '0.5.18',
+    date: '3 July 2026',
+    title: 'Care recipients no longer have Messages',
+    changes: [
+      { type: 'change', text: 'Care recipients no longer see a Messages tab — messaging isn\'t part of their experience' },
+      { type: 'fix', text: 'Opening Messages as a care recipient no longer bounced you into the support worker area' },
+    ],
+  },
   {
     version: '0.5.17',
     date: '2 July 2026',

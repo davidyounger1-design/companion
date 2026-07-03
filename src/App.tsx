@@ -68,6 +68,16 @@ function RequireCoordinator({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Recipients have no messaging inbox — keep them out of the messages routes
+// even via a direct URL, and send them back to the family journal.
+function BlockRecipient({ children }: { children: React.ReactNode }) {
+  const { user, loading, profile } = useAuth()
+  if (loading) return <FullPageSpinner />
+  if (!user) return <Navigate to="/sign-in" replace />
+  if (profile?.role === 'recipient') return <Navigate to="/family" replace />
+  return <>{children}</>
+}
+
 function RequireNoAuth({ children }: { children: React.ReactNode }) {
   const { user, loading, profile, org } = useAuth()
   if (loading) return <FullPageSpinner />
@@ -131,8 +141,8 @@ export default function App() {
             </Route>
 
             {/* Unified messaging */}
-            <Route path="/messages" element={<RequireAuth><MessagesHub /></RequireAuth>} />
-            <Route path="/messages/:userId" element={<RequireAuth><MessageThread /></RequireAuth>} />
+            <Route path="/messages" element={<BlockRecipient><MessagesHub /></BlockRecipient>} />
+            <Route path="/messages/:userId" element={<BlockRecipient><MessageThread /></BlockRecipient>} />
 
             {/* Family journal */}
             <Route path="/family" element={<RequireAuth><FamilyDashboard /></RequireAuth>} />
