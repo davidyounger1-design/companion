@@ -1,0 +1,29 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up Hostinger SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/hostinger_myappbuddy
+          chmod 600 ~/.ssh/hostinger_myappbuddy
+          ssh-keyscan -p 65002 153.92.11.14 >> ~/.ssh/known_hosts
+
+      - name: Deploy to companion.myappbuddy.com.au
+        run: ./deploy.sh live
