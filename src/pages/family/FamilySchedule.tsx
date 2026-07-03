@@ -9,7 +9,7 @@ import ScheduleItemNotes from '../../components/ScheduleItemNotes'
 import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../types/database'
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
-  toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange,
+  toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
   occursOnDate, getItemStatus, formatCountdown,
 } from '../../lib/schedule'
 import { pieSlicePath } from '../../lib/timer'
@@ -45,6 +45,7 @@ export default function FamilySchedule() {
   const canManage = isCoordinator || isFamily
 
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
+  const [view, setView] = useState<'day' | 'week'>('day')
   const [now, setNow] = useState(() => Date.now())
   const [formItem, setFormItem] = useState<ScheduleItem | 'new' | null>(null)
 
@@ -160,9 +161,28 @@ export default function FamilySchedule() {
     setSelectedDate(toLocalDateStr(d))
   }
 
+  function shiftWeek(delta: number) {
+    const d = parseLocalDate(selectedDate)
+    d.setDate(d.getDate() + delta * 7)
+    setSelectedDate(toLocalDateStr(d))
+  }
+
   const dateLabel = parseLocalDate(selectedDate).toLocaleDateString('en-AU', {
     weekday: 'long', day: 'numeric', month: 'long',
   })
+
+  // Sunday–Saturday week containing selectedDate, matching the days_of_week (0=Sun..6=Sat) convention.
+  const weekDates = useMemo(() => {
+    const sunday = parseLocalDate(selectedDate)
+    sunday.setDate(sunday.getDate() - sunday.getDay())
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(sunday)
+      d.setDate(sunday.getDate() + i)
+      return toLocalDateStr(d)
+    })
+  }, [selectedDate])
+
+  const weekLabel = `${parseLocalDate(weekDates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(weekDates[6]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
@@ -177,24 +197,54 @@ export default function FamilySchedule() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        {/* Day navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
-          <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
-            {isToday && <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-muted)' }}>{dateLabel}</p>}
-            {!isToday && (
-              <button onClick={() => setSelectedDate(todayStr)} style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                fontSize: '0.72rem', color: 'var(--color-primary)', fontWeight: 600,
-              }}>Jump to today</button>
-            )}
+        {/* Day / Week toggle */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'inline-flex', borderRadius: 99, background: 'color-mix(in srgb, var(--color-muted) 10%, transparent)', padding: 3 }}>
+            {(['day', 'week'] as const).map((v) => (
+              <button key={v} onClick={() => setView(v)} style={{
+                padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
+                border: 'none', background: view === v ? 'var(--color-surface)' : 'transparent',
+                color: view === v ? 'var(--color-ink)' : 'var(--color-muted)',
+                boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.12)' : undefined,
+              }}>{v === 'day' ? 'Day' : 'Week'}</button>
+            ))}
           </div>
-          <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
         </div>
 
-        {/* Up next / happening now hero */}
-        {isToday && (currentItem || nextItem) && (
+        {/* Day / Week navigator */}
+        {view === 'day' ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+            <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
+              {isToday && <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-muted)' }}>{dateLabel}</p>}
+              {!isToday && (
+                <button onClick={() => setSelectedDate(todayStr)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  fontSize: '0.72rem', color: 'var(--color-primary)', fontWeight: 600,
+                }}>Jump to today</button>
+              )}
+            </div>
+            <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+            <button className="btn btn-ghost" onClick={() => shiftWeek(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{weekLabel}</p>
+              {!weekDates.includes(todayStr) && (
+                <button onClick={() => setSelectedDate(todayStr)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  fontSize: '0.72rem', color: 'var(--color-primary)', fontWeight: 600,
+                }}>Jump to this week</button>
+              )}
+            </div>
+            <button className="btn btn-ghost" onClick={() => shiftWeek(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
+          </div>
+        )}
+
+        {/* Up next / happening now hero — only meaningful when looking at today in Day view */}
+        {view === 'day' && isToday && (currentItem || nextItem) && (
           <HeroBanner item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} />
         )}
 
@@ -204,32 +254,44 @@ export default function FamilySchedule() {
           </div>
         )}
 
-        {!isLoading && dayItems.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--color-muted)' }}>
-            <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🌤️</p>
-            <p>Nothing scheduled for this day yet.</p>
-          </div>
+        {view === 'day' && !isLoading && (
+          <>
+            {dayItems.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--color-muted)' }}>
+                <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🌤️</p>
+                <p>Nothing scheduled for this day yet.</p>
+              </div>
+            )}
+            {dayItems.map((item) => (
+              <ScheduleCard
+                key={item.id}
+                item={item}
+                occurrenceDate={selectedDate}
+                clientId={clientId!}
+                orgId={profile!.org_id!}
+                done={completedIds.has(item.id)}
+                status={isToday ? getItemStatus(item, nowMinutes) : null}
+                isNext={nextItem?.id === item.id}
+                canManage={canManage}
+                showTimerButton={isRecipient}
+                nowMinutes={nowMinutes}
+                onToggleDone={() => toggleComplete(item)}
+                onEdit={() => setFormItem(item)}
+                onDelete={() => deleteItem(item.id)}
+                onStartTimer={() => navigate(`/family/timer?minutes=${minutesForTimerButton(item, isToday ? getItemStatus(item, nowMinutes) : null, nowMinutes)}&label=${encodeURIComponent(item.title)}`)}
+              />
+            ))}
+          </>
         )}
 
-        {dayItems.map((item) => (
-          <ScheduleCard
-            key={item.id}
-            item={item}
-            occurrenceDate={selectedDate}
-            clientId={clientId!}
-            orgId={profile!.org_id!}
-            done={completedIds.has(item.id)}
-            status={isToday ? getItemStatus(item, nowMinutes) : null}
-            isNext={nextItem?.id === item.id}
-            canManage={canManage}
-            showTimerButton={isRecipient}
-            nowMinutes={nowMinutes}
-            onToggleDone={() => toggleComplete(item)}
-            onEdit={() => setFormItem(item)}
-            onDelete={() => deleteItem(item.id)}
-            onStartTimer={() => navigate(`/family/timer?minutes=${minutesForTimerButton(item, isToday ? getItemStatus(item, nowMinutes) : null, nowMinutes)}&label=${encodeURIComponent(item.title)}`)}
+        {view === 'week' && !isLoading && (
+          <WeekView
+            weekDates={weekDates}
+            items={items}
+            todayStr={todayStr}
+            onSelectDay={(date) => { setSelectedDate(date); setView('day') }}
           />
-        ))}
+        )}
 
         <MobileFooter />
       </div>
@@ -297,6 +359,60 @@ function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCur
           </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+function WeekView({
+  weekDates, items, todayStr, onSelectDay,
+}: {
+  weekDates: string[]
+  items: ScheduleItem[]
+  todayStr: string
+  onSelectDay: (date: string) => void
+}) {
+  return (
+    <div>
+      {weekDates.map((date) => {
+        const dayItems = items
+          .filter((i) => occursOnDate(i, date))
+          .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
+        const isToday = date === todayStr
+        const label = parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+
+        return (
+          <button
+            key={date}
+            onClick={() => onSelectDay(date)}
+            className="card"
+            style={{
+              display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+              marginBottom: '0.6rem', padding: '0.75rem 1rem',
+              border: isToday ? '1.5px solid var(--color-primary)' : undefined,
+            }}
+          >
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.8rem', fontWeight: 700, color: isToday ? 'var(--color-primary)' : 'var(--color-ink)' }}>
+              {isToday ? `Today · ${label}` : label}
+            </p>
+            {dayItems.length === 0 ? (
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-muted)' }}>Nothing scheduled</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                {dayItems.map((item) => {
+                  const meta = CATEGORY_META[item.category]
+                  return (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />
+                      <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>{formatTimeOfDay(item.start_time)}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.emoji} {item.title}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }

@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.20'
+const APP_VERSION = '0.5.21'
 
 const RELEASES = [
+  {
+    version: '0.5.21',
+    date: '3 July 2026',
+    title: 'Week view for the schedule',
+    changes: [
+      { type: 'new', text: 'Switch the day schedule to a Week view to see the whole week at a glance, then tap any day to open it in full' },
+    ],
+  },
   {
     version: '0.5.20',
     date: '3 July 2026',
