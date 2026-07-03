@@ -14,6 +14,9 @@
   --color-muted-light: #7a736a;  /* lighter muted for decorative use only */
   --color-error:       #c0392b;
   --color-success:     #4d6655;
+  --color-sky:         #5b8ba8;
+  --color-lavender:    #8a76b0;
+  --color-rose:        #c06a87;
 
   /* Semantic aliases. Primary/radius/fonts consume the MAB platform branding
      vars (--accent / --r* / --ff-*) when present, falling back to the built-in
@@ -580,6 +583,9 @@ select.input {
 .badge-amber { background: color-mix(in srgb, var(--color-amber) 15%, transparent);       color: #7a5519; }
 .badge-muted { background: color-mix(in srgb, var(--color-muted) 13%, transparent);       color: var(--color-muted); }
 .badge-terra { background: color-mix(in srgb, var(--color-terracotta) 15%, transparent);  color: #8a4a30; }
+.badge-sky      { background: color-mix(in srgb, var(--color-sky) 15%, transparent);      color: #2f5871; }
+.badge-lavender { background: color-mix(in srgb, var(--color-lavender) 15%, transparent); color: #574a80; }
+.badge-rose     { background: color-mix(in srgb, var(--color-rose) 15%, transparent);     color: #8a3a54; }
 
 /* ── Toast / alert ─────────────────────────────────────────────── */
 .alert {

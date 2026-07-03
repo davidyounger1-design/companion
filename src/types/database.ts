@@ -10,6 +10,8 @@ export type DecisionMakerKind = 'self' | 'guardian' | 'nominee'
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'cancelled'
 export type InviteStatus = 'pending' | 'accepted' | 'expired'
 export type AccessAction = 'view' | 'share' | 'revoke'
+export type ScheduleCategory = 'therapy' | 'meal' | 'activity' | 'personal_care' | 'social' | 'appointment' | 'other'
+export type ScheduleRecurrence = 'once' | 'weekly'
 
 // ─── Supabase Database schema type ───────────────────────────────────────────
 // Structured to match Supabase's generated type format so `createClient<Database>` resolves correctly.
@@ -422,6 +424,118 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      schedule_items: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          created_by: string
+          title: string
+          description: string | null
+          category: ScheduleCategory
+          start_time: string
+          end_time: string | null
+          recurrence: ScheduleRecurrence
+          specific_date: string | null
+          days_of_week: number[] | null
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          created_by: string
+          title: string
+          description?: string | null
+          category?: ScheduleCategory
+          start_time: string
+          end_time?: string | null
+          recurrence: ScheduleRecurrence
+          specific_date?: string | null
+          days_of_week?: number[] | null
+          active?: boolean
+          created_at?: string
+        }
+        Update: {
+          title?: string
+          description?: string | null
+          category?: ScheduleCategory
+          start_time?: string
+          end_time?: string | null
+          recurrence?: ScheduleRecurrence
+          specific_date?: string | null
+          days_of_week?: number[] | null
+          active?: boolean
+        }
+        Relationships: []
+      }
+      schedule_item_notes: {
+        Row: {
+          id: string
+          schedule_item_id: string
+          occurrence_date: string
+          org_id: string
+          client_id: string
+          author_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          schedule_item_id: string
+          occurrence_date: string
+          org_id: string
+          client_id: string
+          author_id: string
+          body: string
+          created_at?: string
+        }
+        Update: { body?: string }
+        Relationships: []
+      }
+      schedule_item_completions: {
+        Row: {
+          id: string
+          schedule_item_id: string
+          occurrence_date: string
+          org_id: string
+          client_id: string
+          completed_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          schedule_item_id: string
+          occurrence_date: string
+          org_id: string
+          client_id: string
+          completed_by: string
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
+      timer_alerts: {
+        Row: {
+          id: string
+          user_id: string
+          org_id: string
+          label: string
+          fires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          org_id: string
+          label: string
+          fires_at: string
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
       org_settings: {
         Row: {
           id: string
@@ -525,3 +639,7 @@ export type ClientFeedback = Tables['client_feedback']['Row']
 export type LogEntryComment = Tables['log_entry_comments']['Row']
 export type LogEntryReaction = Tables['log_entry_reactions']['Row']
 export type ClientFeedbackComment = Tables['client_feedback_comments']['Row']
+export type ScheduleItem = Tables['schedule_items']['Row']
+export type ScheduleItemNote = Tables['schedule_item_notes']['Row']
+export type ScheduleItemCompletion = Tables['schedule_item_completions']['Row']
+export type TimerAlert = Tables['timer_alerts']['Row']

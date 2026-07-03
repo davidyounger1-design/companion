@@ -24,6 +24,8 @@ import FamilyDashboard from './pages/family/FamilyDashboard'
 import AddEntry from './pages/family/AddEntry'
 import EditParticipant from './pages/family/EditParticipant'
 import FamilyNoticeBoard from './pages/family/FamilyNoticeBoard'
+import FamilySchedule from './pages/family/FamilySchedule'
+import FamilyTimer from './pages/family/FamilyTimer'
 import MessagesHub from './pages/messages/MessagesHub'
 import MessageThread from './pages/messages/MessageThread'
 import WorkerLayout from './pages/worker/WorkerLayout'
@@ -75,6 +77,15 @@ function BlockRecipient({ children }: { children: React.ReactNode }) {
   if (loading) return <FullPageSpinner />
   if (!user) return <Navigate to="/sign-in" replace />
   if (profile?.role === 'recipient') return <Navigate to="/family" replace />
+  return <>{children}</>
+}
+
+// The visual timer is a recipient-only tool — send anyone else back to the journal.
+function RequireRecipient({ children }: { children: React.ReactNode }) {
+  const { user, loading, profile } = useAuth()
+  if (loading) return <FullPageSpinner />
+  if (!user) return <Navigate to="/sign-in" replace />
+  if (profile?.role !== 'recipient') return <Navigate to="/family" replace />
   return <>{children}</>
 }
 
@@ -149,6 +160,8 @@ export default function App() {
             <Route path="/family/add" element={<RequireAuth><AddEntry /></RequireAuth>} />
             <Route path="/family/participant" element={<RequireAuth><EditParticipant /></RequireAuth>} />
             <Route path="/family/notices" element={<RequireAuth><FamilyNoticeBoard /></RequireAuth>} />
+            <Route path="/family/schedule" element={<RequireAuth><FamilySchedule /></RequireAuth>} />
+            <Route path="/family/timer" element={<RequireRecipient><FamilyTimer /></RequireRecipient>} />
 
             {/* Coordinator dashboard */}
             <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />
