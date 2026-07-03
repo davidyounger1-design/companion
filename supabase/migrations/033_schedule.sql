@@ -166,3 +166,14 @@ create policy "can mark visible schedule items done"
 create policy "can unmark done on visible schedule items"
   on schedule_item_completions for delete
   using (public.can_view_schedule_item(schedule_item_id));
+
+-- ── 5. Grants ───────────────────────────────────────────────────
+-- RLS above still fully controls actual row access — these grants
+-- just make the tables visible to PostgREST at all, matching every
+-- other table in this schema. (Tables created outside Supabase's own
+-- migration tooling don't automatically inherit the default
+-- privileges that make that "just work" elsewhere in this project.)
+
+grant select, insert, update, delete on table schedule_items to anon, authenticated;
+grant select, insert, update, delete on table schedule_item_notes to anon, authenticated;
+grant select, insert, update, delete on table schedule_item_completions to anon, authenticated;

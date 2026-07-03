@@ -40,6 +40,12 @@ create policy "own timer alerts"
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+-- Table-level grant — RLS above still fully controls actual row
+-- access. See the note in 033_schedule.sql: tables created outside
+-- Supabase's own migration tooling don't automatically inherit the
+-- default privileges that expose them via PostgREST.
+grant select, insert, delete on table timer_alerts to authenticated;
+
 -- ── pg_cron dispatch ──────────────────────────────────────────
 
 create extension if not exists pg_cron;
