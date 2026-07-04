@@ -193,6 +193,29 @@ p { text-wrap: pretty; }
 
 .btn-full { width: 100%; }
 
+/* ── Icon-only buttons (edit / delete / close, etc.) ──────────────── */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background .12s, color .12s, transform .08s;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.icon-btn:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-muted) 10%, transparent); }
+.icon-btn:active { transform: scale(.93); }
+.icon-btn-danger:hover { color: var(--color-error); background: color-mix(in srgb, var(--color-error) 10%, transparent); }
+
 /* ── Form inputs ───────────────────────────────────────────────── */
 .field {
   display: flex;
@@ -663,6 +686,17 @@ a { touch-action: manipulation; }
     padding-bottom: 1.5rem;
   }
   .modal-card::before { display: none; }
+}
+
+/* ── Bottom-sheet enter transitions (backdrop fade + sheet slide-up) ── */
+@keyframes sheet-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.sheet-backdrop { animation: sheet-fade-in .18s ease-out; }
+.sheet-panel { animation: sheet-slide-up .22s cubic-bezier(.25,.8,.4,1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-backdrop, .sheet-panel { animation: none; }
 }
 
 /* ── Loading spinner ───────────────────────────────────────────── */

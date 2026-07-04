@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import { MobileFooter } from '../../components/SiteFooter'
+import { NoticesIcon, BackIcon, TrashIcon } from '../../components/icons'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -83,9 +84,10 @@ export default function FamilyNoticeBoard() {
         display: 'flex', alignItems: 'center', gap: '0.75rem',
         background: 'var(--color-bg)', position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <button className="btn btn-ghost" onClick={() => navigate('/family')}
-          style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
-        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>📌 Notice Board</h1>
+        <button className="icon-btn" aria-label="Back" onClick={() => navigate('/family')}><BackIcon /></button>
+        <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <NoticesIcon size={20} /> Notice Board
+        </h1>
       </div>
 
       <ScheduleStatusBar />
@@ -112,27 +114,25 @@ export default function FamilyNoticeBoard() {
 
         {!isLoading && notices.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--color-muted)' }}>
-            <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📌</p>
+            <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'center' }}><NoticesIcon size={28} /></div>
             <p>No notices yet.</p>
           </div>
         )}
 
         {notices.map((n: any) => (
-          <div key={n.id} style={{
-            background: '#fff8e1', border: '2px solid #ffc107', borderRadius: 12,
-            padding: '0.875rem 1rem', marginBottom: '0.75rem', position: 'relative',
+          <div key={n.id} className="card surface-note" style={{
+            marginBottom: '0.75rem', position: 'relative', padding: '0.875rem 1rem',
           }}>
-            <p style={{ margin: '0 1.5rem 0.4rem 0', fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.5 }}>
+            <p style={{ margin: '0 1.5rem 0.4rem 0', fontSize: 'var(--text-base)', fontWeight: 500, lineHeight: 1.5 }}>
               {n.body}
             </p>
-            <p style={{ margin: 0, fontSize: '0.72rem', color: '#8a6d00' }}>
+            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
               {n.profiles?.full_name ?? 'Someone'} · {formatDate(n.created_at)}
             </p>
             {(n.author_id === user?.id || isCoordinator) && (
-              <button onClick={() => deleteNotice(n.id)} style={{
-                position: 'absolute', top: 8, right: 8, background: 'none', border: 'none',
-                cursor: 'pointer', fontSize: '0.85rem', color: '#8a6d00', padding: '0.2rem 0.4rem',
-              }}>✕</button>
+              <button onClick={() => deleteNotice(n.id)} aria-label="Delete notice" className="icon-btn icon-btn-danger" style={{
+                position: 'absolute', top: 6, right: 6, width: 30, height: 30,
+              }}><TrashIcon size={16} /></button>
             )}
           </div>
         ))}
