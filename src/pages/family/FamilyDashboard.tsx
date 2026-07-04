@@ -874,18 +874,20 @@ export default function FamilyDashboard() {
             {isCoordinator ? 'Coordinator' : isRecipient ? 'Recipient' : 'Family'}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', minWidth: 0, flex: '1 1 auto', justifyContent: 'flex-end' }}>
           {(currentUserName || user?.email) && (
-            <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', textAlign: 'right', lineHeight: 1.35 }}>
-              {currentUserName && <>{currentUserName}<br /></>}
-              <span style={{ opacity: 0.75 }}>{user?.email}</span>
+            <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', textAlign: 'right', lineHeight: 1.35, minWidth: 0, overflow: 'hidden' }}>
+              {currentUserName && (
+                <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUserName}</span>
+              )}
+              <span style={{ display: 'block', opacity: 0.75, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</span>
             </span>
           )}
           {isCoordinator && (
             <>
               <button
                 onClick={() => setShowMenu(m => !m)}
-                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.4rem 0.6rem', cursor: 'pointer', lineHeight: 1, color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}
+                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.4rem 0.6rem', cursor: 'pointer', lineHeight: 1, color: 'var(--color-text)', display: 'flex', alignItems: 'center', flexShrink: 0 }}
                 title="Menu"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -931,11 +933,11 @@ export default function FamilyDashboard() {
           )}
           {!isCoordinator && (
             <>
-              <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')}>
+              <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
                 <SettingsIcon size={18} />
               </button>
               <button className="btn btn-ghost" onClick={handleSignOut}
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>Sign out</button>
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>Sign out</button>
             </>
           )}
         </div>

@@ -76,14 +76,14 @@ export default function CoordinatorDashboard() {
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 600 }}>Companion</span>
           <span className="badge badge-sage" style={{ marginLeft: '0.6rem' }}>Coordinator</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <Link to="/help" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+          <Link to="/help" className="btn btn-ghost" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
             Help
           </Link>
-          <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')}>
+          <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
             <SettingsIcon size={18} />
           </button>
-          <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.85rem' }}>
+          <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
             Sign out
           </button>
         </div>

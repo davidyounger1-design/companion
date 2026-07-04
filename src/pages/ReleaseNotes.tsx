@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.37'
+const APP_VERSION = '0.5.38'
 
 const RELEASES = [
+  {
+    version: '0.5.38',
+    date: '4 July 2026',
+    title: 'Fix the header overflowing on narrow phones',
+    changes: [
+      { type: 'fix', text: 'On narrow screens (and especially with a larger text size set), the name/email next to Sign out could push the Settings and Sign out buttons off to the side. The name and email now truncate instead of overflowing' },
+    ],
+  },
   {
     version: '0.5.37',
     date: '4 July 2026',
