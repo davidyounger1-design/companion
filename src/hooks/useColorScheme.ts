@@ -5,8 +5,7 @@ import {
 
 /** Light/dark/auto appearance, shared across the app via localStorage. While
  * mounted (e.g. a header showing the mode pill), also keeps "auto" mode live
- * against OS-level scheme changes — see useTimerTheme for the same
- * read-on-mount, localStorage-backed pattern. */
+ * against OS-level scheme changes. */
 export function useColorScheme() {
   const [mode, setModeState] = useState<ColorMode>(() => getStoredColorMode())
   const [systemDark, setSystemDark] = useState(() => systemPrefersDark())

@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.43'
+const APP_VERSION = '0.5.44'
 
 const RELEASES = [
+  {
+    version: '0.5.44',
+    date: '4 July 2026',
+    title: 'Recipients can add their own schedule, and count down to any appointment',
+    changes: [
+      { type: 'new', text: 'Recipients can now add their own appointments and activities to their schedule, and edit or remove the ones they added — items their family or coordinator added stay theirs to manage' },
+      { type: 'new', text: 'On the Timer page, pick anything coming up today and the timer counts down to exactly when it starts — no need to work out the minutes yourself' },
+      { type: 'change', text: 'The Timer\'s clock and colours now follow the same Light/Dark/Auto appearance as the rest of the app, instead of a separate clock theme' },
+    ],
+  },
   {
     version: '0.5.43',
     date: '4 July 2026',

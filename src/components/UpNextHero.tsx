@@ -1,19 +1,17 @@
 import { CATEGORY_META, formatTimeRange, formatCountdown, timeToMinutes, itemDiskFraction } from '../lib/schedule'
 import { CATEGORY_ICONS } from './icons'
 import type { ScheduleItem } from '../types/database'
-import type { TimerTheme } from '../lib/timer'
 
 /** The "happening now / up next" hero — a dark gradient card tinted by the
  * item's category, with a countdown ring and a live status chip. Shared by
  * the Schedule page (full size) and the Timer page's "what's coming up"
  * section (compact), so the same activity reads identically everywhere. */
 export default function UpNextHero({
-  item, isCurrent, nowMinutes, theme, compact = false,
+  item, isCurrent, nowMinutes, compact = false,
 }: {
   item: ScheduleItem
   isCurrent: boolean
   nowMinutes: number
-  theme: TimerTheme
   compact?: boolean
 }) {
   const meta = CATEGORY_META[item.category]
@@ -37,13 +35,6 @@ export default function UpNextHero({
       color: '#fff',
       boxShadow: '0 18px 30px -16px rgba(20,26,22,.55)',
     }}>
-      {theme.particles.map((p, i) => (
-        <span key={i} aria-hidden style={{
-          position: 'absolute', right: `${8 + i * 22}%`, top: i % 2 === 0 ? 6 : 'auto', bottom: i % 2 === 1 ? 6 : 'auto',
-          fontSize: '1.05rem', opacity: 0.5,
-        }}>{p}</span>
-      ))}
-
       <span style={{
         display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.68rem', fontWeight: 700,
         background: 'rgba(255,255,255,.16)', padding: '0.28rem 0.6rem 0.28rem 0.5rem', borderRadius: 99,

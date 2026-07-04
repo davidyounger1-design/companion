@@ -75,73 +75,13 @@ export function vibrate(pattern: number | number[]) {
 
 export const QUICK_PICKS = [1, 5, 10, 15, 20, 30, 45, 60]
 
-// ─── Themes — a fun, personal skin for Sarah's clock ────────────────────────
-
-export type TimerTheme = {
-  id: string
-  label: string
-  emoji: string
-  /** Gradient stops for the disk / digital display accent. */
-  diskColors: [string, string]
-  /** Gradient stops for the card background wash. */
-  bgColors: [string, string]
-  /** Emoji sprinkled around the disk while a timer runs. */
-  particles: string[]
-  doneEmoji: string
-  doneMessage: string
-}
-
-export const TIMER_THEMES: TimerTheme[] = [
-  {
-    id: 'classic', label: 'Classic', emoji: '⏱️',
-    diskColors: ['#6f8c78', '#4d6655'], bgColors: ['#6f8c78', '#f6f2ea'],
-    particles: [], doneEmoji: '🎉', doneMessage: 'Great job!',
-  },
-  {
-    id: 'ocean', label: 'Ocean', emoji: '🌊',
-    diskColors: ['#4facfe', '#00668c'], bgColors: ['#a8e6ff', '#e8f9ff'],
-    particles: ['🐠', '🐬', '🫧', '⭐'], doneEmoji: '🐳', doneMessage: 'Splash! Time\'s up!',
-  },
-  {
-    id: 'space', label: 'Space', emoji: '🚀',
-    diskColors: ['#8e6fe8', '#2b1a5e'], bgColors: ['#3a2d6b', '#0d0a26'],
-    particles: ['⭐', '✨', '🪐', '👽'], doneEmoji: '🚀', doneMessage: 'Blast off! Mission complete!',
-  },
-  {
-    id: 'rainbow', label: 'Rainbow', emoji: '🌈',
-    diskColors: ['#ff6b6b', '#8e6fe8'], bgColors: ['#ffe0f0', '#e0f7ff'],
-    particles: ['🌈', '✨', '⭐', '💫'], doneEmoji: '🦄', doneMessage: 'Ta-da! You did it!',
-  },
-  {
-    id: 'candy', label: 'Candy', emoji: '🍭',
-    diskColors: ['#ff8fd1', '#c060e0'], bgColors: ['#ffd6f0', '#fff0fb'],
-    particles: ['🍬', '🍭', '🍩', '🧁'], doneEmoji: '🍦', doneMessage: 'Sweet! All done!',
-  },
-  {
-    id: 'garden', label: 'Garden', emoji: '🌻',
-    diskColors: ['#8bc34a', '#f4c542'], bgColors: ['#e8f5d0', '#fffbe6'],
-    particles: ['🌼', '🐝', '🦋', '🌸'], doneEmoji: '🌻', doneMessage: 'Bloomin\' brilliant!',
-  },
-  {
-    id: 'sunset', label: 'Sunset', emoji: '🌅',
-    diskColors: ['#ff9a56', '#c06a87'], bgColors: ['#ffd9a0', '#ffe8ec'],
-    particles: ['🦋', '☁️', '✨'], doneEmoji: '🌅', doneMessage: 'Beautiful! Time\'s up!',
-  },
-]
-
-export const DEFAULT_THEME_ID = 'classic'
-
-export function getTheme(id: string | null | undefined): TimerTheme {
-  return TIMER_THEMES.find((t) => t.id === id) ?? TIMER_THEMES[0]
-}
-
-/** A subtle themed wash for a page's base background — layers two soft corner
- * gradients from the theme's disk colours over the app's usual cream, so the
- * chosen theme reads as a light skin across the app rather than being
- * confined to the Timer page, without overpowering functional (category)
- * colours used elsewhere on the page. */
-export function themedPageBackground(theme: TimerTheme): string {
-  return `radial-gradient(circle at 10% -10%, color-mix(in srgb, ${theme.diskColors[0]} 12%, transparent), transparent 45%), `
-    + `radial-gradient(circle at 110% 110%, color-mix(in srgb, ${theme.diskColors[1]} 10%, transparent), transparent 45%), `
+/** A subtle branded wash for a page's base background — two soft corner
+ * gradients in the app's primary colour over the usual page background.
+ * Uses --color-primary/--color-primary-deep directly, so it follows the
+ * system Light/Dark/Auto appearance (and MAB platform branding) for free,
+ * without a separate colour-theme concept to keep in sync. */
+export function themedPageBackground(): string {
+  return `radial-gradient(circle at 10% -10%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 45%), `
+    + `radial-gradient(circle at 110% 110%, color-mix(in srgb, var(--color-primary-deep) 10%, transparent), transparent 45%), `
     + `var(--color-bg)`
 }

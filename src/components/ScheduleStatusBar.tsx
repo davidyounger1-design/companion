@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useClientId } from '../hooks/useClientId'
-import { useTimerTheme } from '../hooks/useTimerTheme'
 import { CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown, findCurrentAndNext } from '../lib/schedule'
 import { formatDuration } from '../lib/timer'
 import type { ScheduleItem, ActiveTimer } from '../types/database'
@@ -24,7 +23,6 @@ export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: b
   const navigate = useNavigate()
   const { profile } = useAuth()
   const { clientId } = useClientId()
-  const { theme } = useTimerTheme()
   const [now, setNow] = useState(() => Date.now())
 
   const isRecipient = profile?.role === 'recipient'
@@ -72,14 +70,14 @@ export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: b
         style={{
           display: 'flex', alignItems: 'center', gap: '0.65rem', width: '100%', textAlign: 'left',
           padding: '0.55rem 1rem', cursor: 'pointer', border: 'none',
-          borderBottom: `1px solid color-mix(in srgb, ${theme.diskColors[0]} 30%, transparent)`,
-          background: `linear-gradient(90deg, color-mix(in srgb, ${theme.diskColors[0]} 16%, var(--color-bg)), var(--color-bg))`,
+          borderBottom: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
+          background: 'linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 16%, var(--color-bg)), var(--color-bg))',
         }}
       >
-        <span className="avatar avatar-sm" style={{ background: theme.diskColors[0] }}><TimerIcon size={14} /></span>
+        <span className="avatar avatar-sm" style={{ background: 'var(--color-primary)' }}><TimerIcon size={14} /></span>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <span className="chip" style={{ padding: 0, background: 'none', color: theme.diskColors[1] }}>
-            <span className="chip-dot" style={{ color: theme.diskColors[0] }} />
+          <span className="chip" style={{ padding: 0, background: 'none', color: 'var(--color-primary-deep)' }}>
+            <span className="chip-dot" style={{ color: 'var(--color-primary)' }} />
             Timer running
           </span>
           <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

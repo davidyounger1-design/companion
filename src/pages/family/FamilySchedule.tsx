@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useClientId } from '../../hooks/useClientId'
-import { useTimerTheme } from '../../hooks/useTimerTheme'
 import { useKeyboardInset } from '../../hooks/useKeyboardInset'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
@@ -52,7 +51,6 @@ export default function FamilySchedule() {
   }, [])
 
   const { clientId, participantName, recipientProfileId } = useClientId()
-  const { theme } = useTimerTheme()
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['schedule-items', clientId],
@@ -169,7 +167,7 @@ export default function FamilySchedule() {
 
   return (
     <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
-      <div style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground(theme) }}>
+      <div style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground() }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -184,7 +182,7 @@ export default function FamilySchedule() {
       {/* Up next / happening now hero — stuck with the header so it's always visible */}
       {view === 'day' && isToday && (currentItem || nextItem) && (
         <div style={{ maxWidth: 800, margin: '0 auto', padding: '0.75rem 1rem' }}>
-          <UpNextHero item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} theme={theme} />
+          <UpNextHero item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} />
         </div>
       )}
       </div>
@@ -264,7 +262,7 @@ export default function FamilySchedule() {
                 done={completedIds.has(item.id)}
                 status={isToday ? getItemStatus(item, nowMinutes) : null}
                 isNext={nextItem?.id === item.id}
-                canManage={canManage}
+                canManage={canManage || (isRecipient && item.created_by === user?.id)}
                 showTimerButton={isRecipient}
                 nowMinutes={nowMinutes}
                 onToggleDone={() => toggleComplete(item)}
@@ -288,7 +286,7 @@ export default function FamilySchedule() {
         <MobileFooter />
       </div>
 
-      {canManage && (
+      {(canManage || isRecipient) && (
         <button onClick={() => setFormItem('new')} aria-label="Add to schedule" className="fab">
           <PlusIcon size={22} />
         </button>
