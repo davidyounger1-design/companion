@@ -449,7 +449,10 @@ function TimerSetup({
 
       {/* Theme picker — go overboard */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>Theme your clock ✨</p>
+        <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>App colour theme ✨</p>
+        <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', margin: '0 0 0.6rem' }}>
+          Colours the clock and every other page you visit — not just this one.
+        </p>
         <ThemeColorPicker themeId={themeId} setThemeId={setThemeId} />
       </div>
 

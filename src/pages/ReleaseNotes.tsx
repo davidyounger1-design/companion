@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.40'
+const APP_VERSION = '0.5.41'
 
 const RELEASES = [
+  {
+    version: '0.5.41',
+    date: '4 July 2026',
+    title: 'Clearer label for the app-wide colour theme',
+    changes: [
+      { type: 'change', text: 'Renamed "Theme your clock" to "App colour theme" on the Timer page and added a note explaining it colours every page, not just the Timer — it always worked this way, but the old label made it sound Timer-only' },
+    ],
+  },
   {
     version: '0.5.40',
     date: '4 July 2026',
