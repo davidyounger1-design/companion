@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.28'
+const APP_VERSION = '0.5.29'
 
 const RELEASES = [
+  {
+    version: '0.5.29',
+    date: '4 July 2026',
+    title: 'A real countdown in the "up next" ring',
+    changes: [
+      { type: 'fix', text: 'The countdown ring on "up next" items now shows time remaining until it starts (e.g. "45m" or "2h"), not just a category icon' },
+    ],
+  },
   {
     version: '0.5.28',
     date: '4 July 2026',

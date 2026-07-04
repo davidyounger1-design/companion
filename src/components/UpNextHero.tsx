@@ -21,6 +21,12 @@ export default function UpNextHero({
   const fraction = itemDiskFraction(item, isCurrent, nowMinutes)
   const ringSize = compact ? 48 : 58
   const minutesLeft = item.end_time ? Math.max(0, timeToMinutes(item.end_time) - nowMinutes) : null
+  const minutesUntilStart = Math.max(0, timeToMinutes(item.start_time) - nowMinutes)
+  const ringMinutes = isCurrent ? minutesLeft : minutesUntilStart
+  const ringLabel = ringMinutes == null ? null
+    : ringMinutes <= 0 ? 'now'
+    : ringMinutes < 100 ? `${ringMinutes}m`
+    : `${Math.round(ringMinutes / 60)}h`
 
   return (
     <div style={{
@@ -62,9 +68,9 @@ export default function UpNextHero({
             position: 'absolute', inset: 5, borderRadius: '50%', background: '#263229',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {isCurrent && minutesLeft != null && minutesLeft < 100 ? (
-              <span className="font-display-round" style={{ fontSize: compact ? '0.85rem' : '0.95rem', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-                {minutesLeft}m
+            {ringLabel != null ? (
+              <span className="font-display-round" style={{ fontSize: compact ? '0.8rem' : '0.88rem', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                {ringLabel}
               </span>
             ) : (
               <Icon size={compact ? 18 : 22} />
