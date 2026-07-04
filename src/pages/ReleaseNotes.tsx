@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.33'
+const APP_VERSION = '0.5.34'
 
 const RELEASES = [
+  {
+    version: '0.5.34',
+    date: '4 July 2026',
+    title: 'The "up next" banner is recipient-only again',
+    changes: [
+      { type: 'fix', text: 'The persistent "up next" strip on Journal, Notices, and Help no longer shows for coordinator or family logins — it\'s a recipient-only feature. The Schedule page\'s own "up next" card is unaffected and still shows for everyone managing the schedule' },
+    ],
+  },
   {
     version: '0.5.33',
     date: '4 July 2026',

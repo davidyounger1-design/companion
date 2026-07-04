@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { useClientId } from '../hooks/useClientId'
 import { CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown, findCurrentAndNext } from '../lib/schedule'
 import type { ScheduleItem } from '../types/database'
@@ -9,12 +10,14 @@ import { CATEGORY_ICONS } from './icons'
 
 /**
  * Persistent "what's on now / what's next" strip — shown on every page in the
- * family app shell (Journal, Notices, Timer; the Schedule page has its own
- * richer version of the same thing). Always shows a countdown to the next
- * item when nothing is current, per the recipient's explicit needs.
+ * recipient's app shell (Journal, Notices, Help; the Schedule page has its
+ * own richer version of the same thing). Recipient-only: family/coordinators
+ * already see full schedule context on the Schedule page itself, so this
+ * following-you-everywhere banner would just be noise for them.
  */
 export default function ScheduleStatusBar() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const { clientId } = useClientId()
   const [now, setNow] = useState(() => Date.now())
 
@@ -22,6 +25,8 @@ export default function ScheduleStatusBar() {
     const id = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(id)
   }, [])
+
+  const isRecipient = profile?.role === 'recipient'
 
   const { data: items = [] } = useQuery({
     queryKey: ['schedule-items', clientId],
@@ -34,10 +39,10 @@ export default function ScheduleStatusBar() {
       if (error) throw error
       return data as ScheduleItem[]
     },
-    enabled: !!clientId,
+    enabled: !!clientId && isRecipient,
   })
 
-  if (!clientId || items.length === 0) return null
+  if (!isRecipient || !clientId || items.length === 0) return null
 
   const todayStr = toLocalDateStr(new Date())
   const nowMinutes = new Date(now).getHours() * 60 + new Date(now).getMinutes()
