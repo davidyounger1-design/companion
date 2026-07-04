@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.31'
+const APP_VERSION = '0.5.32'
 
 const RELEASES = [
+  {
+    version: '0.5.32',
+    date: '4 July 2026',
+    title: 'Fix the schedule form\'s Save button for real this time',
+    changes: [
+      { type: 'fix', text: 'The "Add to schedule" and "Start a timer" sheets had a layout bug that pushed the Save button fully out of view on longer forms, regardless of the keyboard — fixed the underlying cause' },
+    ],
+  },
   {
     version: '0.5.31',
     date: '4 July 2026',

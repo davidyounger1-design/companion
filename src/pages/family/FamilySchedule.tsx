@@ -528,7 +528,7 @@ function ScheduleItemForm({
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         boxShadow: 'var(--shadow-lg)', maxWidth: 520, margin: '0 auto',
       }}>
-      <div style={{ overflowY: 'auto', padding: '1rem 1.25rem 0' }}>
+      <div style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
@@ -663,7 +663,7 @@ function RemoteTimerModal({
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',
       }}>
-      <div style={{ overflowY: 'auto', padding: '1rem 1.25rem 0' }}>
+      <div style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '1rem 1.25rem 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
