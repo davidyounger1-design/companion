@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.35'
+const APP_VERSION = '0.5.36'
 
 const RELEASES = [
+  {
+    version: '0.5.36',
+    date: '4 July 2026',
+    title: 'Mood log now shows an error if saving fails',
+    changes: [
+      { type: 'fix', text: 'The mood check-in\'s Save button failed silently if something went wrong — it now shows what happened instead of appearing to do nothing' },
+    ],
+  },
   {
     version: '0.5.35',
     date: '4 July 2026',

@@ -30,6 +30,7 @@ export default function RecipientMoodLog({
   const [value, setValue] = useState(50)
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   const { data: moods = [], isLoading } = useQuery({
     queryKey: ['recipient-moods', clientId],
@@ -49,17 +50,17 @@ export default function RecipientMoodLog({
   async function handleSubmit() {
     if (!user) return
     setSubmitting(true)
-    const { error } = await supabase.from('recipient_moods').insert({
+    setError('')
+    const { error: insertError } = await supabase.from('recipient_moods').insert({
       client_id: clientId, org_id: orgId, author_id: user.id,
       mood_score: value, note: note.trim() || null,
     })
     setSubmitting(false)
-    if (!error) {
-      setNote('')
-      setValue(50)
-      setShowForm(false)
-      qc.invalidateQueries({ queryKey: ['recipient-moods', clientId] })
-    }
+    if (insertError) { setError(insertError.message); return }
+    setNote('')
+    setValue(50)
+    setShowForm(false)
+    qc.invalidateQueries({ queryKey: ['recipient-moods', clientId] })
   }
 
   const latest = moods[0]
@@ -84,6 +85,7 @@ export default function RecipientMoodLog({
           <MoodSlider value={value} onChange={setValue} />
           <textarea className="input" rows={2} placeholder="Anything you want to add? (optional)"
             value={note} onChange={(e) => setNote(e.target.value)} style={{ resize: 'vertical', marginBottom: '0.6rem' }} />
+          {error && <div className="alert alert-error" style={{ marginBottom: '0.6rem', fontSize: '0.82rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancel</button>
             <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleSubmit} disabled={submitting}>
