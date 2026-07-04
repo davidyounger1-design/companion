@@ -4,12 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
-import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import { MobileFooter } from '../../components/SiteFooter'
 import { NoticesIcon, BackIcon } from '../../components/icons'
 import NoticeCard from '../../components/NoticeCard'
-import { useTimerTheme } from '../../hooks/useTimerTheme'
-import { themedPageBackground } from '../../lib/timer'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -27,7 +24,6 @@ export default function FamilyNoticeBoard() {
   const [newBody, setNewBody] = useState('')
   const [posting, setPosting] = useState(false)
   const isCoordinator = profile?.role === 'coordinator'
-  const { theme } = useTimerTheme()
 
   const { data: clientId } = useQuery({
     queryKey: ['family-client-id', user?.id],
@@ -82,9 +78,9 @@ export default function FamilyNoticeBoard() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+    <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{
+        position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10,
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
         background: 'var(--color-bg)',
@@ -93,9 +89,6 @@ export default function FamilyNoticeBoard() {
         <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <NoticesIcon size={20} /> Notice Board
         </h1>
-      </div>
-
-      <ScheduleStatusBar />
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>

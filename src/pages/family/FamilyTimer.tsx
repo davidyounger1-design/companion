@@ -159,8 +159,8 @@ export default function FamilyTimer() {
   const diskFraction = activeTimer ? remainingMs / totalMs : durationMinutes / MAX_DIAL_MINUTES
 
   return (
-    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: themedPageBackground(theme) }}>
+    <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+      <div style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground(theme) }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',

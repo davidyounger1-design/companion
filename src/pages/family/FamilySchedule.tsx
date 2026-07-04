@@ -8,7 +8,6 @@ import { useTimerTheme } from '../../hooks/useTimerTheme'
 import { useKeyboardInset } from '../../hooks/useKeyboardInset'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
-import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
 import MiniDisk from '../../components/MiniDisk'
 import SegmentedControl from '../../components/SegmentedControl'
@@ -169,8 +168,8 @@ export default function FamilySchedule() {
   const weekLabel = `${parseLocalDate(weekDates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(weekDates[6]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
 
   return (
-    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: themedPageBackground(theme) }}>
+    <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+      <div style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground(theme) }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -181,8 +180,6 @@ export default function FamilySchedule() {
           <ScheduleIcon size={20} /> {participantName}'s day
         </h1>
       </div>
-
-      <ScheduleStatusBar timerOnly />
 
       {/* Up next / happening now hero — stuck with the header so it's always visible */}
       {view === 'day' && isToday && (currentItem || nextItem) && (

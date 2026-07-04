@@ -127,7 +127,7 @@ export default function AddEntry() {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
-        background: 'var(--color-bg)', position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--color-bg)', position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10,
       }}>
         <button className="btn btn-ghost" onClick={() => navigate('/family')}
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>

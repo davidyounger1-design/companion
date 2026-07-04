@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.42'
+const APP_VERSION = '0.5.43'
 
 const RELEASES = [
+  {
+    version: '0.5.43',
+    date: '4 July 2026',
+    title: 'The header and "up next" banner now follow you everywhere',
+    changes: [
+      { type: 'change', text: 'Every page in the family/recipient portal — Schedule, Notices, Timer, Add entry, Edit participant, and Messages — now keeps the same top bar (logo, appearance pill, settings, sign out) instead of only showing it on the Journal' },
+      { type: 'change', text: 'The "up next" schedule banner for recipients now follows onto every one of those pages too, not just Journal, Schedule, Notices, and Help' },
+    ],
+  },
   {
     version: '0.5.42',
     date: '4 July 2026',

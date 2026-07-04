@@ -7,7 +7,6 @@ import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
-import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import EntryComments from '../../components/EntryComments'
 import EntryReactions from '../../components/EntryReactions'
 import ClientFeedback from '../../components/ClientFeedback'
@@ -18,11 +17,8 @@ import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
 import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
-import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon, SettingsIcon } from '../../components/icons'
+import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon } from '../../components/icons'
 import NoticeCard from '../../components/NoticeCard'
-import { useTimerTheme } from '../../hooks/useTimerTheme'
-import { themedPageBackground } from '../../lib/timer'
-import ColorModePill from '../../components/ColorModePill'
 
 
 function formatDate(iso: string) {
@@ -602,7 +598,6 @@ export default function FamilyDashboard() {
   const navigate = useNavigate()
   const { user, profile, org } = useAuth()
   const qc = useQueryClient()
-  const { theme } = useTimerTheme()
 
   const isFamilyPlan = org?.plan === 'family'
   const isCoordinator = profile?.role === 'coordinator'
@@ -630,12 +625,7 @@ export default function FamilyDashboard() {
   const [editName, setEditName] = useState('')
   const [editDob, setEditDob] = useState('')
   const [saving, setSaving] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
   const [now, setNow] = useState(Date.now())
-
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-  }
 
   const { data: clientRow } = useQuery({
     queryKey: ['family-client', user?.id, profile?.role],
@@ -768,7 +758,6 @@ export default function FamilyDashboard() {
     if (filterMode === 'date' && selectedDate) return fmt(selectedDate)
     return 'All entries'
   }
-  const currentUserName = profile?.full_name ?? ''
 
   async function saveEntryEdit(id: string, label: string, type: LogType, moodScore: number) {
     const { error } = await (supabase.from('log_entries') as any)
@@ -860,95 +849,7 @@ export default function FamilyDashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
-
-      {/* Header + status bar — stuck together at the top so "up next" never scrolls off */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-      <header style={{
-        background: 'var(--color-surface)',
-        borderBottom: '1px solid color-mix(in srgb, var(--color-muted) 20%, transparent)',
-        padding: '0.875rem 1.25rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>Companion</span>
-          <span className="badge badge-sage" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
-            {isCoordinator ? 'Coordinator' : isRecipient ? 'Recipient' : 'Family'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', minWidth: 0, flex: '1 1 auto', justifyContent: 'flex-end' }}>
-          {(currentUserName || user?.email) && (
-            <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', textAlign: 'right', lineHeight: 1.35, minWidth: 0, overflow: 'hidden' }}>
-              {currentUserName && (
-                <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUserName}</span>
-              )}
-              <span style={{ display: 'block', opacity: 0.75, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</span>
-            </span>
-          )}
-          {isCoordinator && (
-            <>
-              <ColorModePill />
-              <button
-                onClick={() => setShowMenu(m => !m)}
-                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.4rem 0.6rem', cursor: 'pointer', lineHeight: 1, color: 'var(--color-text)', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                title="Menu"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
-                </svg>
-              </button>
-              {showMenu && (
-                <>
-                  <div onClick={() => setShowMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
-                  <div style={{
-                    position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 20,
-                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                    borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                    minWidth: 180, overflow: 'hidden',
-                  }}>
-                    {[
-                      { label: '👥 Members', path: '/members' },
-                      { label: '🔐 Permissions', path: '/settings/permissions' },
-                      { label: '🔠 Display', path: '/settings/display' },
-                      { label: '📋 Release notes', path: '/release-notes' },
-                    ].map(({ label, path }) => (
-                      <button key={path} onClick={() => { navigate(path); setShowMenu(false) }}
-                        style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--color-text)' }}>
-                        {label}
-                      </button>
-                    ))}
-                    <button onClick={() => {
-                        setShowMenu(false)
-                        navigator.serviceWorker?.getRegistration().then(r => r?.update())
-                        window.location.reload()
-                      }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--color-text)' }}>
-                      🔄 Check for updates
-                    </button>
-                    <button onClick={() => { handleSignOut(); setShowMenu(false) }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: '#ef4444' }}>
-                      Sign out
-                    </button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-          {!isCoordinator && (
-            <>
-              <ColorModePill />
-              <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
-                <SettingsIcon size={18} />
-              </button>
-              <button className="btn btn-ghost" onClick={handleSignOut}
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>Sign out</button>
-            </>
-          )}
-        </div>
-      </header>
-
-      <ScheduleStatusBar />
-      </div>
+    <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
 

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import FamilyStickyHeader from '../../components/FamilyStickyHeader'
 
 function formatTime(iso: string) {
   const d = new Date(iso)
@@ -175,8 +176,11 @@ export default function MessageThread() {
     ? `${recipient.full_name} · ${ROLE_LABEL[recipient.role] ?? recipient.role}`
     : 'Loading…'
 
+  const isWorker = profile?.role === 'support_worker' || profile?.role === 'trusted_support_worker'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--color-bg)' }}>
+      {!isWorker && <FamilyStickyHeader />}
       {/* Header */}
       <div style={{
         padding: '0.875rem 1rem', borderBottom: '1px solid var(--color-border)',

@@ -24,6 +24,7 @@ import FamilySetupLayout from './pages/setup/family/FamilySetupLayout'
 import FamilyStep1Participant from './pages/setup/family/FamilyStep1Participant'
 import FamilyStep2Invite from './pages/setup/family/FamilyStep2Invite'
 import FamilyStep3Done from './pages/setup/family/FamilyStep3Done'
+import FamilyLayout from './pages/family/FamilyLayout'
 import FamilyDashboard from './pages/family/FamilyDashboard'
 import AddEntry from './pages/family/AddEntry'
 import EditParticipant from './pages/family/EditParticipant'
@@ -188,13 +189,15 @@ export default function App() {
             <Route path="/messages" element={<BlockRecipient><MessagesHub /></BlockRecipient>} />
             <Route path="/messages/:userId" element={<BlockRecipient><MessageThread /></BlockRecipient>} />
 
-            {/* Family journal */}
-            <Route path="/family" element={<RequireAuth><FamilyDashboard /></RequireAuth>} />
-            <Route path="/family/add" element={<RequireAuth><AddEntry /></RequireAuth>} />
-            <Route path="/family/participant" element={<RequireAuth><EditParticipant /></RequireAuth>} />
-            <Route path="/family/notices" element={<RequireAuth><FamilyNoticeBoard /></RequireAuth>} />
-            <Route path="/family/schedule" element={<RequireAuth><FamilySchedule /></RequireAuth>} />
-            <Route path="/family/timer" element={<RequireRecipient><FamilyTimer /></RequireRecipient>} />
+            {/* Family journal — shared header + "up next" banner via FamilyLayout */}
+            <Route path="/family" element={<RequireAuth><FamilyLayout /></RequireAuth>}>
+              <Route index element={<FamilyDashboard />} />
+              <Route path="add" element={<AddEntry />} />
+              <Route path="participant" element={<EditParticipant />} />
+              <Route path="notices" element={<FamilyNoticeBoard />} />
+              <Route path="schedule" element={<FamilySchedule />} />
+              <Route path="timer" element={<RequireRecipient><FamilyTimer /></RequireRecipient>} />
+            </Route>
 
             {/* Coordinator dashboard */}
             <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />

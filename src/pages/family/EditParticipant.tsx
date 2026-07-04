@@ -65,7 +65,7 @@ export default function EditParticipant() {
         borderBottom: '1px solid var(--color-border)',
         background: 'var(--color-bg)',
         position: 'sticky',
-        top: 0,
+        top: 'var(--family-header-h, 0px)',
         zIndex: 10,
       }}>
         <button
