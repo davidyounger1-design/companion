@@ -5,6 +5,8 @@ import { WidgetBoundary } from '../components/WidgetBoundary'
 import { MabEmbed } from '../components/MabEmbed'
 import { usePendingTickets } from '../hooks/usePendingTickets'
 import ScheduleStatusBar from '../components/ScheduleStatusBar'
+import { useTimerTheme } from '../hooks/useTimerTheme'
+import { themedPageBackground } from '../lib/timer'
 import {
   cachedHelpList, fetchHelpList, filterGroupsForApp, filterGroupsByRole,
   cachedHelpArticle, fetchHelpArticle,
@@ -91,6 +93,7 @@ function HelpArticleView({ slug }: { slug: string }) {
   const [article, setArticle] = useState<HelpArticleFull | null>(() => cachedHelpArticle(slug))
   const [loading, setLoading] = useState(!article)
   const [error, setError] = useState(false)
+  const { theme } = useTimerTheme()
 
   useEffect(() => {
     let alive = true
@@ -105,7 +108,7 @@ function HelpArticleView({ slug }: { slug: string }) {
   }, [slug])
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
+    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: '3rem' }}>
       <div style={headerStyle}>
         <button className="btn btn-ghost" onClick={() => navigate('/help')}
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
@@ -241,9 +244,10 @@ function HelpHub() {
   const [params, setParams] = useSearchParams()
   const tab = (TABS.find((t) => t.key === params.get('tab'))?.key) ?? 'articles'
   const pendingTickets = usePendingTickets()
+  const { theme } = useTimerTheme()
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
+    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: '3rem' }}>
       <div style={headerStyle}>
         <button className="btn btn-ghost" onClick={() => navigate(-1)}
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>

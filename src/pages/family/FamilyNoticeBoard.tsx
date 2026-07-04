@@ -7,6 +7,8 @@ import FamilyBottomNav from '../../components/FamilyBottomNav'
 import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import { MobileFooter } from '../../components/SiteFooter'
 import { NoticesIcon, BackIcon, TrashIcon } from '../../components/icons'
+import { useTimerTheme } from '../../hooks/useTimerTheme'
+import { themedPageBackground } from '../../lib/timer'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -24,6 +26,7 @@ export default function FamilyNoticeBoard() {
   const [newBody, setNewBody] = useState('')
   const [posting, setPosting] = useState(false)
   const isCoordinator = profile?.role === 'coordinator'
+  const { theme } = useTimerTheme()
 
   const { data: clientId } = useQuery({
     queryKey: ['family-client-id', user?.id],
@@ -78,7 +81,7 @@ export default function FamilyNoticeBoard() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',

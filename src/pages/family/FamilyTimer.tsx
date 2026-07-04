@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useClientId } from '../../hooks/useClientId'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
+import { useTimerTheme } from '../../hooks/useTimerTheme'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import MiniDisk from '../../components/MiniDisk'
@@ -15,7 +16,7 @@ import {
 } from '../../lib/schedule'
 import {
   MAX_DIAL_MINUTES, QUICK_PICKS, pieSlicePath, angleToMinutes, formatDuration,
-  playChime, vibrate, TIMER_THEMES, DEFAULT_THEME_ID, getTheme,
+  playChime, vibrate, TIMER_THEMES, getTheme, themedPageBackground,
 } from '../../lib/timer'
 import type { ScheduleItem, ActiveTimer } from '../../types/database'
 
@@ -23,7 +24,6 @@ const DISK_SIZE = 260
 const DISK_R = 118
 const DISK_C = DISK_SIZE / 2
 const DISPLAY_KEY = 'companion_timer_display'
-const THEME_KEY = 'companion_timer_theme'
 
 export default function FamilyTimer() {
   const navigate = useNavigate()
@@ -93,10 +93,8 @@ export default function FamilyTimer() {
   const [displayMode, setDisplayMode] = useState<'analog' | 'digital'>(
     () => (localStorage.getItem(DISPLAY_KEY) as 'analog' | 'digital') ?? 'analog',
   )
-  const [themeId, setThemeId] = useState(() => localStorage.getItem(THEME_KEY) ?? DEFAULT_THEME_ID)
   useEffect(() => localStorage.setItem(DISPLAY_KEY, displayMode), [displayMode])
-  useEffect(() => localStorage.setItem(THEME_KEY, themeId), [themeId])
-  const theme = getTheme(themeId)
+  const { themeId, setThemeId, theme } = useTimerTheme()
 
   // ── Setup form (only relevant when nothing is running) ─────────────
   const [label, setLabel] = useState('Timer')
@@ -163,7 +161,7 @@ export default function FamilyTimer() {
   const diskFraction = activeTimer ? remainingMs / totalMs : durationMinutes / MAX_DIAL_MINUTES
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',

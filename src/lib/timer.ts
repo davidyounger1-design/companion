@@ -134,3 +134,14 @@ export const DEFAULT_THEME_ID = 'classic'
 export function getTheme(id: string | null | undefined): TimerTheme {
   return TIMER_THEMES.find((t) => t.id === id) ?? TIMER_THEMES[0]
 }
+
+/** A subtle themed wash for a page's base background — layers two soft corner
+ * gradients from the theme's disk colours over the app's usual cream, so the
+ * chosen theme reads as a light skin across the app rather than being
+ * confined to the Timer page, without overpowering functional (category)
+ * colours used elsewhere on the page. */
+export function themedPageBackground(theme: TimerTheme): string {
+  return `radial-gradient(circle at 10% -10%, color-mix(in srgb, ${theme.diskColors[0]} 12%, transparent), transparent 45%), `
+    + `radial-gradient(circle at 110% 110%, color-mix(in srgb, ${theme.diskColors[1]} 10%, transparent), transparent 45%), `
+    + `var(--color-bg)`
+}

@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.23'
+const APP_VERSION = '0.5.24'
 
 const RELEASES = [
+  {
+    version: '0.5.24',
+    date: '4 July 2026',
+    title: 'Your theme, everywhere',
+    changes: [
+      { type: 'change', text: 'Your chosen timer theme now colours the whole app — Journal, Schedule, Notices, and Help all pick up a subtle wash of the same colours, instead of just the Timer screen' },
+      { type: 'new', text: 'Floating theme decorations (fish, stars, sweets, and more) now appear on the schedule\'s "up next" banner too' },
+    ],
+  },
   {
     version: '0.5.23',
     date: '4 July 2026',

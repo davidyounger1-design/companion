@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useClientId } from '../../hooks/useClientId'
+import { useTimerTheme } from '../../hooks/useTimerTheme'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
@@ -15,6 +16,7 @@ import {
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
   occursOnDate, getItemStatus, formatCountdown, itemDiskFraction,
 } from '../../lib/schedule'
+import { themedPageBackground, type TimerTheme } from '../../lib/timer'
 
 /** Minutes remaining in the activity if it's running now, else its total duration, else a sensible default. */
 function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMinutes: number): number {
@@ -47,6 +49,7 @@ export default function FamilySchedule() {
   }, [])
 
   const { clientId, participantName, recipientProfileId } = useClientId()
+  const { theme } = useTimerTheme()
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['schedule-items', clientId],
@@ -162,7 +165,7 @@ export default function FamilySchedule() {
   const weekLabel = `${parseLocalDate(weekDates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(weekDates[6]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -233,7 +236,7 @@ export default function FamilySchedule() {
 
         {/* Up next / happening now hero — only meaningful when looking at today in Day view */}
         {view === 'day' && isToday && (currentItem || nextItem) && (
-          <HeroBanner item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} />
+          <HeroBanner item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} theme={theme} />
         )}
 
         {isLoading && (
@@ -329,14 +332,20 @@ export default function FamilySchedule() {
 }
 
 
-function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCurrent: boolean; nowMinutes: number }) {
+function HeroBanner({ item, isCurrent, nowMinutes, theme }: { item: ScheduleItem; isCurrent: boolean; nowMinutes: number; theme: TimerTheme }) {
   const meta = CATEGORY_META[item.category]
   return (
     <div style={{
-      borderRadius: 18, padding: '1.1rem 1.25rem', marginBottom: '1.25rem',
+      position: 'relative', overflow: 'hidden', borderRadius: 18, padding: '1.1rem 1.25rem', marginBottom: '1.25rem',
       background: `linear-gradient(135deg, color-mix(in srgb, ${meta.color} 22%, var(--color-surface)), var(--color-surface))`,
       border: `2px solid color-mix(in srgb, ${meta.color} 45%, transparent)`,
     }}>
+      {theme.particles.map((p, i) => (
+        <span key={i} aria-hidden style={{
+          position: 'absolute', right: `${8 + i * 22}%`, top: i % 2 === 0 ? 4 : 'auto', bottom: i % 2 === 1 ? 4 : 'auto',
+          fontSize: '1.1rem', opacity: 0.55,
+        }}>{p}</span>
+      ))}
       <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: meta.color }}>
         {isCurrent ? '🟢 Happening now' : '⏰ Up next'}
       </p>

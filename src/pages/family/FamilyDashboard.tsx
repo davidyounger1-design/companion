@@ -18,6 +18,8 @@ import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
 import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
 import { EditIcon, TrashIcon, NoticesIcon } from '../../components/icons'
+import { useTimerTheme } from '../../hooks/useTimerTheme'
+import { themedPageBackground } from '../../lib/timer'
 
 
 function formatDate(iso: string) {
@@ -514,6 +516,7 @@ export default function FamilyDashboard() {
   const navigate = useNavigate()
   const { user, profile, org } = useAuth()
   const qc = useQueryClient()
+  const { theme } = useTimerTheme()
 
   const isFamilyPlan = org?.plan === 'family'
   const isCoordinator = profile?.role === 'coordinator'
@@ -737,7 +740,7 @@ export default function FamilyDashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+    <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
 
       {/* Header */}
       <header style={{
