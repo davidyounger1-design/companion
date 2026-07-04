@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { registerAppRef } from '../_shared/mabLink.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +68,7 @@ Deno.serve(async (req) => {
     const planId = subscription.plan_id ?? null
 
     // Update org by myappbuddy_subscription_id (set when subscription is first created)
-    const { error } = await supabase
+    const { data: updatedOrg, error } = await supabase
       .from('organisations')
       .update({
         billing_status: newStatus,
@@ -76,6 +77,8 @@ Deno.serve(async (req) => {
         myappbuddy_account_id: subscription.account_id,
       })
       .eq('myappbuddy_subscription_id', subscription.id)
+      .select('id')
+      .maybeSingle()
 
     if (error) {
       console.error('sync-subscription update error:', error)
@@ -83,6 +86,23 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       })
+    }
+
+    // Register app_ref right away so the embedded support/ideas widgets work
+    // for this org without waiting for their next login.
+    if (updatedOrg?.id && ['active', 'trialing'].includes(subscription.status)) {
+      const { data: coordinator } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('org_id', updatedOrg.id)
+        .eq('role', 'coordinator')
+        .maybeSingle()
+      if (coordinator?.id) {
+        const { data: userData } = await supabase.auth.admin.getUserById(coordinator.id)
+        if (userData?.user?.email) {
+          await registerAppRef(subscription.id, userData.user.email)
+        }
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, type, status: newStatus }), {

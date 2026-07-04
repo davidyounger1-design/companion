@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { registerAppRef } from '../_shared/mabLink.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -36,6 +37,13 @@ Deno.serve(async (req) => {
     }
 
     const data = await res.json()
+
+    // Keep MAB's app_ref up to date on every login — cheap, idempotent, and
+    // self-healing if it's ever missing or stale (see registerAppRef).
+    if (data?.subscription_id && ['active', 'trialing'].includes(data?.status)) {
+      await registerAppRef(data.subscription_id, user.email)
+    }
+
     return new Response(JSON.stringify(data), {
       headers: { ...cors, 'Content-Type': 'application/json' },
     })
