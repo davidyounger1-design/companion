@@ -1,8 +1,19 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.39'
+const APP_VERSION = '0.5.40'
 
 const RELEASES = [
+  {
+    version: '0.5.40',
+    date: '4 July 2026',
+    title: 'Light, dark, and auto appearance — plus a fix for missing install options',
+    changes: [
+      { type: 'new', text: 'Choose Light, Dark, or Auto (follows your device) in Display settings — a small pill in the top bar shows which one is active and can be tapped to switch' },
+      { type: 'new', text: 'The clock colour theme picker is now also available from Display settings, not just the Timer page' },
+      { type: 'fix', text: 'iPads showing as a Mac to Safari were never offered the "Add to home screen" install option — they now are' },
+      { type: 'fix', text: 'Android browsers that never showed the automatic install prompt (or where it was dismissed once) now get manual "Add to home screen" instructions instead of nothing' },
+    ],
+  },
   {
     version: '0.5.39',
     date: '4 July 2026',

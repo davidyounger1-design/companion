@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { getStoredFontScale, applyFontScale } from './lib/fontScale'
+import { getStoredColorMode, applyColorMode } from './lib/colorScheme'
 import { useKeyboardInset } from './hooks/useKeyboardInset'
 
 import Landing from './pages/Landing'
@@ -114,6 +115,25 @@ function FullPageSpinner() {
   )
 }
 
+// Landing and the investor deck are permanently light-branded marketing pages
+// built with their own hardcoded palette, not the app's --color-* tokens —
+// applying a user's dark-mode preference there would clash badly (e.g. the
+// Landing nav bar's fixed cream background against pale flipped text). Keep
+// them light regardless of what's stored for the authenticated app.
+const LIGHT_ONLY_ROUTES = ['/', '/deck']
+
+function ColorModeGate() {
+  const location = useLocation()
+  useEffect(() => {
+    if (LIGHT_ONLY_ROUTES.includes(location.pathname)) {
+      document.documentElement.dataset.theme = 'light'
+    } else {
+      applyColorMode(getStoredColorMode())
+    }
+  }, [location.pathname])
+  return null
+}
+
 export default function App() {
   useEffect(() => { applyFontScale(getStoredFontScale()) }, [])
 
@@ -126,6 +146,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+          <ColorModeGate />
           <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />

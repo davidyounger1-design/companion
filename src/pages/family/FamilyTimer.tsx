@@ -11,10 +11,11 @@ import { MobileFooter } from '../../components/SiteFooter'
 import SegmentedControl from '../../components/SegmentedControl'
 import UpNextHero from '../../components/UpNextHero'
 import { TimerIcon, BackIcon } from '../../components/icons'
+import ThemeColorPicker from '../../components/ThemeColorPicker'
 import { toLocalDateStr, findCurrentAndNext } from '../../lib/schedule'
 import {
   MAX_DIAL_MINUTES, QUICK_PICKS, pieSlicePath, angleToMinutes, formatDuration,
-  playChime, vibrate, TIMER_THEMES, getTheme, themedPageBackground,
+  playChime, vibrate, getTheme, themedPageBackground,
 } from '../../lib/timer'
 import type { ScheduleItem, ActiveTimer } from '../../types/database'
 
@@ -449,23 +450,7 @@ function TimerSetup({
       {/* Theme picker — go overboard */}
       <div style={{ marginBottom: '1.25rem' }}>
         <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>Theme your clock ✨</p>
-        <div style={{ display: 'flex', gap: '0.6rem', overflowX: 'auto', padding: '0.25rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          {TIMER_THEMES.map((t) => (
-            <button key={t.id} onClick={() => setThemeId(t.id)} title={t.label} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem',
-              background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem',
-            }}>
-              <span style={{
-                width: 44, height: 44, borderRadius: '50%',
-                background: `linear-gradient(135deg, ${t.diskColors[0]}, ${t.diskColors[1]})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem',
-                border: themeId === t.id ? '3px solid var(--color-ink)' : '3px solid transparent',
-                boxShadow: 'var(--shadow-sm)',
-              }}>{t.emoji}</span>
-              <span style={{ fontSize: '0.65rem', fontWeight: themeId === t.id ? 700 : 500, color: themeId === t.id ? 'var(--color-ink)' : 'var(--color-muted)' }}>{t.label}</span>
-            </button>
-          ))}
-        </div>
+        <ThemeColorPicker themeId={themeId} setThemeId={setThemeId} />
       </div>
 
       {(pushPermission === 'granted' || pushPermission === 'default') && (

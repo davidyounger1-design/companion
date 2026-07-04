@@ -28,6 +28,8 @@
   --color-bg:           var(--color-cream);
   --color-text:         var(--color-ink);
   --color-text-muted:   var(--color-muted);
+  --color-border:       color-mix(in srgb, var(--color-muted) 20%, transparent);
+  color-scheme: light;
 
   /* Typography */
   --font-display: var(--ff-display, 'Newsreader', Georgia, serif);
@@ -60,6 +62,23 @@
 
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --keyboard-inset: 0px;
+}
+
+/* Dark appearance — toggled by useColorScheme setting document.documentElement's
+   data-theme attribute. Only the base palette + shadow tints need overriding;
+   every semantic alias (--color-bg, --color-surface, --color-border, etc.)
+   already resolves through these, so the rest of the app repaints for free. */
+:root[data-theme="dark"] {
+  --color-cream:       #1b1a17;
+  --color-warm-white:  #242220;
+  --color-ink:         #ece6d9;
+  --color-muted:       #aba296;
+  --color-muted-light: #857d70;
+  --color-border:      color-mix(in srgb, var(--color-muted) 28%, transparent);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.35);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,.55), 0 8px 32px rgba(0,0,0,.4);
+  color-scheme: dark;
 }
 
 /* ── Base ──────────────────────────────────────────────────────── */

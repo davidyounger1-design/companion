@@ -22,6 +22,7 @@ import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, Not
 import NoticeCard from '../../components/NoticeCard'
 import { useTimerTheme } from '../../hooks/useTimerTheme'
 import { themedPageBackground } from '../../lib/timer'
+import ColorModePill from '../../components/ColorModePill'
 
 
 function formatDate(iso: string) {
@@ -609,9 +610,10 @@ export default function FamilyDashboard() {
   const isRecipient = profile?.role === 'recipient'
   const canShare = isCoordinator || isFamily || isRecipient
 
-  const { canInstall, isIOS, install } = useInstallPrompt()
+  const { canInstall, isIOS, isAndroid, hasPrompt, install } = useInstallPrompt()
   const { permission: pushPermission, subscribing, subscribe, notifyOnEntry, setNotifyOnEntry } = usePushNotifications()
   const [showIOSTip, setShowIOSTip] = useState(false)
+  const [showAndroidTip, setShowAndroidTip] = useState(false)
   const [pushDismissed, setPushDismissed] = useState(
     () => localStorage.getItem('push_dismissed') === '1'
   )
@@ -885,6 +887,7 @@ export default function FamilyDashboard() {
           )}
           {isCoordinator && (
             <>
+              <ColorModePill />
               <button
                 onClick={() => setShowMenu(m => !m)}
                 style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.4rem 0.6rem', cursor: 'pointer', lineHeight: 1, color: 'var(--color-text)', display: 'flex', alignItems: 'center', flexShrink: 0 }}
@@ -933,6 +936,7 @@ export default function FamilyDashboard() {
           )}
           {!isCoordinator && (
             <>
+              <ColorModePill />
               <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
                 <SettingsIcon size={18} />
               </button>
@@ -1102,7 +1106,7 @@ export default function FamilyDashboard() {
 
 
         {/* Install app banner */}
-        {canInstall && !isIOS && (
+        {canInstall && hasPrompt && (
           <div className="card" style={{ marginTop: '1.5rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))' }}>
             <span style={{ fontSize: '1.4rem' }}>📱</span>
             <div style={{ flex: 1 }}>
@@ -1112,7 +1116,7 @@ export default function FamilyDashboard() {
             <button className="btn btn-primary" onClick={install} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', flexShrink: 0 }}>Install</button>
           </div>
         )}
-        {canInstall && isIOS && (
+        {canInstall && !hasPrompt && isIOS && (
           <div className="card" style={{ marginTop: '1.5rem', padding: '0.875rem 1rem', background: 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: showIOSTip ? '0.75rem' : 0 }}>
               <span style={{ fontSize: '1.4rem' }}>📱</span>
@@ -1126,7 +1130,26 @@ export default function FamilyDashboard() {
             </div>
             {showIOSTip && (
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.6, paddingLeft: '2.15rem' }}>
-                Tap the <strong>Share</strong> button (⬆️) at the bottom of Safari, then choose <strong>Add to Home Screen</strong>.
+                Tap the <strong>Share</strong> button (⬆️) at the bottom of Safari, then choose <strong>Add to Home Screen</strong>. On an iPad, the Share icon is in the address bar.
+              </p>
+            )}
+          </div>
+        )}
+        {canInstall && !hasPrompt && !isIOS && isAndroid && (
+          <div className="card" style={{ marginTop: '1.5rem', padding: '0.875rem 1rem', background: 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: showAndroidTip ? '0.75rem' : 0 }}>
+              <span style={{ fontSize: '1.4rem' }}>📱</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>Add to home screen</p>
+                <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>Install Companion for quick access.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowAndroidTip(t => !t)} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', flexShrink: 0 }}>
+                {showAndroidTip ? 'Got it' : 'How?'}
+              </button>
+            </div>
+            {showAndroidTip && (
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.6, paddingLeft: '2.15rem' }}>
+                Tap the <strong>⋮</strong> menu in your browser, then choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.
               </p>
             )}
           </div>

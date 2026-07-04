@@ -2,11 +2,17 @@ import { useNavigate } from 'react-router-dom'
 import { SettingsIcon, BackIcon } from '../../components/icons'
 import { useFontScale } from '../../hooks/useFontScale'
 import { FONT_SCALE_MIN, FONT_SCALE_MAX, FONT_SCALE_STEP, FONT_SCALE_DEFAULT } from '../../lib/fontScale'
+import { useColorScheme } from '../../hooks/useColorScheme'
+import { useTimerTheme } from '../../hooks/useTimerTheme'
+import SegmentedControl from '../../components/SegmentedControl'
+import ThemeColorPicker from '../../components/ThemeColorPicker'
 
 export default function DisplaySettings() {
   const navigate = useNavigate()
   const { scale, setScale } = useFontScale()
   const percent = Math.round(scale * 100)
+  const { mode, setMode, effective } = useColorScheme()
+  const { themeId, setThemeId } = useTimerTheme()
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: '3rem' }}>
@@ -22,6 +28,35 @@ export default function DisplaySettings() {
       </div>
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Appearance</p>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+            Choose a light or dark look, or match this device's system setting.
+          </p>
+          <SegmentedControl
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'light', label: '☀️ Light' },
+              { value: 'dark', label: '🌙 Dark' },
+              { value: 'auto', label: '🌗 Auto' },
+            ]}
+          />
+          {mode === 'auto' && (
+            <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>
+              Currently showing {effective} — follows this device's system setting.
+            </p>
+          )}
+        </div>
+
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Theme colours</p>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+            Pick a colour theme for the clock and the pages around it.
+          </p>
+          <ThemeColorPicker themeId={themeId} setThemeId={setThemeId} />
+        </div>
+
         <div className="card">
           <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Text size</p>
           <p style={{ margin: '0 0 1.25rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>

@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { signOut } from '../../lib/auth'
 import { SettingsIcon } from '../../components/icons'
+import ColorModePill from '../../components/ColorModePill'
 
 export default function CoordinatorDashboard() {
   const { profile } = useAuth()
@@ -77,6 +78,7 @@ export default function CoordinatorDashboard() {
           <span className="badge badge-sage" style={{ marginLeft: '0.6rem' }}>Coordinator</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+          <ColorModePill />
           <Link to="/help" className="btn btn-ghost" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
             Help
           </Link>
