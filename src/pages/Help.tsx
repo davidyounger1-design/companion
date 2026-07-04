@@ -248,13 +248,15 @@ function HelpHub() {
 
   return (
     <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: '3rem' }}>
-      <div style={headerStyle}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+      <div style={{ ...headerStyle, position: 'static' }}>
         <button className="btn btn-ghost" onClick={() => navigate(-1)}
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
         <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help</h1>
       </div>
 
       <ScheduleStatusBar />
+      </div>
 
       {/* Tab bar */}
       <div role="tablist" style={{

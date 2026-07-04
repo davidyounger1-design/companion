@@ -83,10 +83,11 @@ export default function FamilyNoticeBoard() {
 
   return (
     <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
-        background: 'var(--color-bg)', position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--color-bg)',
       }}>
         <button className="icon-btn" aria-label="Back" onClick={() => navigate('/family')}><BackIcon /></button>
         <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -95,6 +96,7 @@ export default function FamilyNoticeBoard() {
       </div>
 
       <ScheduleStatusBar />
+      </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
         <div className="card" style={{ marginBottom: '1.5rem' }}>

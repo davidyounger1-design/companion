@@ -750,13 +750,13 @@ export default function FamilyDashboard() {
   return (
     <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
 
-      {/* Header */}
+      {/* Header + status bar — stuck together at the top so "up next" never scrolls off */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
       <header style={{
         background: 'var(--color-surface)',
         borderBottom: '1px solid color-mix(in srgb, var(--color-muted) 20%, transparent)',
         padding: '0.875rem 1.25rem',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 10,
       }}>
         <div>
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>Companion</span>
@@ -826,6 +826,7 @@ export default function FamilyDashboard() {
       </header>
 
       <ScheduleStatusBar />
+      </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
 

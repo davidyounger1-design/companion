@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.26'
+const APP_VERSION = '0.5.27'
 
 const RELEASES = [
+  {
+    version: '0.5.27',
+    date: '4 July 2026',
+    title: 'The "up next" banner now stays put',
+    changes: [
+      { type: 'fix', text: 'The "what\'s on now" banner on Journal, Notices, and Help now stays stuck to the top with the header when you scroll, instead of scrolling away' },
+    ],
+  },
   {
     version: '0.5.26',
     date: '4 July 2026',
