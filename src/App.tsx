@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { getStoredFontScale, applyFontScale } from './lib/fontScale'
+import { useKeyboardInset } from './hooks/useKeyboardInset'
 
 import Landing from './pages/Landing'
 import SignUp from './pages/auth/SignUp'
@@ -115,6 +116,11 @@ function FullPageSpinner() {
 
 export default function App() {
   useEffect(() => { applyFontScale(getStoredFontScale()) }, [])
+
+  const keyboardInset = useKeyboardInset()
+  useEffect(() => {
+    document.documentElement.style.setProperty('--keyboard-inset', `${keyboardInset}px`)
+  }, [keyboardInset])
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useClientId } from '../../hooks/useClientId'
 import { useTimerTheme } from '../../hooks/useTimerTheme'
+import { useKeyboardInset } from '../../hooks/useKeyboardInset'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
@@ -486,6 +487,7 @@ function ScheduleItemForm({
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>(item?.days_of_week ?? [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const keyboardInset = useKeyboardInset()
 
   function toggleDay(d: number) {
     setDaysOfWeek((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort())
@@ -521,7 +523,7 @@ function ScheduleItemForm({
     <>
       <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
       <div className="sheet-panel" style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '88dvh',
+        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 50, maxHeight: `calc(88dvh - ${keyboardInset}px)`,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         boxShadow: 'var(--shadow-lg)', maxWidth: 520, margin: '0 auto',
@@ -644,6 +646,7 @@ function RemoteTimerModal({
   const [notify, setNotify] = useState(false)
   const [saving, setSaving] = useState(false)
   const quickPicks = [1, 5, 10, 15, 20, 30]
+  const keyboardInset = useKeyboardInset()
 
   async function handleStart() {
     setSaving(true)
@@ -655,7 +658,7 @@ function RemoteTimerModal({
     <>
       <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
       <div className="sheet-panel" style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '85dvh',
+        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 50, maxHeight: `calc(85dvh - ${keyboardInset}px)`,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',

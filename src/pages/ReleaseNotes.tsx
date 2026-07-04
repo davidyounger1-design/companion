@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.30'
+const APP_VERSION = '0.5.31'
 
 const RELEASES = [
+  {
+    version: '0.5.31',
+    date: '4 July 2026',
+    title: 'Forms no longer hide behind the keyboard',
+    changes: [
+      { type: 'fix', text: 'Bottom sheets and dialogs (add/edit schedule item, start a timer, edit journal entry) now lift clear of the on-screen keyboard instead of hiding the Save button behind it' },
+    ],
+  },
   {
     version: '0.5.30',
     date: '4 July 2026',
