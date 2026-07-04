@@ -11,6 +11,7 @@ import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import EntryComments from '../../components/EntryComments'
 import EntryReactions from '../../components/EntryReactions'
 import ClientFeedback from '../../components/ClientFeedback'
+import RecipientMoodLog from '../../components/RecipientMoodLog'
 import { MobileFooter } from '../../components/SiteFooter'
 import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
@@ -143,10 +144,11 @@ function MediaEntry({ path, canShare, shareText }: { path: string; canShare: boo
 type EntryWithAuthor = LogEntry & { author_name?: string }
 
 function EntryCard({
-  entry, showAuthor, canEdit, canShare, canDeleteOwn, now, expiryDays, onEdit, onDelete,
+  entry, showAuthor, showMood, canEdit, canShare, canDeleteOwn, now, expiryDays, onEdit, onDelete,
 }: {
   entry: EntryWithAuthor
   showAuthor: boolean
+  showMood: boolean
   canEdit: boolean
   canShare: boolean
   canDeleteOwn: boolean
@@ -176,7 +178,7 @@ function EntryCard({
             {showAuthor && entry.author_name && (
               <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--color-muted)' }}>{entry.author_name}</p>
             )}
-            <MoodBar score={entry.mood_score} />
+            {showMood && <MoodBar score={entry.mood_score} />}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.75rem' }}>
@@ -394,6 +396,70 @@ function toLocalDate(iso: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+type EntryFilterMode = 'all' | 'today' | 'week' | 'range' | 'date'
+
+function EntryFilterSheet({
+  mode, rangeFrom, rangeTo, onApplyRange, onPick, onOpenCalendar, onClose,
+}: {
+  mode: EntryFilterMode
+  rangeFrom: string
+  rangeTo: string
+  onApplyRange: (from: string, to: string) => void
+  onPick: (mode: 'all' | 'today' | 'week') => void
+  onOpenCalendar: () => void
+  onClose: () => void
+}) {
+  const [showRange, setShowRange] = useState(mode === 'range')
+  const [from, setFrom] = useState(rangeFrom)
+  const [to, setTo] = useState(rangeTo)
+
+  const rowStyle = (active: boolean): React.CSSProperties => ({
+    display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+    padding: '0.75rem 0.9rem', borderRadius: 12, marginBottom: '0.4rem',
+    border: `1.5px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+    background: active ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)' : 'var(--color-surface)',
+    fontSize: '0.9rem', fontWeight: active ? 700 : 500, color: active ? 'var(--color-primary)' : 'var(--color-text)',
+  })
+
+  return (
+    <>
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.4)' }} />
+      <div className="sheet-panel" style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, maxHeight: '80dvh', overflowY: 'auto',
+        background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
+        padding: '1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))',
+        boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        </div>
+        <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '1.05rem' }}>Filter entries</p>
+
+        <button style={rowStyle(mode === 'all')} onClick={() => { onPick('all'); onClose() }}>All entries</button>
+        <button style={rowStyle(mode === 'today')} onClick={() => { onPick('today'); onClose() }}>Today</button>
+        <button style={rowStyle(mode === 'week')} onClick={() => { onPick('week'); onClose() }}>This week</button>
+        <button style={rowStyle(mode === 'range')} onClick={() => setShowRange((x) => !x)}>Date range</button>
+
+        {showRange && (
+          <div style={{ display: 'flex', gap: '0.5rem', margin: '0 0 0.75rem', padding: '0 0.1rem' }}>
+            <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ flex: 1 }} />
+            <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ flex: 1 }} />
+          </div>
+        )}
+        {showRange && (
+          <button className="btn btn-primary" style={{ width: '100%', marginBottom: '0.4rem' }}
+            disabled={!from || !to}
+            onClick={() => { onApplyRange(from, to); onClose() }}>
+            Apply range
+          </button>
+        )}
+
+        <button style={rowStyle(mode === 'date')} onClick={() => { onOpenCalendar(); onClose() }}>Specific date…</button>
+      </div>
+    </>
+  )
+}
+
 function CalendarSheet({
   entries, selectedDate, onSelect, onClose,
 }: {
@@ -540,7 +606,11 @@ export default function FamilyDashboard() {
   )
 
   const [editingEntry, setEditingEntry] = useState<EntryWithAuthor | null>(null)
+  const [filterMode, setFilterMode] = useState<EntryFilterMode>('all')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [rangeFrom, setRangeFrom] = useState('')
+  const [rangeTo, setRangeTo] = useState('')
+  const [showFilterSheet, setShowFilterSheet] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -652,10 +722,39 @@ export default function FamilyDashboard() {
     author_name: authorMap[e.author_id],
   }))
 
-  const filteredEntries = selectedDate
-    ? entriesWithAuthors.filter(e => toLocalDate(e.occurred_at) === selectedDate)
-    : entriesWithAuthors
+  const filteredEntries = useMemo(() => {
+    const todayStr = toLocalDate(new Date().toISOString())
+    if (filterMode === 'today') {
+      return entriesWithAuthors.filter((e) => toLocalDate(e.occurred_at) === todayStr)
+    }
+    if (filterMode === 'week') {
+      const now = new Date()
+      const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+      const saturday = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + 6, 23, 59, 59, 999)
+      return entriesWithAuthors.filter((e) => { const d = new Date(e.occurred_at); return d >= sunday && d <= saturday })
+    }
+    if (filterMode === 'range' && rangeFrom && rangeTo) {
+      return entriesWithAuthors.filter((e) => {
+        const d = toLocalDate(e.occurred_at)
+        return d >= rangeFrom && d <= rangeTo
+      })
+    }
+    if (filterMode === 'date' && selectedDate) {
+      return entriesWithAuthors.filter((e) => toLocalDate(e.occurred_at) === selectedDate)
+    }
+    return entriesWithAuthors
+  }, [filterMode, entriesWithAuthors, rangeFrom, rangeTo, selectedDate])
   const grouped = groupByDate(filteredEntries)
+  const isFiltered = filterMode !== 'all'
+
+  function filterLabel(): string {
+    const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+    if (filterMode === 'today') return 'Today'
+    if (filterMode === 'week') return 'This week'
+    if (filterMode === 'range' && rangeFrom && rangeTo) return `${fmt(rangeFrom)} – ${fmt(rangeTo)}`
+    if (filterMode === 'date' && selectedDate) return fmt(selectedDate)
+    return 'All entries'
+  }
   const currentUserName = profile?.full_name ?? ''
 
   async function saveEntryEdit(id: string, label: string, type: LogType, moodScore: number) {
@@ -875,6 +974,10 @@ export default function FamilyDashboard() {
           </div>
         )}
 
+        {clientId && org && (
+          <RecipientMoodLog clientId={clientId} orgId={org.id} participantName={participantName} />
+        )}
+
         {/* Active notices */}
         {notices.map((n: any) => (
           <NoticeCard
@@ -923,33 +1026,31 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {entries.length > 0 && <MoodChart entries={entries} />}
+        {!isRecipient && entries.length > 0 && <MoodChart entries={entries} />}
 
         {/* Date filter bar */}
         {entries.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '1rem 0 0.25rem' }}>
             <button
-              onClick={() => setShowCalendar(true)}
+              onClick={() => setShowFilterSheet(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.4rem',
-                background: selectedDate ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)' : 'var(--color-surface)',
-                border: `1px solid ${selectedDate ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                background: isFiltered ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)' : 'var(--color-surface)',
+                border: `1px solid ${isFiltered ? 'var(--color-primary)' : 'var(--color-border)'}`,
                 borderRadius: 20, padding: '0.3rem 0.8rem', cursor: 'pointer',
                 fontSize: '0.8125rem', fontWeight: 500,
-                color: selectedDate ? 'var(--color-primary)' : 'var(--color-muted)',
+                color: isFiltered ? 'var(--color-primary)' : 'var(--color-muted)',
               }}
             >
               <span style={{ fontSize: '0.9rem' }}>📅</span>
-              {selectedDate
-                ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-                : 'All entries'}
+              {filterLabel()}
             </button>
-            {selectedDate && (
-              <button onClick={() => setSelectedDate(null)}
+            {isFiltered && (
+              <button onClick={() => { setFilterMode('all'); setSelectedDate(null); setRangeFrom(''); setRangeTo('') }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--color-muted)', padding: '0.1rem 0.3rem', lineHeight: 1 }}
                 title="Clear filter">×</button>
             )}
-            {selectedDate && (
+            {isFiltered && (
               <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginLeft: 'auto' }}>
                 {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
               </span>
@@ -957,11 +1058,11 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {/* No entries for selected date */}
-        {selectedDate && filteredEntries.length === 0 && (
+        {/* No entries for the current filter */}
+        {isFiltered && filteredEntries.length === 0 && (
           <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-muted)' }}>
             <p style={{ fontSize: '1.5rem', margin: '0 0 0.5rem' }}>📭</p>
-            <p style={{ fontSize: '0.9rem', margin: 0 }}>No entries for this day</p>
+            <p style={{ fontSize: '0.9rem', margin: 0 }}>No entries for this filter</p>
           </div>
         )}
 
@@ -975,7 +1076,7 @@ export default function FamilyDashboard() {
               const isOwnEntry = e.author_id === user?.id
               const canDeleteOwn = isOwnEntry && (now - new Date(e.created_at).getTime()) < 60_000
               return (
-                <EntryCard key={e.id} entry={e} showAuthor={true}
+                <EntryCard key={e.id} entry={e} showAuthor={true} showMood={!isRecipient}
                   canEdit={isOwnEntry} canShare={canShare}
                   canDeleteOwn={canDeleteOwn} now={now}
                   expiryDays={isFamilyPlan ? daysUntilExpiry(e.occurred_at) : undefined}
@@ -1091,11 +1192,23 @@ export default function FamilyDashboard() {
         />
       )}
 
+      {showFilterSheet && (
+        <EntryFilterSheet
+          mode={filterMode}
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+          onPick={(m) => { setFilterMode(m); setSelectedDate(null); setRangeFrom(''); setRangeTo('') }}
+          onApplyRange={(from, to) => { setFilterMode('range'); setRangeFrom(from); setRangeTo(to) }}
+          onOpenCalendar={() => setShowCalendar(true)}
+          onClose={() => setShowFilterSheet(false)}
+        />
+      )}
+
       {showCalendar && (
         <CalendarSheet
           entries={entriesWithAuthors}
           selectedDate={selectedDate}
-          onSelect={setSelectedDate}
+          onSelect={(date) => { setFilterMode(date ? 'date' : 'all'); setSelectedDate(date) }}
           onClose={() => setShowCalendar(false)}
         />
       )}

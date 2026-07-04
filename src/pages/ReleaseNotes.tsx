@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.34'
+const APP_VERSION = '0.5.35'
 
 const RELEASES = [
+  {
+    version: '0.5.35',
+    date: '4 July 2026',
+    title: 'Filter entries your way, and a mood check-in just for recipients',
+    changes: [
+      { type: 'new', text: 'Filter journal entries by Today, This week, a date range, or a specific date — tap the filter chip above the entries list' },
+      { type: 'new', text: 'Care recipients can now log their own mood whenever they like from a new card on the Journal — visible to everyone with access to them' },
+      { type: 'change', text: 'Care recipients no longer see the mood rating attached to entries other people log — that\'s replaced by their own self-reported mood check-in' },
+    ],
+  },
   {
     version: '0.5.34',
     date: '4 July 2026',

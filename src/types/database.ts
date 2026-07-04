@@ -150,6 +150,28 @@ export interface Database {
         Update: { body?: string }
         Relationships: []
       }
+      recipient_moods: {
+        Row: {
+          id: string
+          client_id: string
+          org_id: string
+          author_id: string
+          mood_score: number
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          org_id: string
+          author_id: string
+          mood_score: number
+          note?: string | null
+          created_at?: string
+        }
+        Update: { note?: string | null }
+        Relationships: []
+      }
       log_entry_comments: {
         Row: {
           id: string
@@ -661,6 +683,7 @@ export type OrgSettings  = Tables['org_settings']['Row']
 export type Notice       = Tables['notices']['Row']
 export type Message      = Tables['messages']['Row']
 export type ClientFeedback = Tables['client_feedback']['Row']
+export type RecipientMood = Tables['recipient_moods']['Row']
 export type LogEntryComment = Tables['log_entry_comments']['Row']
 export type LogEntryReaction = Tables['log_entry_reactions']['Row']
 export type ClientFeedbackComment = Tables['client_feedback_comments']['Row']
