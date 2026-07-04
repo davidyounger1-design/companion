@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { useClientId } from '../../hooks/useClientId'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
+import MiniDisk from '../../components/MiniDisk'
 import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../types/database'
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
-  toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange,
-  occursOnDate, getItemStatus, formatCountdown,
+  toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
+  occursOnDate, getItemStatus, formatCountdown, itemDiskFraction,
 } from '../../lib/schedule'
-import { pieSlicePath } from '../../lib/timer'
 
 /** Minutes remaining in the activity if it's running now, else its total duration, else a sensible default. */
 function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMinutes: number): number {
@@ -21,17 +22,6 @@ function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMin
   if (status === 'current' && end != null) return Math.max(1, end - nowMinutes)
   if (end != null) return Math.max(1, end - start)
   return 15
-}
-
-function MiniDisk({ fraction, color, size = 40 }: { fraction: number; color: string; size?: number }) {
-  const c = size / 2
-  const r = c - 2
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
-      <circle cx={c} cy={c} r={r} fill="var(--color-surface)" stroke={color} strokeWidth={1.5} opacity={0.5} />
-      {fraction > 0.001 && <path d={pieSlicePath(c, c, r, fraction)} fill={color} />}
-    </svg>
-  )
 }
 
 export default function FamilySchedule() {
@@ -45,42 +35,17 @@ export default function FamilySchedule() {
   const canManage = isCoordinator || isFamily
 
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
+  const [view, setView] = useState<'day' | 'week'>('day')
   const [now, setNow] = useState(() => Date.now())
   const [formItem, setFormItem] = useState<ScheduleItem | 'new' | null>(null)
+  const [showTimerModal, setShowTimerModal] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(id)
   }, [])
 
-  // Same client-resolution logic as FamilyDashboard: recipients look up their
-  // own client row, family/coordinator go via client_family.
-  const { data: clientRow } = useQuery({
-    queryKey: ['schedule-client', user?.id, profile?.role],
-    queryFn: async () => {
-      if (profile?.role === 'recipient') {
-        const { data } = await supabase
-          .from('clients')
-          .select('id, full_name')
-          .eq('recipient_profile_id', user!.id)
-          .maybeSingle()
-        return data ? { client_id: data.id, full_name: data.full_name } : null
-      }
-      const { data } = await supabase
-        .from('client_family')
-        .select('client_id, clients(full_name)')
-        .eq('family_id', user!.id)
-        .eq('status', 'active')
-        .maybeSingle()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const clients = data?.clients as any
-      return data ? { client_id: data.client_id, full_name: clients?.full_name } : null
-    },
-    enabled: !!user && !!profile,
-  })
-
-  const clientId = clientRow?.client_id
-  const participantName = clientRow?.full_name ?? 'their'
+  const { clientId, participantName, recipientProfileId } = useClientId()
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['schedule-items', clientId],
@@ -137,6 +102,18 @@ export default function FamilySchedule() {
     invalidateAll()
   }
 
+  async function startRemoteTimer(remoteLabel: string, minutes: number, notify: boolean) {
+    if (!clientId || !user || !profile?.org_id) return
+    const endsAt = new Date(Date.now() + minutes * 60_000).toISOString()
+    await supabase.from('active_timers').upsert({
+      client_id: clientId, org_id: profile.org_id, created_by: user.id, label: remoteLabel, ends_at: endsAt,
+    }, { onConflict: 'client_id' })
+    if (notify && recipientProfileId) {
+      await supabase.from('timer_alerts').insert({ user_id: recipientProfileId, org_id: profile.org_id, label: remoteLabel, fires_at: endsAt })
+    }
+    setShowTimerModal(false)
+  }
+
   const todayStr = toLocalDateStr(new Date())
   const isToday = selectedDate === todayStr
   const nowMinutes = isToday ? new Date(now).getHours() * 60 + new Date(now).getMinutes() : 0
@@ -160,9 +137,28 @@ export default function FamilySchedule() {
     setSelectedDate(toLocalDateStr(d))
   }
 
+  function shiftWeek(delta: number) {
+    const d = parseLocalDate(selectedDate)
+    d.setDate(d.getDate() + delta * 7)
+    setSelectedDate(toLocalDateStr(d))
+  }
+
   const dateLabel = parseLocalDate(selectedDate).toLocaleDateString('en-AU', {
     weekday: 'long', day: 'numeric', month: 'long',
   })
+
+  // Sunday–Saturday week containing selectedDate, matching the days_of_week (0=Sun..6=Sat) convention.
+  const weekDates = useMemo(() => {
+    const sunday = parseLocalDate(selectedDate)
+    sunday.setDate(sunday.getDate() - sunday.getDay())
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(sunday)
+      d.setDate(sunday.getDate() + i)
+      return toLocalDateStr(d)
+    })
+  }, [selectedDate])
+
+  const weekLabel = `${parseLocalDate(weekDates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(weekDates[6]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
@@ -177,24 +173,60 @@ export default function FamilySchedule() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        {/* Day navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
-          <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
-            {isToday && <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-muted)' }}>{dateLabel}</p>}
-            {!isToday && (
-              <button onClick={() => setSelectedDate(todayStr)} style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                fontSize: '0.72rem', color: 'var(--color-primary)', fontWeight: 600,
-              }}>Jump to today</button>
-            )}
+        {canManage && clientId && (
+          <button onClick={() => setShowTimerModal(true)} className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem', fontSize: '0.85rem' }}>
+            ⏱️ Start a timer for {participantName}
+          </button>
+        )}
+
+        {/* Day / Week toggle */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'inline-flex', borderRadius: 99, background: 'color-mix(in srgb, var(--color-muted) 10%, transparent)', padding: 3 }}>
+            {(['day', 'week'] as const).map((v) => (
+              <button key={v} onClick={() => setView(v)} style={{
+                padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
+                border: 'none', background: view === v ? 'var(--color-surface)' : 'transparent',
+                color: view === v ? 'var(--color-ink)' : 'var(--color-muted)',
+                boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.12)' : undefined,
+              }}>{v === 'day' ? 'Day' : 'Week'}</button>
+            ))}
           </div>
-          <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
         </div>
 
-        {/* Up next / happening now hero */}
-        {isToday && (currentItem || nextItem) && (
+        {/* Day / Week navigator */}
+        {view === 'day' ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+            <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
+              {isToday && <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-muted)' }}>{dateLabel}</p>}
+              {!isToday && (
+                <button onClick={() => setSelectedDate(todayStr)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  fontSize: '0.72rem', color: 'var(--color-primary)', fontWeight: 600,
+                }}>Jump to today</button>
+              )}
+            </div>
+            <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+            <button className="btn btn-ghost" onClick={() => shiftWeek(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{weekLabel}</p>
+              {!weekDates.includes(todayStr) && (
+                <button onClick={() => setSelectedDate(todayStr)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  fontSize: '0.72rem', color: 'var(--color-primary)', fontWeight: 600,
+                }}>Jump to this week</button>
+              )}
+            </div>
+            <button className="btn btn-ghost" onClick={() => shiftWeek(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
+          </div>
+        )}
+
+        {/* Up next / happening now hero — only meaningful when looking at today in Day view */}
+        {view === 'day' && isToday && (currentItem || nextItem) && (
           <HeroBanner item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} />
         )}
 
@@ -204,32 +236,44 @@ export default function FamilySchedule() {
           </div>
         )}
 
-        {!isLoading && dayItems.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--color-muted)' }}>
-            <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🌤️</p>
-            <p>Nothing scheduled for this day yet.</p>
-          </div>
+        {view === 'day' && !isLoading && (
+          <>
+            {dayItems.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--color-muted)' }}>
+                <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🌤️</p>
+                <p>Nothing scheduled for this day yet.</p>
+              </div>
+            )}
+            {dayItems.map((item) => (
+              <ScheduleCard
+                key={item.id}
+                item={item}
+                occurrenceDate={selectedDate}
+                clientId={clientId!}
+                orgId={profile!.org_id!}
+                done={completedIds.has(item.id)}
+                status={isToday ? getItemStatus(item, nowMinutes) : null}
+                isNext={nextItem?.id === item.id}
+                canManage={canManage}
+                showTimerButton={isRecipient}
+                nowMinutes={nowMinutes}
+                onToggleDone={() => toggleComplete(item)}
+                onEdit={() => setFormItem(item)}
+                onDelete={() => deleteItem(item.id)}
+                onStartTimer={() => navigate(`/family/timer?minutes=${minutesForTimerButton(item, isToday ? getItemStatus(item, nowMinutes) : null, nowMinutes)}&label=${encodeURIComponent(item.title)}`)}
+              />
+            ))}
+          </>
         )}
 
-        {dayItems.map((item) => (
-          <ScheduleCard
-            key={item.id}
-            item={item}
-            occurrenceDate={selectedDate}
-            clientId={clientId!}
-            orgId={profile!.org_id!}
-            done={completedIds.has(item.id)}
-            status={isToday ? getItemStatus(item, nowMinutes) : null}
-            isNext={nextItem?.id === item.id}
-            canManage={canManage}
-            showTimerButton={isRecipient}
-            nowMinutes={nowMinutes}
-            onToggleDone={() => toggleComplete(item)}
-            onEdit={() => setFormItem(item)}
-            onDelete={() => deleteItem(item.id)}
-            onStartTimer={() => navigate(`/family/timer?minutes=${minutesForTimerButton(item, isToday ? getItemStatus(item, nowMinutes) : null, nowMinutes)}&label=${encodeURIComponent(item.title)}`)}
+        {view === 'week' && !isLoading && (
+          <WeekView
+            weekDates={weekDates}
+            items={items}
+            todayStr={todayStr}
+            onSelectDay={(date) => { setSelectedDate(date); setView('day') }}
           />
-        ))}
+        )}
 
         <MobileFooter />
       </div>
@@ -260,21 +304,20 @@ export default function FamilySchedule() {
         />
       )}
 
+      {showTimerModal && (
+        <RemoteTimerModal
+          participantName={participantName}
+          canNotify={!!recipientProfileId}
+          onClose={() => setShowTimerModal(false)}
+          onStart={startRemoteTimer}
+        />
+      )}
+
       <FamilyBottomNav />
     </div>
   )
 }
 
-/** Disk fill: for the current item, how much of ITS OWN duration is left; for an upcoming item, how close it is within a 60-min face. */
-function itemDiskFraction(item: ScheduleItem, isCurrent: boolean, nowMinutes: number) {
-  const start = timeToMinutes(item.start_time)
-  const end = item.end_time ? timeToMinutes(item.end_time) : start + 1
-  if (isCurrent) {
-    const total = Math.max(1, end - start)
-    return Math.max(0, (end - nowMinutes) / total)
-  }
-  return Math.max(0, Math.min(1, (start - nowMinutes) / 60))
-}
 
 function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCurrent: boolean; nowMinutes: number }) {
   const meta = CATEGORY_META[item.category]
@@ -297,6 +340,60 @@ function HeroBanner({ item, isCurrent, nowMinutes }: { item: ScheduleItem; isCur
           </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+function WeekView({
+  weekDates, items, todayStr, onSelectDay,
+}: {
+  weekDates: string[]
+  items: ScheduleItem[]
+  todayStr: string
+  onSelectDay: (date: string) => void
+}) {
+  return (
+    <div>
+      {weekDates.map((date) => {
+        const dayItems = items
+          .filter((i) => occursOnDate(i, date))
+          .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
+        const isToday = date === todayStr
+        const label = parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+
+        return (
+          <button
+            key={date}
+            onClick={() => onSelectDay(date)}
+            className="card"
+            style={{
+              display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+              marginBottom: '0.6rem', padding: '0.75rem 1rem',
+              border: isToday ? '1.5px solid var(--color-primary)' : undefined,
+            }}
+          >
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.8rem', fontWeight: 700, color: isToday ? 'var(--color-primary)' : 'var(--color-ink)' }}>
+              {isToday ? `Today · ${label}` : label}
+            </p>
+            {dayItems.length === 0 ? (
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-muted)' }}>Nothing scheduled</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                {dayItems.map((item) => {
+                  const meta = CATEGORY_META[item.category]
+                  return (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />
+                      <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>{formatTimeOfDay(item.start_time)}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.emoji} {item.title}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -543,6 +640,80 @@ function ScheduleItemForm({
           <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ flex: 2 }}>
             {saving ? <span className="spinner" /> : item ? 'Save changes' : 'Add to schedule'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function RemoteTimerModal({
+  participantName, canNotify, onClose, onStart,
+}: {
+  participantName: string
+  canNotify: boolean
+  onClose: () => void
+  onStart: (label: string, minutes: number, notify: boolean) => Promise<void>
+}) {
+  const [label, setLabel] = useState('Timer')
+  const [minutes, setMinutes] = useState(10)
+  const [notify, setNotify] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const quickPicks = [1, 5, 10, 15, 20, 30]
+
+  async function handleStart() {
+    setSaving(true)
+    await onStart(label.trim() || 'Timer', minutes, notify)
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '85dvh', overflowY: 'auto',
+        background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
+        padding: '1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.15)', maxWidth: 480, margin: '0 auto',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        </div>
+
+        <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '1.05rem' }}>⏱️ Start a timer for {participantName}</p>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+          It'll appear counting down on {participantName}'s own Timer screen automatically.
+        </p>
+
+        <div className="field" style={{ marginBottom: '0.75rem' }}>
+          <label>What's it for?</label>
+          <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Quiet time" />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>Duration</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {quickPicks.map((m) => (
+              <button key={m} type="button" onClick={() => setMinutes(m)} style={{
+                padding: '0.4rem 0.8rem', borderRadius: 99, fontSize: '0.82rem', cursor: 'pointer', fontWeight: minutes === m ? 700 : 400,
+                border: `1.5px solid ${minutes === m ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                background: minutes === m ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'transparent',
+              }}>{m} min</button>
+            ))}
+          </div>
+        </div>
+
+        {canNotify && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginBottom: '1rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+            🔔 Notify {participantName} even if they're not looking at their phone
+          </label>
+        )}
+
+        <div style={{ display: 'flex', gap: '0.6rem' }}>
+          <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleStart} disabled={saving} style={{ flex: 2 }}>
+            {saving ? <span className="spinner" /> : 'Start timer'}
           </button>
         </div>
       </div>

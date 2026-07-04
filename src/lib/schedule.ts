@@ -71,3 +71,24 @@ export function formatCountdown(nowMinutes: number, targetMinutes: number) {
   if (mins === 0) return `in ${hours} hr`
   return `in ${hours} hr ${mins} min`
 }
+
+/** Disk fill: for the current item, how much of ITS OWN duration is left; for an upcoming item, how close it is within a 60-min face. */
+export function itemDiskFraction(item: Pick<ScheduleItem, 'start_time' | 'end_time'>, isCurrent: boolean, nowMinutes: number) {
+  const start = timeToMinutes(item.start_time)
+  const end = item.end_time ? timeToMinutes(item.end_time) : start + 1
+  if (isCurrent) {
+    const total = Math.max(1, end - start)
+    return Math.max(0, (end - nowMinutes) / total)
+  }
+  return Math.max(0, Math.min(1, (start - nowMinutes) / 60))
+}
+
+/** Finds today's current item (if any) and the next upcoming one from a client's active schedule items. */
+export function findCurrentAndNext(items: ScheduleItem[], todayStr: string, nowMinutes: number) {
+  const dayItems = items
+    .filter((i) => occursOnDate(i, todayStr))
+    .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
+  const current = dayItems.find((i) => getItemStatus(i, nowMinutes) === 'current')
+  const next = dayItems.find((i) => getItemStatus(i, nowMinutes) === 'upcoming')
+  return { current, next }
+}

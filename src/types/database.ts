@@ -516,6 +516,31 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      active_timers: {
+        Row: {
+          id: string
+          client_id: string
+          org_id: string
+          created_by: string
+          label: string
+          ends_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          org_id: string
+          created_by: string
+          label: string
+          ends_at: string
+          created_at?: string
+        }
+        Update: {
+          label?: string
+          ends_at?: string
+        }
+        Relationships: []
+      }
       timer_alerts: {
         Row: {
           id: string
@@ -643,3 +668,4 @@ export type ScheduleItem = Tables['schedule_items']['Row']
 export type ScheduleItemNote = Tables['schedule_item_notes']['Row']
 export type ScheduleItemCompletion = Tables['schedule_item_completions']['Row']
 export type TimerAlert = Tables['timer_alerts']['Row']
+export type ActiveTimer = Tables['active_timers']['Row']

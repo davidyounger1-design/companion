@@ -7,6 +7,7 @@ import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
+import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import EntryComments from '../../components/EntryComments'
 import EntryReactions from '../../components/EntryReactions'
 import ClientFeedback from '../../components/ClientFeedback'
@@ -811,6 +812,8 @@ export default function FamilyDashboard() {
           )}
         </div>
       </header>
+
+      <ScheduleStatusBar />
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
 

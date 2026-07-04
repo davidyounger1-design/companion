@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { WidgetBoundary } from '../components/WidgetBoundary'
 import { MabEmbed } from '../components/MabEmbed'
 import { usePendingTickets } from '../hooks/usePendingTickets'
+import ScheduleStatusBar from '../components/ScheduleStatusBar'
 import {
   cachedHelpList, fetchHelpList, filterGroupsForApp, filterGroupsByRole,
   cachedHelpArticle, fetchHelpArticle,
@@ -248,6 +249,8 @@ function HelpHub() {
           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
         <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Help</h1>
       </div>
+
+      <ScheduleStatusBar />
 
       {/* Tab bar */}
       <div role="tablist" style={{
