@@ -160,10 +160,11 @@ export default function FamilyTimer() {
 
   return (
     <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: themedPageBackground(theme) }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
-        background: 'var(--color-bg)', position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--color-bg)',
       }}>
         <button className="icon-btn" aria-label="Back" onClick={() => navigate('/family')}><BackIcon /></button>
         <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -171,20 +172,22 @@ export default function FamilyTimer() {
         </h1>
       </div>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '1.25rem 1rem' }}>
-
-        {/* ── Section A: what's coming up ─────────────────────────── */}
+      {/* ── Section A: what's coming up ─────────────────────────── */}
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0.75rem 1rem 0' }}>
         <p style={{ margin: '0 0 0.5rem', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-muted)' }}>
           What's coming up
         </p>
         {upcomingItem ? (
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
             <UpNextHero item={upcomingItem} isCurrent={!!current} nowMinutes={nowMinutes} theme={theme} compact />
           </div>
         ) : (
-          <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginBottom: '1.5rem' }}>Nothing else scheduled for today.</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginBottom: '0.75rem' }}>Nothing else scheduled for today.</p>
         )}
+      </div>
+      </div>
 
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0.75rem 1rem 1.25rem' }}>
         <div className="divider" />
 
         {/* ── Section B: my timer ─────────────────────────────────── */}

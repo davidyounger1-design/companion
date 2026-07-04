@@ -168,15 +168,24 @@ export default function FamilySchedule() {
 
   return (
     <div style={{ minHeight: '100dvh', background: themedPageBackground(theme), paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: themedPageBackground(theme) }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
-        background: 'var(--color-bg)', position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--color-bg)',
       }}>
         <button className="icon-btn" aria-label="Back" onClick={() => navigate('/family')}><BackIcon /></button>
         <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ScheduleIcon size={20} /> {participantName}'s day
         </h1>
+      </div>
+
+      {/* Up next / happening now hero — stuck with the header so it's always visible */}
+      {view === 'day' && isToday && (currentItem || nextItem) && (
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '0.75rem 1rem' }}>
+          <UpNextHero item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} theme={theme} />
+        </div>
+      )}
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
@@ -227,13 +236,6 @@ export default function FamilySchedule() {
               )}
             </div>
             <button className="btn btn-ghost" onClick={() => shiftWeek(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
-          </div>
-        )}
-
-        {/* Up next / happening now hero — only meaningful when looking at today in Day view */}
-        {view === 'day' && isToday && (currentItem || nextItem) && (
-          <div style={{ marginBottom: '1.25rem' }}>
-            <UpNextHero item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} theme={theme} />
           </div>
         )}
 

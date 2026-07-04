@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.27'
+const APP_VERSION = '0.5.28'
 
 const RELEASES = [
+  {
+    version: '0.5.28',
+    date: '4 July 2026',
+    title: 'The "up next" hero now stays put everywhere',
+    changes: [
+      { type: 'fix', text: 'On Schedule and Timer, the "happening now / up next" card now stays stuck to the header when you scroll, matching Journal, Notices, and Help' },
+    ],
+  },
   {
     version: '0.5.27',
     date: '4 July 2026',
