@@ -17,8 +17,8 @@ function formatDate(iso: string) {
 }
 
 export default function ClientFeedback({
-  clientId, orgId, placeholder = "Share anything you'd like the care team to know.",
-}: { clientId: string; orgId: string; placeholder?: string }) {
+  clientId, orgId, participantName, placeholder = "Share anything you'd like the care team to know.",
+}: { clientId: string; orgId: string; participantName: string; placeholder?: string }) {
   const { user } = useAuth()
   const qc = useQueryClient()
   const [body, setBody] = useState('')
@@ -59,7 +59,10 @@ export default function ClientFeedback({
   return (
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <p style={{ fontWeight: 500, marginBottom: '0.5rem', fontSize: '0.9375rem' }}>Leave feedback</p>
+        <p style={{ fontWeight: 500, marginBottom: '0.25rem', fontSize: '0.9375rem' }}>Leave feedback</p>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', color: 'var(--color-muted)' }}>
+          🔒 A private note for the care team — {participantName} won't see this.
+        </p>
         <textarea
           className="input"
           rows={3}

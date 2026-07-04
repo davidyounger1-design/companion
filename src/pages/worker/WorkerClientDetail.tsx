@@ -243,7 +243,7 @@ export default function WorkerClientDetail() {
         </button>
         {showFeedback && (
           <div style={{ marginTop: '0.875rem' }}>
-            <ClientFeedback clientId={client.id} orgId={client.org_id} />
+            <ClientFeedback clientId={client.id} orgId={client.org_id} participantName={client.full_name} />
           </div>
         )}
       </div>

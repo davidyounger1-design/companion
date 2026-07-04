@@ -1003,8 +1003,9 @@ export default function FamilyDashboard() {
           />
         ))}
 
-        {/* Feedback about the participant, from the whole care team */}
-        {clientId && org && (
+        {/* Feedback about the participant, from the whole care team — a private
+            note-taking space for the circle, not shown to the recipient */}
+        {!isRecipient && clientId && org && (
           <div className="card" style={{ marginBottom: '1rem', padding: '0.875rem 1rem' }}>
             <button
               onClick={() => setShowFeedback((x) => !x)}
@@ -1019,7 +1020,7 @@ export default function FamilyDashboard() {
             </button>
             {showFeedback && (
               <div style={{ marginTop: '0.875rem' }}>
-                <ClientFeedback clientId={clientId} orgId={org.id} />
+                <ClientFeedback clientId={clientId} orgId={org.id} participantName={participantName} />
               </div>
             )}
           </div>

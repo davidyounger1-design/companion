@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.38'
+const APP_VERSION = '0.5.39'
 
 const RELEASES = [
+  {
+    version: '0.5.39',
+    date: '4 July 2026',
+    title: 'Feedback is now clearly a private note to the care team',
+    changes: [
+      { type: 'change', text: 'The "Leave feedback" box on a participant\'s Journal now says plainly that it\'s a private note for the care team — the recipient it\'s about won\'t see it' },
+      { type: 'fix', text: 'Recipients no longer see the Feedback section on their own Journal at all, since it\'s notes their care team writes about them, not for them' },
+    ],
+  },
   {
     version: '0.5.38',
     date: '4 July 2026',
