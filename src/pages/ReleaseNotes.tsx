@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.32'
+const APP_VERSION = '0.5.33'
 
 const RELEASES = [
+  {
+    version: '0.5.33',
+    date: '4 July 2026',
+    title: 'The actual, actual fix for the Save button',
+    changes: [
+      { type: 'fix', text: 'The "Add to schedule" / "Start a timer" sheets and the journal\'s date-filter calendar shared the exact z-index of the bottom navigation bar — the nav bar was winning the tie and painting over the bottom of the sheet, hiding the Save button behind it. Sheets now sit clearly above the nav bar' },
+    ],
+  },
   {
     version: '0.5.32',
     date: '4 July 2026',

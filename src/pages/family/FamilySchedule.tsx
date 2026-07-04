@@ -521,9 +521,9 @@ function ScheduleItemForm({
 
   return (
     <>
-      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.4)' }} />
       <div className="sheet-panel" style={{
-        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 50, maxHeight: `calc(88dvh - ${keyboardInset}px)`,
+        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 100, maxHeight: `calc(88dvh - ${keyboardInset}px)`,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         boxShadow: 'var(--shadow-lg)', maxWidth: 520, margin: '0 auto',
@@ -656,9 +656,9 @@ function RemoteTimerModal({
 
   return (
     <>
-      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.4)' }} />
       <div className="sheet-panel" style={{
-        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 50, maxHeight: `calc(85dvh - ${keyboardInset}px)`,
+        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 100, maxHeight: `calc(85dvh - ${keyboardInset}px)`,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',

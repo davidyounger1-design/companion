@@ -437,11 +437,11 @@ function CalendarSheet({
   return (
     <>
       <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, zIndex: 49,
+        position: 'fixed', inset: 0, zIndex: 99,
         background: 'rgba(0,0,0,0.4)',
       }} />
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
         background: 'var(--color-surface)',
         borderRadius: '20px 20px 0 0',
         padding: '0.75rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom))',
