@@ -11,7 +11,6 @@ import { MobileFooter } from '../../components/SiteFooter'
 import SegmentedControl from '../../components/SegmentedControl'
 import UpNextHero from '../../components/UpNextHero'
 import { TimerIcon, BackIcon } from '../../components/icons'
-import ThemeColorPicker from '../../components/ThemeColorPicker'
 import { toLocalDateStr, findCurrentAndNext } from '../../lib/schedule'
 import {
   MAX_DIAL_MINUTES, QUICK_PICKS, pieSlicePath, angleToMinutes, formatDuration,
@@ -93,7 +92,7 @@ export default function FamilyTimer() {
     () => (localStorage.getItem(DISPLAY_KEY) as 'analog' | 'digital') ?? 'analog',
   )
   useEffect(() => localStorage.setItem(DISPLAY_KEY, displayMode), [displayMode])
-  const { themeId, setThemeId, theme } = useTimerTheme()
+  const { theme } = useTimerTheme()
 
   // ── Setup form (only relevant when nothing is running) ─────────────
   const [label, setLabel] = useState('Timer')
@@ -215,7 +214,6 @@ export default function FamilyTimer() {
             label={label} setLabel={setLabel}
             durationMinutes={durationMinutes} setDurationMinutes={setDurationMinutes}
             displayMode={displayMode} setDisplayMode={setDisplayMode}
-            themeId={themeId} setThemeId={setThemeId}
             theme={theme}
             diskFraction={diskFraction}
             diskRef={diskRef}
@@ -353,13 +351,12 @@ function RunningTimer({
 
 function TimerSetup({
   label, setLabel, durationMinutes, setDurationMinutes, displayMode, setDisplayMode,
-  themeId, setThemeId, theme, diskFraction, diskRef, onPointerDown, onPointerMove, onPointerUp,
+  theme, diskFraction, diskRef, onPointerDown, onPointerMove, onPointerUp,
   wantsBackgroundAlert, setWantsBackgroundAlert, pushPermission, subscribing, starting, onStart,
 }: {
   label: string; setLabel: (v: string) => void
   durationMinutes: number; setDurationMinutes: (v: number) => void
   displayMode: 'analog' | 'digital'; setDisplayMode: (v: 'analog' | 'digital') => void
-  themeId: string; setThemeId: (v: string) => void
   theme: ReturnType<typeof getTheme>
   diskFraction: number
   diskRef: React.RefObject<SVGSVGElement | null>
@@ -445,15 +442,6 @@ function TimerSetup({
           onChange={setDisplayMode}
           options={[{ value: 'analog', label: '🕐 Clock face' }, { value: 'digital', label: '🔢 Digital' }]}
         />
-      </div>
-
-      {/* Theme picker — go overboard */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>App colour theme ✨</p>
-        <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', margin: '0 0 0.6rem' }}>
-          Colours the clock and every other page you visit — not just this one.
-        </p>
-        <ThemeColorPicker themeId={themeId} setThemeId={setThemeId} />
       </div>
 
       {(pushPermission === 'granted' || pushPermission === 'default') && (

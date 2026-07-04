@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.41'
+const APP_VERSION = '0.5.42'
 
 const RELEASES = [
+  {
+    version: '0.5.42',
+    date: '4 July 2026',
+    title: 'Removed the colour theme picker',
+    changes: [
+      { type: 'change', text: 'The Ocean/Space/Rainbow/Candy/Garden/Sunset colour theme picker has been removed from both Display settings and the Timer page — everyone now gets the same consistent look' },
+    ],
+  },
   {
     version: '0.5.41',
     date: '4 July 2026',
