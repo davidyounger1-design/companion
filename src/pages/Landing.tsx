@@ -142,7 +142,7 @@ export default function Landing() {
       price: null as number | null,
       cap: 'for families & guardians',
       desc: 'Stay connected to your loved one\'s care — forever free.',
-      features: ['Daily digest & timeline', 'Conversation starters', 'Messaging with the team', 'Control who sees what'],
+      features: ['Daily digest & timeline', 'Conversation starters', 'Messaging with the team', 'Control who sees what', "A login for your loved one, if they'd like one"],
       cta: 'Get started free',
       highlight: false,
     },
@@ -507,6 +507,57 @@ export default function Landing() {
                 Decision-maker controls all sharing
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Feature 4: Recipient portal */}
+        <div className="landing-feature" style={{ marginTop: '5rem' }}>
+          <div className="landing-phone-col" style={{ order: -1 }}>
+            <div style={{
+              background: '#fff',
+              border: '1.5px solid rgba(47,44,38,0.08)',
+              borderRadius: 24,
+              padding: '1.75rem',
+              width: 280,
+              boxShadow: '0 8px 32px rgba(47,44,38,0.08)',
+            }}>
+              <p style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: '1rem' }}>Sarah's day</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f6f2ea', borderRadius: 12, padding: '0.6rem 0.8rem', marginBottom: '0.6rem' }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                  background: `conic-gradient(var(--color-primary) 0deg 250deg, #e0ddd6 250deg 360deg)`,
+                }} />
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600 }}>Morning walk</p>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-muted)' }}>18 min left</p>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-ink)', margin: '0.9rem 0 0.5rem' }}>How are you feeling?</p>
+              <div style={{ height: 8, borderRadius: 4, background: 'linear-gradient(90deg, #e8b04d, #6f8c78)', marginBottom: '0.4rem' }}>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#fff', border: '2px solid var(--color-primary-deep)', marginLeft: '68%', marginTop: -3 }} />
+              </div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', margin: '0 0 0.9rem' }}>Feeling good today</p>
+              <div style={{ background: '#e8f0e6', borderRadius: 10, padding: '0.55rem 0.7rem' }}>
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-primary-deep)', margin: 0 }}>📌 Speech therapy moved to Thursday</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style={{ fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>For the person at the centre</p>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', fontWeight: 400, lineHeight: 1.2, marginBottom: '1rem' }}>
+              Not just a tool for the people around them
+            </h2>
+            <p style={{ fontSize: '1rem', lineHeight: 1.7, color: 'var(--color-muted)', marginBottom: '1.5rem' }}>
+              The person receiving support can have their own login too — a simple daily schedule with built-in timers for routines, a private space to log how they're feeling, and the notices that matter to them. Feedback the care team leaves for each other stays exactly that: private to the team, never shown to the person it's about.
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {['Their own schedule, with visual countdown timers', 'A private, self-directed mood check-in', 'Adjustable text size for easy reading', 'Never sees private team notes written about them'].map(item => (
+                <li key={item} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.9rem', color: 'var(--color-ink)' }}>
+                  <CheckCircle />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
