@@ -237,7 +237,7 @@ p { text-wrap: pretty; }
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   font-family: var(--font-ui);
-  font-size: var(--text-base);  /* 16px prevents iOS auto-zoom */
+  font-size: max(var(--text-base), 16px);  /* never below 16px, even at a smaller text-size setting — prevents iOS auto-zoom */
   font-weight: 400;
   color: var(--color-ink);
   transition: border-color .15s, box-shadow .15s;

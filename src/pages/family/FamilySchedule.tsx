@@ -521,11 +521,12 @@ function ScheduleItemForm({
     <>
       <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
       <div className="sheet-panel" style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '88dvh', overflowY: 'auto',
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '88dvh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
-        padding: '1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))',
         boxShadow: 'var(--shadow-lg)', maxWidth: 520, margin: '0 auto',
       }}>
+      <div style={{ overflowY: 'auto', padding: '1rem 1.25rem 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
@@ -612,13 +613,19 @@ function ScheduleItemForm({
         </div>
 
         {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.82rem' }}>{error}</div>}
+        <div style={{ height: '0.75rem' }} />
+      </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ flex: 2 }}>
-            {saving ? <span className="spinner" /> : item ? 'Save changes' : 'Add to schedule'}
-          </button>
-        </div>
+      <div style={{
+        display: 'flex', gap: '0.6rem', flexShrink: 0,
+        padding: '0.75rem 1.25rem calc(1rem + env(safe-area-inset-bottom))',
+        borderTop: '1px solid var(--color-border)',
+      }}>
+        <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ flex: 2 }}>
+          {saving ? <span className="spinner" /> : item ? 'Save changes' : 'Add to schedule'}
+        </button>
+      </div>
       </div>
     </>
   )
@@ -648,11 +655,12 @@ function RemoteTimerModal({
     <>
       <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
       <div className="sheet-panel" style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '85dvh', overflowY: 'auto',
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '85dvh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
-        padding: '1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))',
         boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',
       }}>
+      <div style={{ overflowY: 'auto', padding: '1rem 1.25rem 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
@@ -686,13 +694,18 @@ function RemoteTimerModal({
             🔔 Notify {participantName} even if they're not looking at their phone
           </label>
         )}
+      </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleStart} disabled={saving} style={{ flex: 2 }}>
-            {saving ? <span className="spinner" /> : 'Start timer'}
-          </button>
-        </div>
+      <div style={{
+        display: 'flex', gap: '0.6rem', flexShrink: 0,
+        padding: '0.75rem 1.25rem calc(1rem + env(safe-area-inset-bottom))',
+        borderTop: '1px solid var(--color-border)',
+      }}>
+        <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+        <button className="btn btn-primary" onClick={handleStart} disabled={saving} style={{ flex: 2 }}>
+          {saving ? <span className="spinner" /> : 'Start timer'}
+        </button>
+      </div>
       </div>
     </>
   )

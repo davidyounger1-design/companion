@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { getStoredFontScale, applyFontScale } from './lib/fontScale'
 
 import Landing from './pages/Landing'
 import SignUp from './pages/auth/SignUp'
@@ -38,6 +40,7 @@ import ReleaseNotes from './pages/ReleaseNotes'
 import Help from './pages/Help'
 import Account from './pages/Account'
 import PermissionsPage from './pages/settings/PermissionsPage'
+import DisplaySettings from './pages/settings/DisplaySettings'
 import Deck from './pages/Deck'
 import SiteFooter from './components/SiteFooter'
 
@@ -111,6 +114,8 @@ function FullPageSpinner() {
 }
 
 export default function App() {
+  useEffect(() => { applyFontScale(getStoredFontScale()) }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -130,6 +135,7 @@ export default function App() {
             <Route path="/feedback" element={<Navigate to="/help?tab=support" replace />} />
             <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
             <Route path="/settings/permissions" element={<RequireAuth><PermissionsPage /></RequireAuth>} />
+            <Route path="/settings/display" element={<RequireAuth><DisplaySettings /></RequireAuth>} />
 
             {/* Provider setup wizard */}
             <Route path="/setup" element={<RequireAuth><SetupLayout /></RequireAuth>}>

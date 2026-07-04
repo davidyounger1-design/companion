@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { signOut } from '../../lib/auth'
+import { SettingsIcon } from '../../components/icons'
 
 export default function CoordinatorDashboard() {
   const { profile } = useAuth()
@@ -79,6 +80,9 @@ export default function CoordinatorDashboard() {
           <Link to="/help" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>
             Help
           </Link>
+          <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')}>
+            <SettingsIcon size={18} />
+          </button>
           <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.85rem' }}>
             Sign out
           </button>

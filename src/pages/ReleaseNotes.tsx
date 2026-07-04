@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.29'
+const APP_VERSION = '0.5.30'
 
 const RELEASES = [
+  {
+    version: '0.5.30',
+    date: '4 July 2026',
+    title: 'Text size control, and easier-to-reach buttons',
+    changes: [
+      { type: 'new', text: 'Everyone can now set their own text size — look for the gear icon next to Sign out, or Display in the coordinator menu. Bigger or smaller, it applies across the whole app on this device' },
+      { type: 'fix', text: 'The Save/Cancel buttons on "Add to schedule" and "Start a timer" now stay stuck to the bottom of the sheet instead of requiring a scroll to reach' },
+    ],
+  },
   {
     version: '0.5.29',
     date: '4 July 2026',

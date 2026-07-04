@@ -17,7 +17,7 @@ import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
 import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
-import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon } from '../../components/icons'
+import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon, SettingsIcon } from '../../components/icons'
 import NoticeCard from '../../components/NoticeCard'
 import { useTimerTheme } from '../../hooks/useTimerTheme'
 import { themedPageBackground } from '../../lib/timer'
@@ -794,6 +794,7 @@ export default function FamilyDashboard() {
                     {[
                       { label: '👥 Members', path: '/members' },
                       { label: '🔐 Permissions', path: '/settings/permissions' },
+                      { label: '🔠 Display', path: '/settings/display' },
                       { label: '📋 Release notes', path: '/release-notes' },
                     ].map(({ label, path }) => (
                       <button key={path} onClick={() => { navigate(path); setShowMenu(false) }}
@@ -819,8 +820,13 @@ export default function FamilyDashboard() {
             </>
           )}
           {!isCoordinator && (
-            <button className="btn btn-ghost" onClick={handleSignOut}
-              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>Sign out</button>
+            <>
+              <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')}>
+                <SettingsIcon size={18} />
+              </button>
+              <button className="btn btn-ghost" onClick={handleSignOut}
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>Sign out</button>
+            </>
           )}
         </div>
       </header>

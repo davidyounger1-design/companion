@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { signOut } from '../../lib/auth'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { SettingsIcon } from '../../components/icons'
 
 function useUnreadCount() {
   const { user, profile } = useAuth()
@@ -54,6 +55,9 @@ export default function WorkerLayout() {
           <span className="badge badge-sage" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>Worker</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')}>
+            <SettingsIcon size={18} />
+          </button>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
             <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}>
               Sign out
