@@ -179,9 +179,13 @@ export default function FamilySchedule() {
           </button>
         )}
 
-        {/* Day / Week toggle */}
+        {/* Today / Day / Week selector */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
           <div style={{ display: 'inline-flex', borderRadius: 99, background: 'color-mix(in srgb, var(--color-muted) 10%, transparent)', padding: 3 }}>
+            <button onClick={() => { setSelectedDate(todayStr); setView('day') }} style={{
+              padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
+              border: 'none', background: 'transparent', color: 'var(--color-primary)',
+            }}>Today</button>
             {(['day', 'week'] as const).map((v) => (
               <button key={v} onClick={() => setView(v)} style={{
                 padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
