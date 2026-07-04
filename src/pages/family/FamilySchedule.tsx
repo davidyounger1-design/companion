@@ -8,6 +8,7 @@ import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
 import MiniDisk from '../../components/MiniDisk'
+import { ScheduleIcon, BackIcon, EditIcon, TrashIcon } from '../../components/icons'
 import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../types/database'
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
@@ -167,9 +168,10 @@ export default function FamilySchedule() {
         display: 'flex', alignItems: 'center', gap: '0.75rem',
         background: 'var(--color-bg)', position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <button className="btn btn-ghost" onClick={() => navigate('/family')}
-          style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
-        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>📆 {participantName}'s day</h1>
+        <button className="icon-btn" aria-label="Back" onClick={() => navigate('/family')}><BackIcon /></button>
+        <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ScheduleIcon size={20} /> {participantName}'s day
+        </h1>
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
@@ -179,9 +181,13 @@ export default function FamilySchedule() {
           </button>
         )}
 
-        {/* Day / Week toggle */}
+        {/* Today / Day / Week selector */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
           <div style={{ display: 'inline-flex', borderRadius: 99, background: 'color-mix(in srgb, var(--color-muted) 10%, transparent)', padding: 3 }}>
+            <button onClick={() => { setSelectedDate(todayStr); setView('day') }} style={{
+              padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
+              border: 'none', background: 'transparent', color: 'var(--color-primary)',
+            }}>Today</button>
             {(['day', 'week'] as const).map((v) => (
               <button key={v} onClick={() => setView(v)} style={{
                 padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
@@ -286,9 +292,13 @@ export default function FamilySchedule() {
             position: 'fixed', right: '1.25rem', bottom: 'calc(72px + var(--safe-bottom))',
             width: 52, height: 52, borderRadius: '50%', border: 'none',
             background: 'var(--color-primary)', color: '#fff', fontSize: '1.5rem',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.2)', cursor: 'pointer', zIndex: 20,
+            boxShadow: 'var(--shadow-lg)', cursor: 'pointer', zIndex: 20,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'transform .08s',
           }}
+          onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(0.93)' }}
+          onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
+          onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
         >+</button>
       )}
 
@@ -474,13 +484,9 @@ function ScheduleCard({
         </div>
 
         {canManage && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flexShrink: 0 }}>
-            <button onClick={onEdit} aria-label="Edit" style={{
-              background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--color-muted)', padding: '0.2rem',
-            }}>✏️</button>
-            <button onClick={onDelete} aria-label="Delete" style={{
-              background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--color-muted)', padding: '0.2rem',
-            }}>✕</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>
+            <button onClick={onEdit} aria-label="Edit" className="icon-btn" style={{ width: 30, height: 30 }}><EditIcon size={15} /></button>
+            <button onClick={onDelete} aria-label="Delete" className="icon-btn icon-btn-danger" style={{ width: 30, height: 30 }}><TrashIcon size={15} /></button>
           </div>
         )}
       </div>
@@ -542,12 +548,12 @@ function ScheduleItemForm({
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
-      <div style={{
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
+      <div className="sheet-panel" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '88dvh', overflowY: 'auto',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         padding: '1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))',
-        boxShadow: '0 -4px 24px rgba(0,0,0,0.15)', maxWidth: 520, margin: '0 auto',
+        boxShadow: 'var(--shadow-lg)', maxWidth: 520, margin: '0 auto',
       }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
@@ -669,12 +675,12 @@ function RemoteTimerModal({
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
-      <div style={{
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(0,0,0,0.4)' }} />
+      <div className="sheet-panel" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '85dvh', overflowY: 'auto',
         background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
         padding: '1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))',
-        boxShadow: '0 -4px 24px rgba(0,0,0,0.15)', maxWidth: 480, margin: '0 auto',
+        boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',
       }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />

@@ -8,6 +8,7 @@ import { usePushNotifications } from '../../hooks/usePushNotifications'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import MiniDisk from '../../components/MiniDisk'
+import { TimerIcon, BackIcon } from '../../components/icons'
 import {
   CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown,
   itemDiskFraction, findCurrentAndNext,
@@ -168,9 +169,10 @@ export default function FamilyTimer() {
         display: 'flex', alignItems: 'center', gap: '0.75rem',
         background: 'var(--color-bg)', position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <button className="btn btn-ghost" onClick={() => navigate('/family')}
-          style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>←</button>
-        <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>⏱️ Timer</h1>
+        <button className="icon-btn" aria-label="Back" onClick={() => navigate('/family')}><BackIcon /></button>
+        <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <TimerIcon size={20} /> Timer
+        </h1>
       </div>
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '1.25rem 1rem' }}>

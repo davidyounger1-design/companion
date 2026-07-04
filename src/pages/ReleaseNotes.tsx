@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.22'
+const APP_VERSION = '0.5.23'
 
 const RELEASES = [
+  {
+    version: '0.5.23',
+    date: '4 July 2026',
+    title: 'A tidier look, and a Today button',
+    changes: [
+      { type: 'new', text: 'Added a "Today" shortcut to the schedule\'s Day/Week selector' },
+      { type: 'fix', text: 'Notices now match the app\'s look everywhere, instead of a bright yellow sticky-note style that didn\'t fit' },
+      { type: 'change', text: 'Consistent icons across Journal, Schedule, Timer, and Notices, replacing a mix of emoji with the same clean style already used in the bottom navigation' },
+    ],
+  },
   {
     version: '0.5.22',
     date: '3 July 2026',
