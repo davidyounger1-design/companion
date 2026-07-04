@@ -1,9 +1,14 @@
 -- Trigger: call push-notify edge function whenever a message is inserted
+--
+-- SECURITY: this originally hardcoded a live service_role key here —
+-- see 037_fix_leaked_push_notify_key.sql, which rotates the key and
+-- redefines this function to read it from Supabase Vault instead.
+-- Left as historical record; the function body below is superseded.
 create or replace function notify_push_on_message()
 returns trigger language plpgsql security definer as $$
 declare
   _url text := 'https://oprsmhyvihrahxpfvdih.supabase.co/functions/v1/push-notify';
-  _key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wcnNtaHl2aWhyYWh4cGZ2ZGloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjE4NTc4NiwiZXhwIjoyMDk3NzYxNzg2fQ.KrgHl-Zjyr1ZxgDPICBv4TddcpF3adLGXzwl4w4Gk0s';
+  _key text := 'REDACTED — see 037_fix_leaked_push_notify_key.sql';
 begin
   perform net.http_post(
     url     := _url,
