@@ -8,12 +8,10 @@ import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { useTimerTheme } from '../../hooks/useTimerTheme'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
-import MiniDisk from '../../components/MiniDisk'
+import SegmentedControl from '../../components/SegmentedControl'
+import UpNextHero from '../../components/UpNextHero'
 import { TimerIcon, BackIcon } from '../../components/icons'
-import {
-  CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown,
-  itemDiskFraction, findCurrentAndNext,
-} from '../../lib/schedule'
+import { toLocalDateStr, findCurrentAndNext } from '../../lib/schedule'
 import {
   MAX_DIAL_MINUTES, QUICK_PICKS, pieSlicePath, angleToMinutes, formatDuration,
   playChime, vibrate, TIMER_THEMES, getTheme, themedPageBackground,
@@ -180,21 +178,8 @@ export default function FamilyTimer() {
           What's coming up
         </p>
         {upcomingItem ? (
-          <div className="card" style={{
-            display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', padding: '0.9rem 1rem',
-            borderLeft: `5px solid ${CATEGORY_META[upcomingItem.category].color}`,
-          }}>
-            <MiniDisk fraction={itemDiskFraction(upcomingItem, !!current, nowMinutes)} color={CATEGORY_META[upcomingItem.category].color} size={44} />
-            <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: CATEGORY_META[upcomingItem.category].color }}>
-                {current ? '🟢 Happening now' : '⏰ Up next'}
-              </p>
-              <p style={{ margin: 0, fontWeight: 700 }}>{CATEGORY_META[upcomingItem.category].emoji} {upcomingItem.title}</p>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-                {formatTimeRange(upcomingItem.start_time, upcomingItem.end_time)}
-                {!current && ` · ${formatCountdown(nowMinutes, timeToMinutes(upcomingItem.start_time))}`}
-              </p>
-            </div>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <UpNextHero item={upcomingItem} isCurrent={!!current} nowMinutes={nowMinutes} theme={theme} compact />
           </div>
         ) : (
           <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginBottom: '1.5rem' }}>Nothing else scheduled for today.</p>
@@ -451,16 +436,11 @@ function TimerSetup({
       {/* Clock face / digital toggle */}
       <div style={{ marginBottom: '1.25rem' }}>
         <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>Clock style</p>
-        <div style={{ display: 'inline-flex', borderRadius: 99, background: 'color-mix(in srgb, var(--color-muted) 10%, transparent)', padding: 3 }}>
-          {(['analog', 'digital'] as const).map((m) => (
-            <button key={m} onClick={() => setDisplayMode(m)} style={{
-              padding: '0.4rem 1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, border: 'none',
-              background: displayMode === m ? 'var(--color-surface)' : 'transparent',
-              color: displayMode === m ? 'var(--color-ink)' : 'var(--color-muted)',
-              boxShadow: displayMode === m ? '0 1px 3px rgba(0,0,0,0.12)' : undefined,
-            }}>{m === 'analog' ? '🕐 Clock face' : '🔢 Digital'}</button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={displayMode}
+          onChange={setDisplayMode}
+          options={[{ value: 'analog', label: '🕐 Clock face' }, { value: 'digital', label: '🔢 Digital' }]}
+        />
       </div>
 
       {/* Theme picker — go overboard */}

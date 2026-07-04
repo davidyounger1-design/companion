@@ -1,8 +1,19 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.24'
+const APP_VERSION = '0.5.25'
 
 const RELEASES = [
+  {
+    version: '0.5.25',
+    date: '4 July 2026',
+    title: 'A new look for the schedule and timer',
+    changes: [
+      { type: 'new', text: 'Schedule items now show a colourful icon for their category instead of an emoji badge, with a satisfying animated checkmark when marked done' },
+      { type: 'new', text: 'The "happening now" banner is now a bold status card with a countdown ring — shared by the Schedule and Timer pages' },
+      { type: 'change', text: 'The Day/Week switch and the timer\'s clock-style switch now use a smoother sliding toggle' },
+      { type: 'change', text: 'The "add to schedule" button is now a floating action button, matching the new look' },
+    ],
+  },
   {
     version: '0.5.24',
     date: '4 July 2026',

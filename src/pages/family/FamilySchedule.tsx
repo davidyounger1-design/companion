@@ -9,14 +9,16 @@ import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
 import MiniDisk from '../../components/MiniDisk'
-import { ScheduleIcon, BackIcon, EditIcon, TrashIcon } from '../../components/icons'
+import SegmentedControl from '../../components/SegmentedControl'
+import UpNextHero from '../../components/UpNextHero'
+import { ScheduleIcon, BackIcon, EditIcon, TrashIcon, PlusIcon, CheckIcon, CATEGORY_ICONS } from '../../components/icons'
 import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../types/database'
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
-  occursOnDate, getItemStatus, formatCountdown, itemDiskFraction,
+  occursOnDate, getItemStatus, itemDiskFraction,
 } from '../../lib/schedule'
-import { themedPageBackground, type TimerTheme } from '../../lib/timer'
+import { themedPageBackground } from '../../lib/timer'
 
 /** Minutes remaining in the activity if it's running now, else its total duration, else a sensible default. */
 function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMinutes: number): number {
@@ -185,21 +187,15 @@ export default function FamilySchedule() {
         )}
 
         {/* Today / Day / Week selector */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <div style={{ display: 'inline-flex', borderRadius: 99, background: 'color-mix(in srgb, var(--color-muted) 10%, transparent)', padding: 3 }}>
-            <button onClick={() => { setSelectedDate(todayStr); setView('day') }} style={{
-              padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
-              border: 'none', background: 'transparent', color: 'var(--color-primary)',
-            }}>Today</button>
-            {(['day', 'week'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)} style={{
-                padding: '0.35rem 1.1rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700,
-                border: 'none', background: view === v ? 'var(--color-surface)' : 'transparent',
-                color: view === v ? 'var(--color-ink)' : 'var(--color-muted)',
-                boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.12)' : undefined,
-              }}>{v === 'day' ? 'Day' : 'Week'}</button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+          <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost" style={{
+            padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)',
+          }}>Today</button>
+          <SegmentedControl
+            value={view}
+            onChange={setView}
+            options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]}
+          />
         </div>
 
         {/* Day / Week navigator */}
@@ -236,7 +232,9 @@ export default function FamilySchedule() {
 
         {/* Up next / happening now hero — only meaningful when looking at today in Day view */}
         {view === 'day' && isToday && (currentItem || nextItem) && (
-          <HeroBanner item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} theme={theme} />
+          <div style={{ marginBottom: '1.25rem' }}>
+            <UpNextHero item={(currentItem ?? nextItem)!} isCurrent={!!currentItem} nowMinutes={nowMinutes} theme={theme} />
+          </div>
         )}
 
         {isLoading && (
@@ -288,21 +286,9 @@ export default function FamilySchedule() {
       </div>
 
       {canManage && (
-        <button
-          onClick={() => setFormItem('new')}
-          aria-label="Add to schedule"
-          style={{
-            position: 'fixed', right: '1.25rem', bottom: 'calc(72px + var(--safe-bottom))',
-            width: 52, height: 52, borderRadius: '50%', border: 'none',
-            background: 'var(--color-primary)', color: '#fff', fontSize: '1.5rem',
-            boxShadow: 'var(--shadow-lg)', cursor: 'pointer', zIndex: 20,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'transform .08s',
-          }}
-          onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(0.93)' }}
-          onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
-          onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
-        >+</button>
+        <button onClick={() => setFormItem('new')} aria-label="Add to schedule" className="fab">
+          <PlusIcon size={22} />
+        </button>
       )}
 
       {formItem && clientId && profile?.org_id && user && (
@@ -331,37 +317,6 @@ export default function FamilySchedule() {
   )
 }
 
-
-function HeroBanner({ item, isCurrent, nowMinutes, theme }: { item: ScheduleItem; isCurrent: boolean; nowMinutes: number; theme: TimerTheme }) {
-  const meta = CATEGORY_META[item.category]
-  return (
-    <div style={{
-      position: 'relative', overflow: 'hidden', borderRadius: 18, padding: '1.1rem 1.25rem', marginBottom: '1.25rem',
-      background: `linear-gradient(135deg, color-mix(in srgb, ${meta.color} 22%, var(--color-surface)), var(--color-surface))`,
-      border: `2px solid color-mix(in srgb, ${meta.color} 45%, transparent)`,
-    }}>
-      {theme.particles.map((p, i) => (
-        <span key={i} aria-hidden style={{
-          position: 'absolute', right: `${8 + i * 22}%`, top: i % 2 === 0 ? 4 : 'auto', bottom: i % 2 === 1 ? 4 : 'auto',
-          fontSize: '1.1rem', opacity: 0.55,
-        }}>{p}</span>
-      ))}
-      <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: meta.color }}>
-        {isCurrent ? '🟢 Happening now' : '⏰ Up next'}
-      </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <MiniDisk fraction={itemDiskFraction(item, isCurrent, nowMinutes)} color={meta.color} size={52} />
-        <div>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem' }}>{meta.emoji} {item.title}</p>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
-            {formatTimeRange(item.start_time, item.end_time)}
-            {!isCurrent && ` · ${formatCountdown(nowMinutes, timeToMinutes(item.start_time))}`}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function WeekView({
   weekDates, items, todayStr, onSelectDay,
@@ -437,32 +392,23 @@ function ScheduleCard({
   onStartTimer: () => void
 }) {
   const meta = CATEGORY_META[item.category]
+  const Icon = CATEGORY_ICONS[item.category]
   const isCurrent = status === 'current'
 
   return (
     <div className="card" style={{
-      marginBottom: '0.75rem', position: 'relative', padding: '0.9rem 1rem',
-      borderLeft: `5px solid ${meta.color}`,
-      opacity: done ? 0.65 : 1,
-      boxShadow: isCurrent ? `0 0 0 2px color-mix(in srgb, ${meta.color} 55%, transparent)` : undefined,
+      marginBottom: '0.65rem', position: 'relative', padding: '0.9rem 1rem 0.9rem 1.1rem', overflow: 'hidden',
+      opacity: done ? 0.6 : 1,
+      boxShadow: isCurrent ? `0 0 0 2px color-mix(in srgb, ${meta.color} 55%, transparent), var(--shadow-sm)` : undefined,
+      transition: 'opacity .2s',
     }}>
+      <span aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: meta.color }} />
+
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-        <button
-          onClick={onToggleDone}
-          aria-label={done ? 'Mark as not done' : 'Mark as done'}
-          style={{
-            width: 30, height: 30, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-            border: `2px solid ${done ? meta.color : 'color-mix(in srgb, var(--color-muted) 35%, transparent)'}`,
-            background: done ? meta.color : 'transparent',
-            color: done ? '#fff' : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.9rem', cursor: 'pointer',
-          }}
-        >✓</button>
+        <span className="avatar avatar-sm" style={{ background: meta.color, marginTop: 1 }}><Icon size={15} /></span>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '1.1rem' }}>{meta.emoji}</span>
             <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', textDecoration: done ? 'line-through' : 'none' }}>
               {item.title}
             </p>
@@ -475,8 +421,8 @@ function ScheduleCard({
             {isNext && !isCurrent && <span className="badge badge-sage">Next</span>}
             {item.recurrence === 'weekly' && <span className="badge badge-muted">🔁 Weekly</span>}
           </div>
-          <p style={{ margin: '0.15rem 0 0', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
-            {formatTimeRange(item.start_time, item.end_time)} · <span className={meta.badge} style={{ padding: '0.1rem 0.4rem', borderRadius: 99 }}>{meta.label}</span>
+          <p style={{ margin: '0.15rem 0 0', fontSize: '0.82rem', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums' }}>
+            {formatTimeRange(item.start_time, item.end_time)} · <span className={meta.badge} style={{ padding: '0.1rem 0.4rem', borderRadius: 99, fontVariantNumeric: 'initial' }}>{meta.label}</span>
           </p>
           {item.description && (
             <p style={{ margin: '0.4rem 0 0', fontSize: '0.85rem', lineHeight: 1.5 }}>{item.description}</p>
@@ -491,6 +437,19 @@ function ScheduleCard({
             }}>⏱️ Start a timer for this</button>
           )}
         </div>
+
+        <button
+          onClick={onToggleDone}
+          aria-label={done ? 'Mark as not done' : 'Mark as done'}
+          style={{
+            width: 28, height: 28, borderRadius: '50%', flexShrink: 0, border: 'none', padding: 0, cursor: 'pointer',
+            background: done ? meta.color : 'color-mix(in srgb, var(--color-muted) 12%, transparent)',
+            color: done ? '#fff' : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transform: done ? 'scale(1.05)' : 'scale(1)',
+            transition: 'background .25s cubic-bezier(.34,1.5,.4,1), transform .25s cubic-bezier(.34,1.5,.4,1), color .25s',
+          }}
+        ><CheckIcon size={13} /></button>
 
         {canManage && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>

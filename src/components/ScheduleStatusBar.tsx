@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useClientId } from '../hooks/useClientId'
-import { CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown, itemDiskFraction, findCurrentAndNext } from '../lib/schedule'
+import { CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown, findCurrentAndNext } from '../lib/schedule'
 import type { ScheduleItem } from '../types/database'
-import MiniDisk from './MiniDisk'
+import { CATEGORY_ICONS } from './icons'
 
 /**
  * Persistent "what's on now / what's next" strip — shown on every page in the
@@ -46,25 +46,27 @@ export default function ScheduleStatusBar() {
   if (!item) return null
 
   const meta = CATEGORY_META[item.category]
+  const Icon = CATEGORY_ICONS[item.category]
   const isCurrent = !!current
 
   return (
     <button
       onClick={() => navigate('/family/schedule')}
       style={{
-        display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', textAlign: 'left',
-        padding: '0.6rem 1rem', cursor: 'pointer', border: 'none',
+        display: 'flex', alignItems: 'center', gap: '0.65rem', width: '100%', textAlign: 'left',
+        padding: '0.55rem 1rem', cursor: 'pointer', border: 'none',
         borderBottom: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`,
         background: `linear-gradient(90deg, color-mix(in srgb, ${meta.color} 14%, var(--color-bg)), var(--color-bg))`,
       }}
     >
-      <MiniDisk fraction={itemDiskFraction(item, isCurrent, nowMinutes)} color={meta.color} size={30} />
+      <span className="avatar avatar-sm" style={{ background: meta.color }}><Icon size={14} /></span>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <p style={{ margin: 0, fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', color: meta.color }}>
-          {isCurrent ? '🟢 Happening now' : '⏰ Up next'}
-        </p>
+        <span className="chip" style={{ padding: 0, background: 'none', color: meta.color, marginBottom: 1 }}>
+          {isCurrent && <span className="chip-dot" />}
+          {isCurrent ? 'Happening now' : 'Up next'}
+        </span>
         <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {meta.emoji} {item.title} · {formatTimeRange(item.start_time, item.end_time)}
+          {item.title} · {formatTimeRange(item.start_time, item.end_time)}
           {!isCurrent && ` · ${formatCountdown(nowMinutes, timeToMinutes(item.start_time))}`}
         </p>
       </div>

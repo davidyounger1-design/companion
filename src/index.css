@@ -31,6 +31,7 @@
 
   /* Typography */
   --font-display: var(--ff-display, 'Newsreader', Georgia, serif);
+  --font-display-round: ui-rounded, 'SF Pro Rounded', 'Segoe UI Rounded', var(--font-ui);
   --font-ui:      var(--ff-sans, -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif);
   --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
 
@@ -103,6 +104,7 @@ body {
 
 /* ── Typography helpers ────────────────────────────────────────── */
 .font-display { font-family: var(--font-display); }
+.font-display-round { font-family: var(--font-display-round); }
 .font-mono    { font-family: var(--font-mono); }
 
 h1, h2, h3 {
@@ -601,6 +603,69 @@ select.input {
   letter-spacing: .04em;
   text-transform: uppercase;
 }
+
+/* ── Category avatar — colored rounded-square icon badge ─────────── */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.avatar-sm { width: 28px; height: 28px; border-radius: 9px; }
+
+/* ── Status chip — small pill with an optional live-pulse dot ────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.28rem 0.6rem 0.28rem 0.5rem;
+  border-radius: 99px;
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: chip-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes chip-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip-dot { animation: none; }
+}
+
+/* ── Floating action button ───────────────────────────────────────── */
+.fab {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(72px + var(--safe-bottom));
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .18s cubic-bezier(.34,1.5,.4,1);
+}
+.fab:active { transform: scale(.9) rotate(45deg); }
 
 .badge-sage  { background: color-mix(in srgb, var(--color-sage) 15%, transparent);        color: var(--color-sage-deep); }
 .badge-amber { background: color-mix(in srgb, var(--color-amber) 15%, transparent);       color: #7a5519; }
