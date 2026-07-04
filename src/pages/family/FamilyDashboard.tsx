@@ -381,10 +381,21 @@ function MoodChart({ entries }: { entries: Array<{ occurred_at: string; mood_sco
   )
 }
 
+/** Group headings show the full weekday + date, not just "Today"/"Yesterday"/a short date. */
+function formatGroupHeading(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
+  const weekdayDate = d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+  if (diffDays === 0) return `Today · ${weekdayDate}`
+  if (diffDays === 1) return `Yesterday · ${weekdayDate}`
+  return weekdayDate
+}
+
 function groupByDate(entries: EntryWithAuthor[]) {
   const groups: Record<string, EntryWithAuthor[]> = {}
   for (const e of entries) {
-    const label = formatDate(e.occurred_at)
+    const label = formatGroupHeading(e.occurred_at)
     if (!groups[label]) groups[label] = []
     groups[label].push(e)
   }

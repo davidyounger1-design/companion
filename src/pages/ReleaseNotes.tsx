@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.36'
+const APP_VERSION = '0.5.37'
 
 const RELEASES = [
+  {
+    version: '0.5.37',
+    date: '4 July 2026',
+    title: 'Your timer follows you, and entry dates are clearer',
+    changes: [
+      { type: 'fix', text: 'Care recipients now see their running timer counting down on every page — Journal, Schedule, Notices, and Help — not just on the Timer page itself' },
+      { type: 'change', text: 'Journal entries are now grouped by full day and date (e.g. "Today · Saturday 4 July") instead of just "Today" or a short date' },
+    ],
+  },
   {
     version: '0.5.36',
     date: '4 July 2026',

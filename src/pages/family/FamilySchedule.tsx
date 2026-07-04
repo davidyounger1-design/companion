@@ -8,6 +8,7 @@ import { useTimerTheme } from '../../hooks/useTimerTheme'
 import { useKeyboardInset } from '../../hooks/useKeyboardInset'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
+import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
 import MiniDisk from '../../components/MiniDisk'
 import SegmentedControl from '../../components/SegmentedControl'
@@ -180,6 +181,8 @@ export default function FamilySchedule() {
           <ScheduleIcon size={20} /> {participantName}'s day
         </h1>
       </div>
+
+      <ScheduleStatusBar timerOnly />
 
       {/* Up next / happening now hero — stuck with the header so it's always visible */}
       {view === 'day' && isToday && (currentItem || nextItem) && (
