@@ -1,8 +1,20 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.25'
+const APP_VERSION = '0.5.26'
 
 const RELEASES = [
+  {
+    version: '0.5.26',
+    date: '4 July 2026',
+    title: 'The new look, everywhere',
+    changes: [
+      { type: 'new', text: 'Journal entries now show a colourful icon for their type (meal, activity, mood, note, photo) with a matching accent stripe, instead of an emoji' },
+      { type: 'change', text: 'Notices use the same card style everywhere they appear — the Notice Board and the Journal\'s "active notices" preview' },
+      { type: 'change', text: 'The "add entry" button on the Journal is now a floating action button, matching the Schedule' },
+      { type: 'change', text: 'The "happening now" countdown ring now shows the minutes remaining for the current activity' },
+      { type: 'fix', text: 'The schedule\'s "mark as done" circle is now clearly visible before it\'s checked' },
+    ],
+  },
   {
     version: '0.5.25',
     date: '4 July 2026',

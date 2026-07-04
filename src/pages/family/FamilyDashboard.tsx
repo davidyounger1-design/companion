@@ -17,7 +17,8 @@ import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
 import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
-import { EditIcon, TrashIcon, NoticesIcon } from '../../components/icons'
+import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon } from '../../components/icons'
+import NoticeCard from '../../components/NoticeCard'
 import { useTimerTheme } from '../../hooks/useTimerTheme'
 import { themedPageBackground } from '../../lib/timer'
 
@@ -58,8 +59,12 @@ function ExpiryChip({ daysLeft }: { daysLeft: number }) {
   return <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', opacity: 0.7 }}>{daysLeft}d</span>
 }
 
-const TYPE_ICON: Record<string, string> = {
-  meal: '🍽️', activity: '🌿', mood: '😊', note: '📝', photo: '📷',
+const LOG_TYPE_META: Record<string, { icon: (p: { size?: number }) => React.JSX.Element; color: string }> = {
+  meal: { icon: MealIcon, color: 'var(--color-amber)' },
+  activity: { icon: ActivityIcon, color: 'var(--color-terracotta)' },
+  mood: { icon: MoodIcon, color: 'var(--color-rose)' },
+  note: { icon: NoteIcon, color: 'var(--color-sage)' },
+  photo: { icon: CameraIcon, color: 'var(--color-sky)' },
 }
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -158,11 +163,14 @@ function EntryCard({
   useEffect(() => { if (!canDeleteOwn) setConfirmDel(false) }, [canDeleteOwn])
 
   const shareText = entry.label !== '📷' && entry.label !== '🎥' ? entry.label : undefined
+  const meta = LOG_TYPE_META[entry.type] ?? LOG_TYPE_META.note
+  const Icon = meta.icon
   return (
-    <div className="card" style={{ marginBottom: '0.75rem' }}>
+    <div className="card" style={{ marginBottom: '0.75rem', position: 'relative', overflow: 'hidden', paddingLeft: '1.1rem' }}>
+      <span aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: meta.color }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flex: 1 }}>
-          <span style={{ fontSize: '1.1rem', marginTop: 2 }}>{TYPE_ICON[entry.type] ?? '📝'}</span>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', flex: 1 }}>
+          <span className="avatar avatar-sm" style={{ background: meta.color, marginTop: 1 }}><Icon size={15} /></span>
           <div style={{ flex: 1 }}>
             <p style={{ margin: 0, fontSize: '0.9375rem', lineHeight: 1.5 }}>{entry.label}</p>
             {showAuthor && entry.author_name && (
@@ -856,29 +864,20 @@ export default function FamilyDashboard() {
                 style={{ fontSize: '1rem', padding: '0.4rem 0.6rem' }} title="Filter by date">
                 📅
               </button>
-              <button className="btn btn-primary" onClick={() => navigate('/family/add')}
-                style={{ fontSize: '0.875rem' }}>
-                + Add
-              </button>
             </div>
           </div>
         )}
 
         {/* Active notices */}
         {notices.map((n: any) => (
-          <div key={n.id} className="card surface-note" style={{ marginBottom: '0.75rem', position: 'relative', padding: '0.875rem 1rem' }}>
-            <p style={{ margin: '0 1.5rem 0.4rem 0', fontSize: 'var(--text-base)', fontWeight: 500, lineHeight: 1.5, display: 'flex', gap: '0.4rem' }}>
-              <NoticesIcon size={16} /> {n.body}
-            </p>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
-              {n.profiles?.full_name ?? 'Someone'} · {formatDate(n.created_at)}
-            </p>
-            {(n.author_id === user?.id || isCoordinator) && (
-              <button onClick={() => deleteNotice(n.id)} aria-label="Delete notice" className="icon-btn icon-btn-danger" style={{
-                position: 'absolute', top: 6, right: 6, width: 30, height: 30,
-              }}><TrashIcon size={16} /></button>
-            )}
-          </div>
+          <NoticeCard
+            key={n.id}
+            body={n.body}
+            authorName={n.profiles?.full_name ?? 'Someone'}
+            dateLabel={formatDate(n.created_at)}
+            canDelete={n.author_id === user?.id || isCoordinator}
+            onDelete={() => deleteNotice(n.id)}
+          />
         ))}
 
         {/* Feedback about the participant, from the whole care team */}
@@ -911,7 +910,7 @@ export default function FamilyDashboard() {
 
         {!isLoading && entries.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-muted)' }}>
-            <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📔</p>
+            <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'center' }}><JournalIcon size={28} /></div>
             <p style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '0.25rem' }}>No entries yet</p>
             <p style={{ fontSize: '0.875rem' }}>Add your first moment from {participantName}'s day.</p>
           </div>
@@ -1070,6 +1069,10 @@ export default function FamilyDashboard() {
 
         <MobileFooter />
       </div>
+
+      <button onClick={() => navigate('/family/add')} aria-label="Add a journal entry" className="fab">
+        <PlusIcon size={22} />
+      </button>
 
       {editingEntry && (
         <EditEntryModal

@@ -442,12 +442,13 @@ function ScheduleCard({
           onClick={onToggleDone}
           aria-label={done ? 'Mark as not done' : 'Mark as done'}
           style={{
-            width: 28, height: 28, borderRadius: '50%', flexShrink: 0, border: 'none', padding: 0, cursor: 'pointer',
-            background: done ? meta.color : 'color-mix(in srgb, var(--color-muted) 12%, transparent)',
+            width: 28, height: 28, borderRadius: '50%', flexShrink: 0, padding: 0, cursor: 'pointer',
+            border: done ? 'none' : '2px solid color-mix(in srgb, var(--color-muted) 40%, transparent)',
+            background: done ? meta.color : 'transparent',
             color: done ? '#fff' : 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transform: done ? 'scale(1.05)' : 'scale(1)',
-            transition: 'background .25s cubic-bezier(.34,1.5,.4,1), transform .25s cubic-bezier(.34,1.5,.4,1), color .25s',
+            transition: 'background .25s cubic-bezier(.34,1.5,.4,1), border-color .2s, transform .25s cubic-bezier(.34,1.5,.4,1), color .25s',
           }}
         ><CheckIcon size={13} /></button>
 

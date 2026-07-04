@@ -6,7 +6,8 @@ import { supabase } from '../../lib/supabase'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import ScheduleStatusBar from '../../components/ScheduleStatusBar'
 import { MobileFooter } from '../../components/SiteFooter'
-import { NoticesIcon, BackIcon, TrashIcon } from '../../components/icons'
+import { NoticesIcon, BackIcon } from '../../components/icons'
+import NoticeCard from '../../components/NoticeCard'
 import { useTimerTheme } from '../../hooks/useTimerTheme'
 import { themedPageBackground } from '../../lib/timer'
 
@@ -123,21 +124,14 @@ export default function FamilyNoticeBoard() {
         )}
 
         {notices.map((n: any) => (
-          <div key={n.id} className="card surface-note" style={{
-            marginBottom: '0.75rem', position: 'relative', padding: '0.875rem 1rem',
-          }}>
-            <p style={{ margin: '0 1.5rem 0.4rem 0', fontSize: 'var(--text-base)', fontWeight: 500, lineHeight: 1.5 }}>
-              {n.body}
-            </p>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
-              {n.profiles?.full_name ?? 'Someone'} · {formatDate(n.created_at)}
-            </p>
-            {(n.author_id === user?.id || isCoordinator) && (
-              <button onClick={() => deleteNotice(n.id)} aria-label="Delete notice" className="icon-btn icon-btn-danger" style={{
-                position: 'absolute', top: 6, right: 6, width: 30, height: 30,
-              }}><TrashIcon size={16} /></button>
-            )}
-          </div>
+          <NoticeCard
+            key={n.id}
+            body={n.body}
+            authorName={n.profiles?.full_name ?? 'Someone'}
+            dateLabel={formatDate(n.created_at)}
+            canDelete={n.author_id === user?.id || isCoordinator}
+            onDelete={() => deleteNotice(n.id)}
+          />
         ))}
         <MobileFooter />
       </div>

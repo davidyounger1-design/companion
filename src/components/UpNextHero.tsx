@@ -62,7 +62,13 @@ export default function UpNextHero({
             position: 'absolute', inset: 5, borderRadius: '50%', background: '#263229',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Icon size={compact ? 18 : 22} />
+            {isCurrent && minutesLeft != null && minutesLeft < 100 ? (
+              <span className="font-display-round" style={{ fontSize: compact ? '0.85rem' : '0.95rem', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                {minutesLeft}m
+              </span>
+            ) : (
+              <Icon size={compact ? 18 : 22} />
+            )}
           </div>
         </div>
         <div style={{ minWidth: 0 }}>
