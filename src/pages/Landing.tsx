@@ -335,30 +335,6 @@ export default function Landing() {
       </section>
 
       {/* ── Social proof bar ─────────────────────────────────────────────────── */}
-      <div style={{
-        borderTop: '1px solid rgba(47,44,38,0.1)',
-        borderBottom: '1px solid rgba(47,44,38,0.1)',
-        padding: '1.25rem 2rem',
-      }}>
-        <div style={{
-          maxWidth: 1200,
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '3rem',
-          flexWrap: 'wrap',
-        }}>
-          <span style={{ fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-            Trusted by small providers across Australia
-          </span>
-          <div style={{ display: 'flex', gap: '2.5rem', flexWrap: 'wrap', flex: 1 }}>
-            {['Riverside Care', 'Banksia Day Programs', 'Hartley Support', 'Open Doors'].map(name => (
-              <span key={name} style={{ fontSize: '0.95rem', color: 'var(--color-ink)', fontWeight: 500 }}>{name}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* ── Why Companion ────────────────────────────────────────────────────── */}
       <section id="how-it-works" style={{
         background: 'var(--color-primary-deep)',
