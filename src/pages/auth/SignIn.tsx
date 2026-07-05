@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { signIn } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import { checkPlan, isFamilyPlan } from '../../lib/planCheck'
+import { checkMfaRequired } from '../../lib/mfa'
+import MfaCodeInput from '../../components/MfaCodeInput'
 
 const schema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -19,10 +21,45 @@ export default function SignIn() {
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('token') ?? ''
   const [serverError, setServerError] = useState('')
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaVerifying, setMfaVerifying] = useState(false)
+  const [mfaError, setMfaError] = useState('')
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+
+  async function proceedAfterSignIn() {
+    const factorId = await checkMfaRequired()
+    if (factorId) {
+      setMfaFactorId(factorId)
+      return
+    }
+    await navigateAfterSignIn()
+  }
+
+  async function handleMfaVerify(e: React.FormEvent) {
+    e.preventDefault()
+    if (!mfaFactorId || mfaCode.length < 6) return
+    setMfaVerifying(true)
+    setMfaError('')
+    const { data: challenge, error: challengeErr } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId })
+    if (challengeErr || !challenge) {
+      setMfaVerifying(false)
+      setMfaError(challengeErr?.message ?? 'Could not start verification. Try again.')
+      return
+    }
+    const { error: verifyErr } = await supabase.auth.mfa.verify({
+      factorId: mfaFactorId, challengeId: challenge.id, code: mfaCode.trim(),
+    })
+    setMfaVerifying(false)
+    if (verifyErr) {
+      setMfaError('Incorrect code. Try again.')
+      return
+    }
+    await navigateAfterSignIn()
+  }
 
   async function navigateAfterSignIn() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -92,7 +129,7 @@ export default function SignIn() {
     try {
       // Step 1: already have an account — sign in directly
       await signIn(data.email, data.password)
-      await navigateAfterSignIn()
+      await proceedAfterSignIn()
     } catch {
       // Step 2: check if this email is a registered MAB subscriber; if so, auto-create account
       try {
@@ -103,7 +140,7 @@ export default function SignIn() {
         if (!regErr && regData?.ok) {
           // Account created — sign in with the same credentials
           await signIn(data.email, data.password)
-          await navigateAfterSignIn()
+          await proceedAfterSignIn()
           return
         }
 
@@ -129,6 +166,40 @@ export default function SignIn() {
       // Step 4: no account, no subscription, no invite — block
       setServerError('No account found for this email address. Please check your email or contact your coordinator.')
     }
+  }
+
+  if (mfaFactorId) {
+    return (
+      <div className="auth-layout">
+        <div className="auth-card">
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Two-factor authentication</p>
+          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontWeight: 400 }}>Enter your code</h1>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '1.75rem' }}>
+            Open your authenticator app and enter the 6-digit code for Companion.
+          </p>
+
+          {mfaError && (
+            <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{mfaError}</div>
+          )}
+
+          <form onSubmit={handleMfaVerify} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <MfaCodeInput value={mfaCode} onChange={setMfaCode} autoFocus />
+            <button type="submit" className="btn btn-primary btn-full" disabled={mfaVerifying || mfaCode.length < 6}>
+              {mfaVerifying ? <span className="spinner" /> : 'Verify'}
+            </button>
+          </form>
+
+          <div className="divider" />
+
+          <button className="btn btn-ghost btn-full" onClick={async () => {
+            await supabase.auth.signOut()
+            setMfaFactorId(null); setMfaCode(''); setMfaError('')
+          }}>
+            ← Back to sign in
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

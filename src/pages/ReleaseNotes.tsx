@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.46'
+const APP_VERSION = '0.5.47'
 
 const RELEASES = [
+  {
+    version: '0.5.47',
+    date: '5 July 2026',
+    title: 'Two-factor authentication',
+    changes: [
+      { type: 'new', text: 'Added optional two-factor authentication under Display settings — scan a QR code with an authenticator app (Google Authenticator, Authy, 1Password, etc.) and you\'ll be asked for a 6-digit code after your password when signing in' },
+      { type: 'new', text: 'Free, no SMS required — real text-message login would need a paid provider account, so this uses the same authenticator-app codes most banks use, at no cost' },
+    ],
+  },
   {
     version: '0.5.46',
     date: '5 July 2026',

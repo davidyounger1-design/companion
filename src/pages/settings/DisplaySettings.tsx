@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SettingsIcon, BackIcon } from '../../components/icons'
 import { useFontScale } from '../../hooks/useFontScale'
@@ -7,6 +7,152 @@ import { useColorScheme } from '../../hooks/useColorScheme'
 import SegmentedControl from '../../components/SegmentedControl'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import MfaCodeInput from '../../components/MfaCodeInput'
+
+type TwoFactorStatus = 'loading' | 'off' | 'enrolling' | 'on'
+
+function TwoFactorCard() {
+  const [status, setStatus] = useState<TwoFactorStatus>('loading')
+  const [factorId, setFactorId] = useState('')
+  const [qrCode, setQrCode] = useState('')
+  const [secret, setSecret] = useState('')
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => { refreshStatus() }, [])
+
+  async function refreshStatus() {
+    const { data } = await supabase.auth.mfa.listFactors()
+    const verified = data?.totp?.find((f) => f.status === 'verified')
+    if (verified) {
+      setFactorId(verified.id)
+      setStatus('on')
+    } else {
+      setStatus('off')
+    }
+  }
+
+  async function startEnroll() {
+    setError('')
+    setBusy(true)
+    // Supabase caps how many unverified factors can exist — clear stale ones from
+    // abandoned setup attempts before starting a new one.
+    const { data: existing } = await supabase.auth.mfa.listFactors()
+    const stale = existing?.all.filter((f) => f.factor_type === 'totp' && f.status === 'unverified') ?? []
+    for (const f of stale) {
+      await supabase.auth.mfa.unenroll({ factorId: f.id })
+    }
+    const { data, error: enrollErr } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
+    setBusy(false)
+    if (enrollErr || !data) {
+      setError(enrollErr?.message ?? 'Could not start setup. Try again.')
+      return
+    }
+    setFactorId(data.id)
+    setQrCode(data.totp.qr_code)
+    setSecret(data.totp.secret)
+    setStatus('enrolling')
+  }
+
+  async function confirmEnroll(e: React.FormEvent) {
+    e.preventDefault()
+    if (code.length < 6) return
+    setBusy(true)
+    setError('')
+    const { data: challenge, error: challengeErr } = await supabase.auth.mfa.challenge({ factorId })
+    if (challengeErr || !challenge) {
+      setBusy(false)
+      setError(challengeErr?.message ?? 'Something went wrong. Try again.')
+      return
+    }
+    const { error: verifyErr } = await supabase.auth.mfa.verify({
+      factorId, challengeId: challenge.id, code: code.trim(),
+    })
+    setBusy(false)
+    if (verifyErr) {
+      setError('Incorrect code. Try again.')
+      return
+    }
+    setCode('')
+    setStatus('on')
+  }
+
+  async function turnOff() {
+    if (!confirm('Turn off two-factor authentication? You\'ll only need your password to sign in.')) return
+    setBusy(true)
+    await supabase.auth.mfa.unenroll({ factorId })
+    setBusy(false)
+    setFactorId('')
+    setStatus('off')
+  }
+
+  function cancelEnroll() {
+    setStatus('off')
+    setCode('')
+    setError('')
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Two-factor authentication</p>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+        Add a code from an authenticator app (like Google Authenticator, Authy, or 1Password) as a second step when signing in.
+      </p>
+
+      {error && <div className="alert alert-error" style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>{error}</div>}
+
+      {status === 'loading' && (
+        <div style={{ textAlign: 'center', padding: '1rem' }}>
+          <div className="spinner" style={{ margin: '0 auto', color: 'var(--color-primary)' }} />
+        </div>
+      )}
+
+      {status === 'off' && (
+        <button className="btn btn-primary" onClick={startEnroll} disabled={busy}>
+          {busy ? <span className="spinner" /> : 'Enable two-factor authentication'}
+        </button>
+      )}
+
+      {status === 'on' && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="badge badge-sage">Enabled</span>
+          <button className="btn btn-ghost" onClick={turnOff} disabled={busy} style={{ fontSize: '0.85rem' }}>
+            {busy ? <span className="spinner" /> : 'Turn off'}
+          </button>
+        </div>
+      )}
+
+      {status === 'enrolling' && (
+        <div>
+          <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+            Scan this code with your authenticator app:
+          </p>
+          {qrCode && (
+            <div style={{ background: '#fff', borderRadius: 8, padding: '1rem', display: 'inline-block', marginBottom: '0.75rem' }}>
+              <img src={qrCode} alt="Scan with your authenticator app" width={180} height={180} />
+            </div>
+          )}
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '1rem' }}>
+            Can't scan it? Enter this code manually: <code style={{ wordBreak: 'break-all' }}>{secret}</code>
+          </p>
+          <form onSubmit={confirmEnroll} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <label htmlFor="mfa-enroll-code" style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>
+              Then enter the 6-digit code it shows:
+            </label>
+            <MfaCodeInput value={code} onChange={setCode} />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-ghost" onClick={cancelEnroll} style={{ flex: 1 }}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={busy || code.length < 6} style={{ flex: 2 }}>
+                {busy ? <span className="spinner" /> : 'Confirm'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ContactNumberCard() {
   const { user, profile, refreshProfile } = useAuth()
@@ -71,6 +217,7 @@ export default function DisplaySettings() {
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
         <ContactNumberCard />
+        <TwoFactorCard />
 
         <div className="card" style={{ marginBottom: '1rem' }}>
           <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Appearance</p>
