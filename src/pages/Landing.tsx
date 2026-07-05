@@ -780,7 +780,7 @@ export default function Landing() {
               ))}
               {status === 'error' && (
                 <p style={{ fontSize: '0.875rem', color: '#c0392b' }}>
-                  Something went wrong — please email us at <a href="mailto:hello@companion.care">hello@companion.care</a>
+                  Something went wrong — please email us at <a href="mailto:support@myappbuddy.com.au">support@myappbuddy.com.au</a>
                 </p>
               )}
               <button
@@ -852,7 +852,7 @@ export default function Landing() {
           {/* Contact */}
           <div>
             <p style={{ fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '0.75rem' }}>Contact</p>
-            <a href="mailto:hello@companion.care" style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', marginBottom: '0.4rem' }}>hello@companion.care</a>
+            <a href="mailto:support@myappbuddy.com.au" style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', marginBottom: '0.4rem' }}>support@myappbuddy.com.au</a>
             <a href="mailto:david@theservicemanager.com" style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none' }}>david@theservicemanager.com</a>
           </div>
         </div>
