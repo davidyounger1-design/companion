@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 interface SentInvite {
+  name: string
   email: string
   token: string
 }
@@ -11,6 +12,7 @@ interface SentInvite {
 export default function Step3Team() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'support_worker' | 'coordinator'>('support_worker')
   const [sent, setSent] = useState<SentInvite[]>([])
@@ -33,7 +35,7 @@ export default function Step3Team() {
   }, [user?.id])
 
   async function sendInvite() {
-    if (!email.trim() || !orgId) {
+    if (!name.trim() || !email.trim() || !orgId) {
       setError('Organisation not ready — please wait a moment and try again.')
       return
     }
@@ -41,14 +43,15 @@ export default function Step3Team() {
     setError('')
     const { data, error: err } = await supabase
       .from('invites')
-      .insert({ org_id: orgId, email: email.trim().toLowerCase(), role, status: 'pending' })
+      .insert({ org_id: orgId, name: name.trim(), email: email.trim().toLowerCase(), role, status: 'pending' })
       .select('token')
       .single()
     setSending(false)
     if (err || !data) {
       setError(err?.message ?? 'Could not create invite.')
     } else {
-      setSent((prev) => [...prev, { email: email.trim(), token: data.token }])
+      setSent((prev) => [...prev, { name: name.trim(), email: email.trim(), token: data.token }])
+      setName('')
       setEmail('')
     }
   }
@@ -73,6 +76,16 @@ export default function Step3Team() {
       {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div className="field" style={{ marginBottom: '0.75rem' }}>
+          <label htmlFor="inviteName">Their name</label>
+          <input
+            id="inviteName"
+            className="input"
+            placeholder="e.g. Alex Chen"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
         <div className="field" style={{ marginBottom: '0.75rem' }}>
           <label htmlFor="inviteEmail">Their email address</label>
           <input
@@ -100,7 +113,7 @@ export default function Step3Team() {
         <button
           className="btn btn-primary"
           onClick={sendInvite}
-          disabled={sending || !email.trim()}
+          disabled={sending || !name.trim() || !email.trim()}
         >
           {sending ? <span className="spinner" /> : 'Generate invite link'}
         </button>
@@ -111,7 +124,8 @@ export default function Step3Team() {
           <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Invite links — share these directly</p>
           {sent.map((inv) => (
             <div key={inv.token} className="card" style={{ marginBottom: '0.5rem', padding: '0.75rem 1rem' }}>
-              <p style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.4rem' }}>{inv.email}</p>
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.15rem' }}>{inv.name}</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', margin: '0 0 0.4rem' }}>{inv.email}</p>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <input
                   readOnly

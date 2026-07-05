@@ -54,6 +54,7 @@ function InviteModal({
   clientId: string | null
   onClose: () => void
 }) {
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState(allowedRoles[0] ?? 'support_worker')
@@ -64,11 +65,11 @@ function InviteModal({
   const [err, setErr] = useState('')
 
   async function handleInvite() {
-    if (!email.trim()) return
+    if (!name.trim() || !email.trim()) return
     setSaving(true)
     setErr('')
     const { data, error } = await supabase.functions.invoke('invite-member', {
-      body: { email: email.trim(), phone: phone.trim() || null, role, org_id: orgId, client_id: clientId },
+      body: { name: name.trim(), email: email.trim(), phone: phone.trim() || null, role, org_id: orgId, client_id: clientId },
     })
     setSaving(false)
     if (error || !data?.ok) {
@@ -90,7 +91,7 @@ function InviteModal({
           <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✉️</div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '0.5rem' }}>Invite sent</h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--color-muted)', marginBottom: '1.5rem' }}>
-            An email has been sent to <strong>{email}</strong>.<br />
+            An email has been sent to <strong>{name}</strong> ({email}).<br />
             They'll click the link, create a password, and land straight in the journal.
           </p>
           {smsHref && (
@@ -135,9 +136,15 @@ function InviteModal({
         )}
 
         <div className="field" style={{ marginBottom: '1rem' }}>
+          <label htmlFor="invite-name">Their name</label>
+          <input id="invite-name" className="input" placeholder="e.g. Sarah Younger"
+            value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </div>
+
+        <div className="field" style={{ marginBottom: '1rem' }}>
           <label htmlFor="invite-email">Email address</label>
           <input id="invite-email" type="email" className="input" placeholder="you@example.com"
-            value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+            value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
 
         <div className="field" style={{ marginBottom: '1rem' }}>
@@ -165,7 +172,7 @@ function InviteModal({
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
           <button className="btn btn-primary" onClick={handleInvite}
-            disabled={saving || !email.trim()} style={{ flex: 2 }}>
+            disabled={saving || !name.trim() || !email.trim()} style={{ flex: 2 }}>
             {saving ? <span className="spinner" /> : 'Send invite'}
           </button>
         </div>
@@ -210,7 +217,7 @@ export default function MembersPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('invites')
-        .select('id, email, phone, role, token, created_at')
+        .select('id, name, email, phone, role, token, created_at')
         .eq('org_id', profile!.org_id!)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
@@ -266,12 +273,12 @@ export default function MembersPage() {
     qc.invalidateQueries({ queryKey: ['org-members'] })
   }
 
-  async function resendInvite(invite: { id: string; email: string; role: string; phone?: string | null }) {
+  async function resendInvite(invite: { id: string; email: string; role: string; phone?: string | null; name?: string | null }) {
     if (!org || !firstClient) return
     setResendingId(invite.id)
     try {
       await supabase.functions.invoke('invite-member', {
-        body: { email: invite.email, phone: invite.phone ?? null, role: invite.role, org_id: org.id, client_id: firstClient.id },
+        body: { name: invite.name ?? null, email: invite.email, phone: invite.phone ?? null, role: invite.role, org_id: org.id, client_id: firstClient.id },
       })
       qc.invalidateQueries({ queryKey: ['pending-invites'] })
     } finally {
@@ -363,7 +370,13 @@ export default function MembersPage() {
                   <p style={{
                     margin: 0, fontSize: '0.9rem', fontWeight: 500,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{inv.email}</p>
+                  }}>{inv.name ?? inv.email}</p>
+                  {inv.name && (
+                    <p style={{
+                      margin: '0.05rem 0 0.3rem', fontSize: '0.75rem', color: 'var(--color-muted)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{inv.email}</p>
+                  )}
                   <span style={roleBadgeStyle(inv.role)}>{ROLE_LABEL[inv.role] ?? inv.role}</span>
                 </div>
                 {isCoordinator ? (

@@ -32,6 +32,7 @@ export default function FamilyBottomNav() {
         .eq('org_id', profile.org_id)
         .gt('created_at', lastSeen)
         .neq('sender_id', user.id)
+        .or(`recipient_id.eq.${user.id},recipient_id.is.null`)
       return count ?? 0
     },
     enabled: !!user && !!profile?.org_id,

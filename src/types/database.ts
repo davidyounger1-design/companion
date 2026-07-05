@@ -413,6 +413,7 @@ export interface Database {
           token: string
           status: InviteStatus
           phone: string | null
+          name: string | null
           expires_at: string
           created_at: string
         }
@@ -425,6 +426,7 @@ export interface Database {
           token?: string
           status?: InviteStatus
           phone?: string | null
+          name?: string | null
           expires_at?: string
           created_at?: string
         }

@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.50'
+const APP_VERSION = '0.5.51'
 
 const RELEASES = [
+  {
+    version: '0.5.51',
+    date: '5 July 2026',
+    title: 'Name an invite, and a fix for misleading unread counts',
+    changes: [
+      { type: 'new', text: 'Invites now ask for the person\'s name — pending invites show who they actually are instead of just an email address, the invite email greets them by name, and their sign-up form is pre-filled (still editable)' },
+      { type: 'fix', text: 'Fixed unread message badges (the nav icon and per-contact counts) sometimes counting conversations between two other people that a coordinator or family member could merely see, not messages actually sent to them' },
+    ],
+  },
   {
     version: '0.5.50',
     date: '5 July 2026',

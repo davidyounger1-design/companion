@@ -7,6 +7,7 @@ interface InviteDetails {
   org_id: string
   org_name: string
   email: string
+  name: string | null
   role: string
   expires_at: string
   status: string
@@ -149,7 +150,7 @@ function InviteSignupForm({
   invite: InviteDetails
   onDone: (role: string) => void
 }) {
-  const [name, setName]         = useState('')
+  const [name, setName]         = useState(invite.name ?? '')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [submitting, setSubmitting] = useState(false)

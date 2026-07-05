@@ -53,6 +53,10 @@ export default function MessagesHub() {
         .from('messages')
         .select('id, body, created_at, sender_id, recipient_id')
         .eq('org_id', profile!.org_id!)
+        // Only threads I'm actually part of — a coordinator/family member with
+        // broader read access to other people's threads (for oversight) shouldn't
+        // have those previews misattributed to their own contact rows.
+        .or(`sender_id.eq.${user!.id},recipient_id.eq.${user!.id},recipient_id.is.null`)
         .order('created_at', { ascending: false })
         .limit(200)
       const map: Record<string, { body: string; created_at: string }> = {}
@@ -83,6 +87,7 @@ export default function MessagesHub() {
         .eq('org_id', profile!.org_id!)
         .gt('created_at', lastSeen)
         .neq('sender_id', user!.id)
+        .or(`recipient_id.eq.${user!.id},recipient_id.is.null`)
       const map: Record<string, number> = {}
       for (const msg of data ?? []) {
         const key = msg.recipient_id === null ? 'group' : msg.sender_id
