@@ -1,9 +1,54 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SettingsIcon, BackIcon } from '../../components/icons'
 import { useFontScale } from '../../hooks/useFontScale'
 import { FONT_SCALE_MIN, FONT_SCALE_MAX, FONT_SCALE_STEP, FONT_SCALE_DEFAULT } from '../../lib/fontScale'
 import { useColorScheme } from '../../hooks/useColorScheme'
 import SegmentedControl from '../../components/SegmentedControl'
+import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../lib/supabase'
+
+function ContactNumberCard() {
+  const { user, profile, refreshProfile } = useAuth()
+  const [phone, setPhone] = useState(profile?.phone ?? '')
+  const [initialised, setInitialised] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  if (profile && !initialised) {
+    setPhone(profile.phone ?? '')
+    setInitialised(true)
+  }
+
+  async function handleSave() {
+    if (!user) return
+    setSaving(true)
+    setSaved(false)
+    const { error } = await supabase.from('profiles').update({ phone: phone.trim() || null }).eq('id', user.id)
+    setSaving(false)
+    if (!error) {
+      setSaved(true)
+      await refreshProfile()
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Mobile number</p>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+        Lets other coordinators text you things like invite links directly, instead of only by email.
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <input type="tel" className="input" placeholder="04xx xxx xxx" style={{ flex: 1 }}
+          value={phone} onChange={(e) => { setPhone(e.target.value); setSaved(false) }} />
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? <span className="spinner" /> : 'Save'}
+        </button>
+      </div>
+      {saved && <p style={{ fontSize: '0.78rem', color: 'var(--color-primary)', marginTop: '0.5rem' }}>Saved.</p>}
+    </div>
+  )
+}
 
 export default function DisplaySettings() {
   const navigate = useNavigate()
@@ -25,6 +70,8 @@ export default function DisplaySettings() {
       </div>
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
+        <ContactNumberCard />
+
         <div className="card" style={{ marginBottom: '1rem' }}>
           <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Appearance</p>
           <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>

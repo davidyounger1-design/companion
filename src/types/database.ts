@@ -71,6 +71,7 @@ export interface Database {
           full_name: string
           role: Role
           org_id: string | null
+          phone: string | null
           created_at: string
         }
         Insert: {
@@ -78,12 +79,14 @@ export interface Database {
           full_name: string
           role: Role
           org_id?: string | null
+          phone?: string | null
           created_at?: string
         }
         Update: {
           full_name?: string
           role?: Role
           org_id?: string | null
+          phone?: string | null
         }
         Relationships: []
       }
@@ -409,6 +412,7 @@ export interface Database {
           client_id: string | null
           token: string
           status: InviteStatus
+          phone: string | null
           expires_at: string
           created_at: string
         }
@@ -420,6 +424,7 @@ export interface Database {
           client_id?: string | null
           token?: string
           status?: InviteStatus
+          phone?: string | null
           expires_at?: string
           created_at?: string
         }

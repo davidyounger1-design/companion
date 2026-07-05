@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.45'
+const APP_VERSION = '0.5.46'
 
 const RELEASES = [
+  {
+    version: '0.5.46',
+    date: '5 July 2026',
+    title: 'Cancel invites properly, and add a mobile number',
+    changes: [
+      { type: 'fix', text: 'Fixed the pending invites list on Members cutting off the Resend button and hiding the cancel (✕) button on narrower screens — both are now always visible' },
+      { type: 'new', text: 'Invites can now include a mobile number — after sending, a "Text invite" button opens your own Messages app with the link pre-filled, so you can send it yourself alongside the email' },
+      { type: 'new', text: 'Added a mobile number field to Display settings so any member can save their own number for this' },
+    ],
+  },
   {
     version: '0.5.45',
     date: '5 July 2026',

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { usePermissions } from '../../hooks/usePermissions'
+import { buildSmsLink } from '../../lib/smsLink'
 
 type OrgMember = { id: string; full_name: string; role: string; email?: string }
 
@@ -54,9 +55,11 @@ function InviteModal({
   onClose: () => void
 }) {
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [role, setRole] = useState(allowedRoles[0] ?? 'support_worker')
   const [saving, setSaving] = useState(false)
   const [sent, setSent] = useState(false)
+  const [sentInviteUrl, setSentInviteUrl] = useState<string | null>(null)
   const [fallbackLink, setFallbackLink] = useState<string | null>(null)
   const [err, setErr] = useState('')
 
@@ -65,7 +68,7 @@ function InviteModal({
     setSaving(true)
     setErr('')
     const { data, error } = await supabase.functions.invoke('invite-member', {
-      body: { email: email.trim(), role, org_id: orgId, client_id: clientId },
+      body: { email: email.trim(), phone: phone.trim() || null, role, org_id: orgId, client_id: clientId },
     })
     setSaving(false)
     if (error || !data?.ok) {
@@ -73,10 +76,14 @@ function InviteModal({
       if (data?.inviteUrl) setFallbackLink(data.inviteUrl)
       return
     }
+    setSentInviteUrl(data.inviteUrl ?? null)
     setSent(true)
   }
 
   if (sent) {
+    const smsHref = phone.trim() && sentInviteUrl
+      ? buildSmsLink(phone.trim(), `You've been invited to join Companion — tap to accept: ${sentInviteUrl}`)
+      : null
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, textAlign: 'center' }}>
@@ -86,6 +93,11 @@ function InviteModal({
             An email has been sent to <strong>{email}</strong>.<br />
             They'll click the link, create a password, and land straight in the journal.
           </p>
+          {smsHref && (
+            <a href={smsHref} className="btn btn-secondary btn-full" style={{ marginBottom: '0.75rem' }}>
+              📱 Also text the invite to {phone.trim()}
+            </a>
+          )}
           <button className="btn btn-primary btn-full" onClick={onClose}>Done</button>
         </div>
       </div>
@@ -126,6 +138,17 @@ function InviteModal({
           <label htmlFor="invite-email">Email address</label>
           <input id="invite-email" type="email" className="input" placeholder="you@example.com"
             value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+        </div>
+
+        <div className="field" style={{ marginBottom: '1rem' }}>
+          <label htmlFor="invite-phone">
+            Mobile number <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>(optional)</span>
+          </label>
+          <input id="invite-phone" type="tel" className="input" placeholder="04xx xxx xxx"
+            value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+            The invite is always emailed. Add a number to also get a one-tap link for texting it yourself.
+          </p>
         </div>
 
         {allowedRoles.length > 1 && (
@@ -187,7 +210,7 @@ export default function MembersPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('invites')
-        .select('id, email, role, created_at')
+        .select('id, email, phone, role, token, created_at')
         .eq('org_id', profile!.org_id!)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
@@ -243,12 +266,12 @@ export default function MembersPage() {
     qc.invalidateQueries({ queryKey: ['org-members'] })
   }
 
-  async function resendInvite(invite: { id: string; email: string; role: string }) {
+  async function resendInvite(invite: { id: string; email: string; role: string; phone?: string | null }) {
     if (!org || !firstClient) return
     setResendingId(invite.id)
     try {
       await supabase.functions.invoke('invite-member', {
-        body: { email: invite.email, role: invite.role, org_id: org.id, client_id: firstClient.id },
+        body: { email: invite.email, phone: invite.phone ?? null, role: invite.role, org_id: org.id, client_id: firstClient.id },
       })
       qc.invalidateQueries({ queryKey: ['pending-invites'] })
     } finally {
@@ -334,20 +357,31 @@ export default function MembersPage() {
             {pendingInvites.map((inv: any) => (
               <div key={inv.id} className="card card-sm" style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginBottom: '0.5rem', opacity: 0.8,
+                marginBottom: '0.5rem', opacity: 0.8, gap: '0.5rem',
               }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 500 }}>{inv.email}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{
+                    margin: 0, fontSize: '0.9rem', fontWeight: 500,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{inv.email}</p>
                   <span style={roleBadgeStyle(inv.role)}>{ROLE_LABEL[inv.role] ?? inv.role}</span>
                 </div>
                 {isCoordinator ? (
-                  <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
-                    <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}
+                  <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0, alignItems: 'center' }}>
+                    {inv.phone && (
+                      <a className="btn btn-ghost" title={`Text invite to ${inv.phone}`}
+                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                        href={buildSmsLink(inv.phone, `You've been invited to join Companion — tap to accept: ${window.location.origin}/accept-invite?token=${inv.token}`)}>
+                        📱
+                      </a>
+                    )}
+                    <button className="btn btn-ghost" title="Resend invite"
+                      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}
                       disabled={resendingId === inv.id || rescindingId === inv.id}
                       onClick={() => resendInvite(inv)}>
-                      {resendingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '↩ Resend'}
+                      {resendingId === inv.id ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '↩'}
                     </button>
-                    <button className="btn btn-ghost" title="Rescind invite"
+                    <button className="btn btn-ghost" title="Cancel invite"
                       style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', color: 'var(--color-danger, #c0392b)' }}
                       disabled={resendingId === inv.id || rescindingId === inv.id}
                       onClick={() => rescindInvite(inv)}>
