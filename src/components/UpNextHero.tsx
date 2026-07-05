@@ -80,6 +80,14 @@ export default function UpNextHero({
         </div>
       </div>
 
+      {item.url && (
+        <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{
+          marginTop: compact ? '0.6rem' : '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+          fontSize: compact ? '0.78rem' : '0.82rem', fontWeight: 700, color: '#fff', textDecoration: 'none',
+          background: 'rgba(255,255,255,.16)', padding: '0.35rem 0.7rem', borderRadius: 99,
+        }}>🔗 Visit website</a>
+      )}
+
       <style>{`@keyframes up-next-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(143,217,160,.55); } 50% { box-shadow: 0 0 0 5px rgba(143,217,160,0); } }`}</style>
     </div>
   )

@@ -16,7 +16,7 @@ import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../t
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
-  occursOnDate, getItemStatus, itemDiskFraction,
+  occursOnDate, getItemStatus, itemDiskFraction, normalizeUrl,
 } from '../../lib/schedule'
 import { themedPageBackground } from '../../lib/timer'
 
@@ -429,6 +429,13 @@ function ScheduleCard({
             <p style={{ margin: '0.4rem 0 0', fontSize: '0.85rem', lineHeight: 1.5 }}>{item.description}</p>
           )}
 
+          {item.url && (
+            <a href={item.url} target="_blank" rel="noopener noreferrer" style={{
+              marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem',
+              fontSize: '0.82rem', color: meta.color, fontWeight: 700, textDecoration: 'none',
+            }}>🔗 Visit website</a>
+          )}
+
           <ScheduleItemNotes scheduleItemId={item.id} occurrenceDate={occurrenceDate} clientId={clientId} orgId={orgId} />
 
           {showTimerButton && (
@@ -483,6 +490,7 @@ function ScheduleItemForm({
   const [recurrence, setRecurrence] = useState<ScheduleRecurrence>(item?.recurrence ?? 'once')
   const [specificDate, setSpecificDate] = useState(item?.specific_date ?? defaultDate)
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>(item?.days_of_week ?? [])
+  const [url, setUrl] = useState(item?.url ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const keyboardInset = useKeyboardInset()
@@ -506,6 +514,7 @@ function ScheduleItemForm({
       recurrence,
       specific_date: recurrence === 'once' ? specificDate : null,
       days_of_week: recurrence === 'weekly' ? daysOfWeek : null,
+      url: url.trim() ? normalizeUrl(url) : null,
     }
 
     const { error: saveError } = item
@@ -544,6 +553,15 @@ function ScheduleItemForm({
           <label>Notes for the schedule (optional)</label>
           <textarea className="input" rows={2} value={description} onChange={(e) => setDescription(e.target.value)}
             placeholder="e.g. Bring swimmers, meet at the front desk" style={{ resize: 'vertical' }} />
+        </div>
+
+        <div className="field" style={{ marginBottom: '0.75rem' }}>
+          <label>Related website (optional)</label>
+          <input className="input" type="text" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)}
+            placeholder="e.g. zoom.us/j/123456789" />
+          <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--color-muted)' }}>
+            Shown as a link they can tap to open — a video call, a venue's site, anything relevant.
+          </p>
         </div>
 
         <div style={{ marginBottom: '0.75rem' }}>

@@ -466,6 +466,7 @@ export interface Database {
           specific_date: string | null
           days_of_week: number[] | null
           active: boolean
+          url: string | null
           created_at: string
         }
         Insert: {
@@ -482,6 +483,7 @@ export interface Database {
           specific_date?: string | null
           days_of_week?: number[] | null
           active?: boolean
+          url?: string | null
           created_at?: string
         }
         Update: {
@@ -494,6 +496,7 @@ export interface Database {
           specific_date?: string | null
           days_of_week?: number[] | null
           active?: boolean
+          url?: string | null
         }
         Relationships: []
       }

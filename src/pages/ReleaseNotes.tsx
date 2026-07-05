@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.49'
+const APP_VERSION = '0.5.50'
 
 const RELEASES = [
+  {
+    version: '0.5.50',
+    date: '5 July 2026',
+    title: 'Add a website to a scheduled activity',
+    changes: [
+      { type: 'new', text: 'Any schedule item can now include an optional website link — a video call, a venue\'s page, a sign-up form — shown as a "Visit website" button on the schedule and on the "up next" card' },
+    ],
+  },
   {
     version: '0.5.49',
     date: '5 July 2026',

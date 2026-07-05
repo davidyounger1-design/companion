@@ -15,6 +15,13 @@ export const CATEGORY_META: Record<ScheduleCategory, { label: string; emoji: str
 
 export const CATEGORY_OPTIONS = Object.keys(CATEGORY_META) as ScheduleCategory[]
 
+/** Adds https:// to a bare domain/path so "google.com" and "https://google.com" both work as a link. */
+export function normalizeUrl(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) return ''
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
 /** 'YYYY-MM-DD' in local time, matching the convention used elsewhere (e.g. FamilyDashboard's toLocalDate). */
 export function toLocalDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
