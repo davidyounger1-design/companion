@@ -96,6 +96,18 @@ function RequireRecipient({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Workers have their own portal and their own client-scoped tools (log entries,
+// notices, feedback) — the family journal, and the schedule/timer within it,
+// aren't meant for them. RLS already excludes schedule_items from their reads;
+// this keeps the pages themselves out of reach too, not just the data.
+function BlockWorker({ children }: { children: React.ReactNode }) {
+  const { user, loading, profile } = useAuth()
+  if (loading) return <FullPageSpinner />
+  if (!user) return <Navigate to="/sign-in" replace />
+  if (profile?.role === 'support_worker' || profile?.role === 'trusted_support_worker') return <Navigate to="/worker" replace />
+  return <>{children}</>
+}
+
 function RequireNoAuth({ children }: { children: React.ReactNode }) {
   const { user, loading, profile, org } = useAuth()
   if (loading) return <FullPageSpinner />
@@ -192,7 +204,7 @@ export default function App() {
             <Route path="/messages/:userId" element={<BlockRecipient><MessageThread /></BlockRecipient>} />
 
             {/* Family journal — shared header + "up next" banner via FamilyLayout */}
-            <Route path="/family" element={<RequireAuth><FamilyLayout /></RequireAuth>}>
+            <Route path="/family" element={<BlockWorker><FamilyLayout /></BlockWorker>}>
               <Route index element={<FamilyDashboard />} />
               <Route path="add" element={<AddEntry />} />
               <Route path="participant" element={<EditParticipant />} />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -21,6 +21,7 @@ import { CATEGORY_ICONS, TimerIcon } from './icons'
  */
 export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: boolean } = {}) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { profile } = useAuth()
   const { clientId } = useClientId()
   const [now, setNow] = useState(() => Date.now())
@@ -56,6 +57,21 @@ export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: b
     },
     enabled: !!clientId && isRecipient && !timerOnly,
   })
+
+  // A timer someone else started for the recipient should take over the
+  // screen, not wait for them to notice a banner — Sarah, the person this
+  // was built for, can't reliably read status text and act on it unprompted.
+  // Fires once per timer id (tracked in sessionStorage) so navigating away
+  // afterwards doesn't keep getting yanked back every 8s poll.
+  useEffect(() => {
+    if (!activeTimer) return
+    const stillRunning = new Date(activeTimer.ends_at).getTime() - Date.now() > 0
+    if (!stillRunning) return
+    const seenKey = 'companion.autoShownTimerId'
+    if (sessionStorage.getItem(seenKey) === activeTimer.id) return
+    sessionStorage.setItem(seenKey, activeTimer.id)
+    if (location.pathname !== '/family/timer') navigate('/family/timer')
+  }, [activeTimer?.id, activeTimer?.ends_at, location.pathname, navigate])
 
   if (!isRecipient || !clientId) return null
 

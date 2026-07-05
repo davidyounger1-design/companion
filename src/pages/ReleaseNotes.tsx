@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.47'
+const APP_VERSION = '0.5.48'
 
 const RELEASES = [
+  {
+    version: '0.5.48',
+    date: '5 July 2026',
+    title: 'Tighter message privacy, workers out of the schedule, timers that take over the screen',
+    changes: [
+      { type: 'fix', text: 'Support workers and therapists could previously read every message in the org directly via the API, not just their own conversations — messages are now restricted to threads you\'re actually part of, unless you\'re a coordinator or family member' },
+      { type: 'fix', text: 'Workers can no longer open the family schedule or timer pages at all, on top of already being excluded from that data — it was never part of their portal to begin with' },
+      { type: 'new', text: 'When family or a coordinator starts a timer for the recipient, it now pops up full-screen on their device automatically, instead of waiting for them to notice and tap a small banner' },
+    ],
+  },
   {
     version: '0.5.47',
     date: '5 July 2026',
