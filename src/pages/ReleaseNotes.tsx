@@ -1,8 +1,21 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.44'
+const APP_VERSION = '0.5.45'
 
 const RELEASES = [
+  {
+    version: '0.5.45',
+    date: '5 July 2026',
+    title: 'Behaviour notes: capture, share, and track — for real',
+    changes: [
+      { type: 'new', text: 'Support workers can now record behaviour notes (antecedent, behaviour, response, mood before/after) for the clients they work with' },
+      { type: 'new', text: 'A therapist role now has its own home — sign in and see only the notes a decision-maker has explicitly shared, with instant revoke' },
+      { type: 'new', text: 'Decision-makers can now be assigned per participant from the Coordinator dashboard, and can share or revoke access to each note with named therapists' },
+      { type: 'new', text: 'Every share, revoke, and therapist view is now recorded in a visible access log for the decision-maker and coordinator' },
+      { type: 'new', text: 'A pattern view shows mood trends over time, and notes can be exported to CSV for reviews and reports' },
+      { type: 'new', text: 'Coordinators and family members can invite a therapist directly from Members — accepting the invite now correctly adds them to the participant\'s circle' },
+    ],
+  },
   {
     version: '0.5.44',
     date: '4 July 2026',

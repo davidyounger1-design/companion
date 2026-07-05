@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { signOut } from '../../lib/auth'
+import { useState } from 'react'
 import { SettingsIcon } from '../../components/icons'
 import ColorModePill from '../../components/ColorModePill'
+import ClientManagePanel from '../../components/ClientManagePanel'
 
 export default function CoordinatorDashboard() {
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null)
 
   const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['clients', profile?.org_id],
@@ -143,20 +146,29 @@ export default function CoordinatorDashboard() {
         ) : (
           <div className="scroll-list">
             {activeClients.map((client) => (
-              <div key={client.id} className="card card-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <p style={{ fontWeight: 600, margin: 0 }}>{client.full_name}</p>
-                  {client.setting && (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: '0.2rem' }}>{client.setting}</p>
-                  )}
+              <div key={client.id} className="card card-sm" style={{ padding: 0, overflow: 'hidden' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1rem', cursor: 'pointer' }}
+                  onClick={() => setExpandedClientId((id) => (id === client.id ? null : client.id))}
+                >
+                  <div>
+                    <p style={{ fontWeight: 600, margin: 0 }}>{client.full_name}</p>
+                    {client.setting && (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: '0.2rem' }}>{client.setting}</p>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {loggedClientIds.has(client.id) ? (
+                      <span className="badge badge-sage">Logged</span>
+                    ) : (
+                      <span className="badge badge-muted">Not logged</span>
+                    )}
+                    <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{expandedClientId === client.id ? '▲' : '▼'}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {loggedClientIds.has(client.id) ? (
-                    <span className="badge badge-sage">Logged</span>
-                  ) : (
-                    <span className="badge badge-muted">Not logged</span>
-                  )}
-                </div>
+                {expandedClientId === client.id && (
+                  <ClientManagePanel clientId={client.id} participantName={client.full_name} />
+                )}
               </div>
             ))}
           </div>

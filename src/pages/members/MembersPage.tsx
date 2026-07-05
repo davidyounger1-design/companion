@@ -275,14 +275,14 @@ export default function MembersPage() {
     if (isCoordinator) {
       // Coordinator can always invite; family org includes 'family' role
       return isFamilyOrg
-        ? ['family', 'recipient', 'support_worker', 'trusted_support_worker']
-        : ['recipient', 'support_worker', 'trusted_support_worker']
+        ? ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
+        : ['recipient', 'support_worker', 'trusted_support_worker', 'therapist']
     }
     if (!perms.invite_members) return []
     // Family members can invite the same set as a coordinator, including the recipient
     // (trusted workers keep the prior set — they can't invite a recipient)
     if (profile?.role === 'family') {
-      return ['family', 'recipient', 'support_worker', 'trusted_support_worker']
+      return ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
     }
     if (profile?.role === 'trusted_support_worker') {
       return ['family', 'support_worker', 'trusted_support_worker']

@@ -92,6 +92,12 @@ Deno.serve(async (req) => {
         }, { onConflict: 'client_id,worker_id' })
       } else if (invite.role === 'recipient') {
         await admin.from('clients').update({ recipient_profile_id: userId }).eq('id', invite.client_id)
+      } else if (invite.role === 'therapist') {
+        await admin.from('client_circle').upsert({
+          client_id: invite.client_id,
+          therapist_id: userId,
+          status: 'in_circle',
+        }, { onConflict: 'client_id,therapist_id' })
       }
     }
 

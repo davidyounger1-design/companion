@@ -13,6 +13,8 @@ import Lightbox from '../../components/Lightbox'
 import EntryComments from '../../components/EntryComments'
 import EntryReactions from '../../components/EntryReactions'
 import ClientFeedback from '../../components/ClientFeedback'
+import BehaviourNoteForm from '../../components/BehaviourNoteForm'
+import BehaviourNotesSection from '../../components/BehaviourNotesSection'
 import type { LogType } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -69,6 +71,8 @@ export default function WorkerClientDetail() {
   const qc = useQueryClient()
 
   const [showFeedback, setShowFeedback] = useState(false)
+  const [showBehaviourNotes, setShowBehaviourNotes] = useState(false)
+  const [showBehaviourForm, setShowBehaviourForm] = useState(false)
   const [selectedType, setSelectedType] = useState<LogType>('activity')
   const [showForm, setShowForm] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
@@ -244,6 +248,38 @@ export default function WorkerClientDetail() {
         {showFeedback && (
           <div style={{ marginTop: '0.875rem' }}>
             <ClientFeedback clientId={client.id} orgId={client.org_id} participantName={client.full_name} />
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: '1.25rem', padding: '0.875rem 1rem' }}>
+        <button
+          onClick={() => setShowBehaviourNotes((x) => !x)}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            width: '100%', background: 'none', border: 'none', padding: 0,
+            cursor: 'pointer', textAlign: 'left', fontSize: '0.9375rem', fontWeight: 500,
+          }}
+        >
+          🩺 Behaviour notes for {client.full_name}
+          <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showBehaviourNotes ? '▲' : '▼'}</span>
+        </button>
+        {showBehaviourNotes && (
+          <div style={{ marginTop: '0.875rem' }}>
+            {!showBehaviourForm ? (
+              <button className="btn btn-primary btn-full" onClick={() => setShowBehaviourForm(true)} style={{ marginBottom: '1.25rem' }}>
+                + Add behaviour note
+              </button>
+            ) : (
+              <BehaviourNoteForm
+                clientId={client.id}
+                orgId={client.org_id}
+                authorId={user!.id}
+                onSaved={() => setShowBehaviourForm(false)}
+                onCancel={() => setShowBehaviourForm(false)}
+              />
+            )}
+            <BehaviourNotesSection clientId={client.id} participantName={client.full_name} />
           </div>
         )}
       </div>

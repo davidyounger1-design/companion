@@ -56,6 +56,7 @@ export default function AcceptInvite() {
     navigate(
       workerRoles.includes(role) ? '/worker' :
       role === 'family' || role === 'recipient' ? '/family' :
+      role === 'therapist' ? '/therapist' :
       '/dashboard',
       { replace: true }
     )

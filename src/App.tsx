@@ -38,6 +38,7 @@ import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
 import WorkerNoticeBoard from './pages/worker/WorkerNoticeBoard'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
+import TherapistDashboard from './pages/therapist/TherapistDashboard'
 import MembersPage from './pages/members/MembersPage'
 import ReleaseNotes from './pages/ReleaseNotes'
 import Help from './pages/Help'
@@ -102,6 +103,7 @@ function RequireNoAuth({ children }: { children: React.ReactNode }) {
     const role = profile?.role
     if (role === 'support_worker' || role === 'trusted_support_worker') return <Navigate to="/worker" replace />
     if (role === 'family' || role === 'recipient') return <Navigate to="/family" replace />
+    if (role === 'therapist') return <Navigate to="/therapist" replace />
     if (role === 'coordinator' && org?.org_type === 'family') return <Navigate to="/family" replace />
     return <Navigate to="/dashboard" replace />
   }
@@ -201,6 +203,9 @@ export default function App() {
 
             {/* Coordinator dashboard */}
             <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />
+
+            {/* Therapist portal — read-only, explicitly-shared behaviour notes */}
+            <Route path="/therapist" element={<RequireAuth><TherapistDashboard /></RequireAuth>} />
 
             {/* Member management */}
             <Route path="/members" element={<RequireAuth><MembersPage /></RequireAuth>} />

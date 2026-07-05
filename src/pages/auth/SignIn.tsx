@@ -34,7 +34,13 @@ export default function SignIn() {
       const r = result as { ok?: boolean; role?: string; error?: string } | null
       if (r?.ok) {
         const workerRoles = ['support_worker', 'trusted_support_worker']
-        navigate(workerRoles.includes(r.role ?? '') ? '/worker' : (r.role === 'family' || r.role === 'recipient') ? '/family' : '/dashboard', { replace: true })
+        navigate(
+          workerRoles.includes(r.role ?? '') ? '/worker' :
+          (r.role === 'family' || r.role === 'recipient') ? '/family' :
+          r.role === 'therapist' ? '/therapist' :
+          '/dashboard',
+          { replace: true }
+        )
         return
       }
     }
@@ -72,6 +78,8 @@ export default function SignIn() {
       navigate('/family')
     } else if (profile.role === 'support_worker' || profile.role === 'trusted_support_worker') {
       navigate('/worker')
+    } else if (profile.role === 'therapist') {
+      navigate('/therapist')
     } else if (isCoordinator && isFamilyOrg) {
       navigate('/family')
     } else {
