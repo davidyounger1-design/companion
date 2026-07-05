@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import artGroupPhoto from '../assets/landing-art-group.jpg'
 
 // ─── Phone mockup component ───────────────────────────────────────────────────
 
@@ -39,14 +40,15 @@ function DigestScreen() {
       <h3 style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 400, marginBottom: 10, lineHeight: 1.3 }}>
         Mia had a <em style={{ color: 'var(--color-primary)', fontStyle: 'italic' }}>bright</em> day.
       </h3>
-      {/* Photo placeholder */}
+      {/* Photo attached to the entry */}
       <div style={{
-        background: 'repeating-linear-gradient(45deg, #dfe8dc 0, #dfe8dc 10px, #e8f0e6 10px, #e8f0e6 20px)',
         borderRadius: 10,
         height: 100,
         marginBottom: 6,
         position: 'relative',
+        overflow: 'hidden',
       }}>
+        <img src={artGroupPhoto} alt="Colourful paintbrushes from an art group session" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         <span style={{
           position: 'absolute',
           bottom: 8,
@@ -210,7 +212,7 @@ export default function Landing() {
 
         {/* Center nav links */}
         <div className="landing-nav-links">
-          {['How it works', 'Features', 'Privacy', 'Pricing'].map(label => (
+          {['How it works', 'Features', 'Security', 'Privacy', 'Pricing'].map(label => (
             <a key={label}
               href={`#${label.toLowerCase().replace(/ /g, '-')}`}
               style={{ fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', fontWeight: 500 }}
@@ -385,6 +387,33 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Our story ─────────────────────────────────────────────────────────── */}
+      <section id="our-story" style={{ padding: '6rem 2rem', background: 'var(--color-bg)' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+          <p style={{ fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: '1.5rem', fontWeight: 600, textAlign: 'center' }}>
+            Why I built this
+          </p>
+          <h2 style={{
+            fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', fontWeight: 400,
+            lineHeight: 1.2, marginBottom: '1.75rem', textAlign: 'center',
+          }}>
+            For Sarah
+          </h2>
+          <p style={{ fontSize: '1.05rem', lineHeight: 1.8, color: 'var(--color-muted)', marginBottom: '1.25rem' }}>
+            Sarah is my daughter. She can't always tell us how her day went, what made her laugh, or what's bothering her — and for a long time, the only window I had into her world was a rushed handover or a short note at the end of a long shift.
+          </p>
+          <p style={{ fontSize: '1.05rem', lineHeight: 1.8, color: 'var(--color-muted)', marginBottom: '1.25rem' }}>
+            I wanted more than that. I wanted to actually know what happened in her day — the small, ordinary, good things as much as the hard ones. And just as importantly, I wanted Sarah herself to have a way in: her own schedule, her own timer, a place to say how she's feeling in whatever way works for her, even without words.
+          </p>
+          <p style={{ fontSize: '1.05rem', lineHeight: 1.8, color: 'var(--color-muted)', marginBottom: '2rem' }}>
+            Companion is built for families like ours, and for the support workers who show up for people like Sarah every day. If it helps even one more family feel closer to someone they love — and helps someone like Sarah feel more a part of the decisions being made about her own life — it's done its job.
+          </p>
+          <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-ink)', textAlign: 'right' }}>
+            — David, founder of Companion
+          </p>
+        </div>
+      </section>
+
       {/* ── Features ─────────────────────────────────────────────────────────── */}
       <section id="features" style={{ padding: '5rem 0' }}>
 
@@ -521,15 +550,18 @@ export default function Landing() {
               width: 280,
               boxShadow: '0 8px 32px rgba(47,44,38,0.08)',
             }}>
-              <p style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: '1rem' }}>Sarah's day</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <p style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', margin: 0 }}>Sarah's day</p>
+                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--color-muted)', background: '#f0ebe0', borderRadius: 99, padding: '0.2rem 0.5rem' }}>🌙 Auto</span>
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f6f2ea', borderRadius: 12, padding: '0.6rem 0.8rem', marginBottom: '0.6rem' }}>
                 <div style={{
                   width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
                   background: `conic-gradient(var(--color-primary) 0deg 250deg, #e0ddd6 250deg 360deg)`,
                 }} />
                 <div>
-                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600 }}>Morning walk</p>
-                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-muted)' }}>18 min left</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600 }}>Speech therapy</p>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-muted)' }}>starts in 12 min</p>
                 </div>
               </div>
               <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-ink)', margin: '0.9rem 0 0.5rem' }}>How are you feeling?</p>
@@ -548,10 +580,10 @@ export default function Landing() {
               Not just a tool for the people around them
             </h2>
             <p style={{ fontSize: '1rem', lineHeight: 1.7, color: 'var(--color-muted)', marginBottom: '1.5rem' }}>
-              The person receiving support can have their own login too — a simple daily schedule with built-in timers for routines, a private space to log how they're feeling, and the notices that matter to them. Feedback the care team leaves for each other stays exactly that: private to the team, never shown to the person it's about.
+              The person receiving support can have their own login too — a daily schedule they can add to themselves, a countdown to whatever's next (not just a manual timer), a private space to log how they're feeling, and the notices that matter to them. Feedback the care team leaves for each other stays exactly that: private to the team, never shown to the person it's about.
             </p>
             <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              {['Their own schedule, with visual countdown timers', 'A private, self-directed mood check-in', 'Adjustable text size for easy reading', 'Never sees private team notes written about them'].map(item => (
+              {['Add and manage their own appointments alongside their circle\'s', 'A live countdown to any appointment, not just a timer they set', 'A private, self-directed mood check-in', 'Light, dark, or auto — whichever\'s easier to read', 'Never sees private team notes written about them'].map(item => (
                 <li key={item} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.9rem', color: 'var(--color-ink)' }}>
                   <CheckCircle />
                   {item}
@@ -559,6 +591,37 @@ export default function Landing() {
               ))}
             </ul>
           </div>
+        </div>
+      </section>
+
+      {/* ── Security & NDIS standards ────────────────────────────────────────── */}
+      <section id="security" style={{ padding: '6rem 2rem', background: 'var(--color-primary-deep)' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginBottom: '1rem', fontWeight: 600 }}>
+            Security &amp; NDIS standards
+          </p>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', fontWeight: 400, color: '#fff', lineHeight: 1.2, marginBottom: '1.25rem' }}>
+            Built to the standard NDIS providers are held to
+          </h2>
+          <p style={{ fontSize: '1rem', lineHeight: 1.75, color: 'rgba(255,255,255,0.72)', marginBottom: '2.5rem', maxWidth: 580, marginLeft: 'auto', marginRight: 'auto' }}>
+            Client records deserve more than an app with a login screen. Companion's access rules are enforced at the database level, not just in the app — so what a support worker, family member, or coordinator can see is controlled the same way whether the request comes from the app, a script, or someone probing the API directly.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', textAlign: 'left' }}>
+            {[
+              { title: 'Row-level security on every table', text: 'Not an app-layer check that a future bug could skip — access control lives in the database itself, on every table that holds client data.' },
+              { title: 'Australian data residency', text: 'Client data is hosted in Australia, in line with what NDIS providers need for their own records-management obligations.' },
+              { title: 'Named consent, with an audit trail', text: 'Behaviour notes are shared with named individuals, not broadcast — every share and revoke is logged, and revoking takes effect immediately.' },
+              { title: 'Built around the NDIS Practice Standards', text: 'Information management, privacy, and records-keeping are designed around the Practice Standards and the Australian Privacy Principles — supporting your obligations, not replacing your own policies.' },
+            ].map((f) => (
+              <div key={f.title} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '1.25rem 1.4rem' }}>
+                <p style={{ margin: '0 0 0.4rem', fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>{f.title}</p>
+                <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.6, color: 'rgba(255,255,255,0.65)' }}>{f.text}</p>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginTop: '2rem' }}>
+            Companion is a tool that supports your compliance work — it doesn't replace your organisation's own policies, staff training, or obligations under the NDIS Practice Standards and Code of Conduct.
+          </p>
         </div>
       </section>
 
@@ -795,7 +858,7 @@ export default function Landing() {
           {/* Product links */}
           <div>
             <p style={{ fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '0.75rem' }}>Product</p>
-            {[['How it works', '#how-it-works'], ['Features', '#features'], ['Pricing', '#pricing'], ['Privacy', '#privacy']].map(([l, h]) => (
+            {[['How it works', '#how-it-works'], ['Features', '#features'], ['Security', '#security'], ['Privacy', '#privacy'], ['Pricing', '#pricing']].map(([l, h]) => (
               <a key={l} href={h} style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', marginBottom: '0.4rem' }}>{l}</a>
             ))}
           </div>
@@ -803,6 +866,7 @@ export default function Landing() {
           {/* Company links */}
           <div>
             <p style={{ fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '0.75rem' }}>Company</p>
+            <a href="#our-story" style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', marginBottom: '0.4rem' }}>Our story</a>
             <a href="#demo" style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', marginBottom: '0.4rem' }}>Book a demo</a>
             <Link to="/deck" style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', marginBottom: '0.4rem' }}>Investor information</Link>
             <Link to="/sign-in" style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-muted)', textDecoration: 'none', marginBottom: '0.4rem' }}>Sign in</Link>
