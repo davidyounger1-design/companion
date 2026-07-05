@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.48'
+const APP_VERSION = '0.5.49'
 
 const RELEASES = [
+  {
+    version: '0.5.49',
+    date: '5 July 2026',
+    title: 'Message privacy now matches your organisation type',
+    changes: [
+      { type: 'fix', text: 'In provider organisations (multiple participants), coordinators now only see the shared threads and conversations that involve a coordinator or a worker — a family member\'s private conversation with another family member or a therapist stays private, the way it already worked for family-plan accounts' },
+      { type: 'change', text: 'Family-plan accounts (a single participant) are unaffected — the coordinator there still sees every conversation, since it\'s typically the same small circle' },
+    ],
+  },
   {
     version: '0.5.48',
     date: '5 July 2026',
