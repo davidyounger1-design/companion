@@ -65,6 +65,11 @@ export default function SignUp() {
             We've sent a confirmation link to your inbox. Click it to activate your account,
             then come back here to sign in.
           </p>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', lineHeight: 1.6, marginTop: '0.75rem' }}>
+            Nothing arriving after a few minutes? Double-check you typed your email address
+            correctly — the confirmation link is how we verify it's really yours, and your
+            account stays inactive until it's clicked.
+          </p>
           <div className="divider" />
           <Link
             to={inviteToken ? `/sign-in?token=${encodeURIComponent(inviteToken)}` : '/sign-in'}
