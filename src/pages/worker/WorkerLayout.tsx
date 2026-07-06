@@ -1,36 +1,17 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { signOut } from '../../lib/auth'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { useUnreadMessagesMap } from '../../hooks/useUnreadMessagesMap'
 import { SettingsIcon } from '../../components/icons'
 import ColorModePill from '../../components/ColorModePill'
-
-function useUnreadCount() {
-  const { user, profile } = useAuth()
-  return useQuery({
-    queryKey: ['unread-count', user?.id],
-    queryFn: async () => {
-      if (!user || !profile?.org_id) return 0
-      const lastSeen = localStorage.getItem(`msg_last_seen_${user.id}`) ?? new Date(0).toISOString()
-      const { count } = await supabase
-        .from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('org_id', profile.org_id)
-        .gt('created_at', lastSeen)
-        .neq('sender_id', user.id)
-        .or(`recipient_id.eq.${user.id},recipient_id.is.null`)
-      return count ?? 0
-    },
-    enabled: !!user && !!profile?.org_id,
-    refetchInterval: 30000,
-  })
-}
 
 export default function WorkerLayout() {
   const { profile, user } = useAuth()
   const navigate = useNavigate()
-  const { data: unread = 0 } = useUnreadCount()
+  // Same shared per-thread map MessagesHub renders, summed — keeps this
+  // badge consistent with the list the same way FamilyBottomNav's is.
+  const { data: unreadMap = {} } = useUnreadMessagesMap()
+  const unread = Object.values(unreadMap).reduce((sum, n) => sum + n, 0)
 
   async function handleSignOut() {
     await signOut()

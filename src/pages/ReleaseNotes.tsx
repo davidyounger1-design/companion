@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.52'
+const APP_VERSION = '0.5.53'
 
 const RELEASES = [
+  {
+    version: '0.5.53',
+    date: '6 July 2026',
+    title: 'Stop counting unread messages from removed members',
+    changes: [
+      { type: 'fix', text: 'The unread badge could sit one (or more) higher than the Messages list forever — it was counting unread messages from people who\'ve since been removed from the organisation, whose conversations no longer appear in the list at all. Those are now excluded, so the badge always matches what you can actually see and open' },
+    ],
+  },
   {
     version: '0.5.52',
     date: '5 July 2026',
