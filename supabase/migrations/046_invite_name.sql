@@ -10,7 +10,11 @@
 
 alter table invites add column if not exists name text;
 
-create or replace function public.lookup_invite(p_token text)
+-- create or replace can't change a function's OUT-parameter column set —
+-- drop first since lookup_invite is gaining a `name` column.
+drop function if exists public.lookup_invite(text);
+
+create function public.lookup_invite(p_token text)
 returns table (
   org_id     uuid,
   org_name   text,
@@ -30,3 +34,5 @@ as $$
   where  i.token = p_token
   limit  1;
 $$;
+
+grant execute on function public.lookup_invite(text) to anon, authenticated;
