@@ -47,6 +47,7 @@ import PermissionsPage from './pages/settings/PermissionsPage'
 import DisplaySettings from './pages/settings/DisplaySettings'
 import Deck from './pages/Deck'
 import SiteFooter from './components/SiteFooter'
+import UpdatePrompt from './components/UpdatePrompt'
 
 // Updates apply silently: the service worker is registered with autoUpdate and
 // uses skipWaiting()/clientsClaim(), so a new version takes effect on the next
@@ -240,6 +241,7 @@ export default function App() {
         </AuthProvider>
       </BrowserRouter>
       <SiteFooter />
+      <UpdatePrompt />
     </QueryClientProvider>
   )
 }

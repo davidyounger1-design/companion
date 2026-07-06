@@ -85,7 +85,7 @@ export default function CoordinatorDashboard() {
           <Link to="/help" className="btn btn-ghost" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
             Help
           </Link>
-          <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
+          <button className="icon-btn" aria-label="Settings" title="Settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
             <SettingsIcon size={18} />
           </button>
           <button className="btn btn-ghost" onClick={handleSignOut} style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>

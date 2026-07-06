@@ -38,7 +38,7 @@ export default function WorkerLayout() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: '1 1 auto', justifyContent: 'flex-end' }}>
           <ColorModePill />
-          <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
+          <button className="icon-btn" aria-label="Settings" title="Settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
             <SettingsIcon size={18} />
           </button>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0, overflow: 'hidden' }}>

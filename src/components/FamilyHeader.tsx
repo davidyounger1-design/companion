@@ -68,7 +68,7 @@ export default function FamilyHeader() {
                   {[
                     { label: '👥 Members', path: '/members' },
                     { label: '🔐 Permissions', path: '/settings/permissions' },
-                    { label: '🔠 Display', path: '/settings/display' },
+                    { label: '⚙️ Settings', path: '/settings/display' },
                     { label: '📋 Release notes', path: '/release-notes' },
                   ].map(({ label, path }) => (
                     <button key={path} onClick={() => { navigate(path); setShowMenu(false) }}
@@ -96,7 +96,7 @@ export default function FamilyHeader() {
         {!isCoordinator && (
           <>
             <ColorModePill />
-            <button className="icon-btn" aria-label="Display settings" title="Display settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
+            <button className="icon-btn" aria-label="Settings" title="Settings" onClick={() => navigate('/settings/display')} style={{ flexShrink: 0 }}>
               <SettingsIcon size={18} />
             </button>
             <button className="btn btn-ghost" onClick={handleSignOut}

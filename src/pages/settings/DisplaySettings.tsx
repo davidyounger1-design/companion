@@ -211,7 +211,7 @@ export default function DisplaySettings() {
       }}>
         <button className="icon-btn" aria-label="Back" onClick={() => navigate(-1)}><BackIcon /></button>
         <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <SettingsIcon size={20} /> Display
+          <SettingsIcon size={20} /> Settings
         </h1>
       </div>
 

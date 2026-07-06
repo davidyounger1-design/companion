@@ -1,8 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.54'
+const APP_VERSION = '0.5.55'
 
 const RELEASES = [
+  {
+    version: '0.5.55',
+    date: '6 July 2026',
+    title: 'Settings menu, update prompt, and a menu fix',
+    changes: [
+      { type: 'change', text: 'The "Display" menu item is now "Settings" (⚙️) — it covers appearance, text size, your mobile number, and two-factor authentication, not just display' },
+      { type: 'new', text: 'When a new version is released, you\'ll now see a "new version ready" bar with a Refresh button that updates the app on the spot, instead of waiting for a silent update on some later launch' },
+      { type: 'fix', text: 'The top-right menu no longer appears behind the "up next" card' },
+    ],
+  },
   {
     version: '0.5.54',
     date: '6 July 2026',

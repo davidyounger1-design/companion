@@ -5,15 +5,21 @@ declare const self: ServiceWorkerGlobalScope
 
 // Bump on releases that must force installed PWAs onto a fresh app shell (the
 // precache manifest is content-hashed per build, but this guarantees the SW
-// bytes change so autoUpdate + skipWaiting/clientsClaim reliably take over).
-const SW_VERSION = '0.5.1'
+// bytes change so a waiting worker is reliably detected for the update prompt).
+const SW_VERSION = '0.5.2'
 void SW_VERSION
 
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 
-// Activate immediately and take control of all clients
-self.addEventListener('install', () => self.skipWaiting())
+// A new SW now WAITS instead of activating silently — the app shows an
+// "update available" prompt (see UpdatePrompt.tsx) and, when the user taps
+// Refresh, the page posts SKIP_WAITING so we activate + reload onto the new
+// version. clientsClaim on activate so the freshly-activated SW controls the
+// page immediately after the reload.
+self.addEventListener('message', (event) => {
+  if ((event.data as { type?: string })?.type === 'SKIP_WAITING') self.skipWaiting()
+})
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 
 self.addEventListener('push', (event) => {

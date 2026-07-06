@@ -25,7 +25,7 @@ export default function FamilyStickyHeader({ timerOnly = false }: { timerOnly?: 
   }, [])
 
   return (
-    <div ref={ref} style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+    <div ref={ref} style={{ position: 'sticky', top: 0, zIndex: 30 }}>
       <FamilyHeader />
       <ScheduleStatusBar timerOnly={timerOnly} />
     </div>
