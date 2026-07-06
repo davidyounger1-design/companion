@@ -50,18 +50,25 @@ Deno.serve(async (req) => {
       .single()
 
     if (caller?.org_id !== org_id) return json({ ok: false, error: 'Forbidden' }, 403)
-    if (!['coordinator', 'trusted_support_worker', 'family'].includes(caller?.role ?? ''))
-      return json({ ok: false, error: 'Forbidden' }, 403)
-    // Family members cannot invite coordinators (privilege escalation guard)
-    if (caller?.role === 'family' && role === 'coordinator')
-      return json({ ok: false, error: 'Forbidden' }, 403)
-    // Only coordinators/family can invite the person being cared for, and it must
-    // be tied to a specific client record (their own login is linked 1:1 to it).
-    if (role === 'recipient') {
-      if (!['coordinator', 'family'].includes(caller?.role ?? ''))
-        return json({ ok: false, error: 'Forbidden' }, 403)
-      if (!client_id) return json({ ok: false, error: 'client_id is required for recipient invites' }, 400)
+
+    // Explicit allow-list of which roles each caller role may invite. This is
+    // the authoritative check (the function runs as service-role and bypasses
+    // RLS): without it, a trusted_support_worker could invite an accomplice as
+    // 'coordinator' and escalate to full org control. Anything not listed is
+    // denied by default.
+    const INVITE_MATRIX: Record<string, string[]> = {
+      coordinator:            ['coordinator', 'family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist'],
+      family:                 ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist'],
+      trusted_support_worker: ['support_worker'],
     }
+    const allowed = INVITE_MATRIX[caller?.role ?? '']
+    if (!allowed || !allowed.includes(role))
+      return json({ ok: false, error: 'Forbidden' }, 403)
+
+    // A recipient invite must be tied to a specific client record (their login
+    // is linked 1:1 to it).
+    if (role === 'recipient' && !client_id)
+      return json({ ok: false, error: 'client_id is required for recipient invites' }, 400)
 
     // Fetch names for the email copy
     const [{ data: org }, { data: client }, { data: inviter }] = await Promise.all([
