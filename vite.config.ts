@@ -1,12 +1,31 @@
 import { defineConfig } from 'vite'
+import { readFileSync } from 'node:fs'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
+const APP_VERSION: string = pkg.version
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   plugins: [
     react(),
     tailwindcss(),
+    // Emit a tiny, un-hashed version.json the app can fetch (cache-busted) to
+    // detect a new deploy and show which version it's updating to.
+    {
+      name: 'emit-version-json',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify({ version: APP_VERSION }),
+        })
+      },
+    },
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',

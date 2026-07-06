@@ -10,6 +10,150 @@ import { supabase } from '../../lib/supabase'
 import MfaCodeInput from '../../components/MfaCodeInput'
 import Toggle from '../../components/Toggle'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
+import { useInstallPrompt } from '../../hooks/useInstallPrompt'
+import { isStandalone } from '../../lib/pwa'
+import { APP_VERSION } from '../../lib/version'
+
+function InstallCard() {
+  const { canInstall, isIOS, hasPrompt, install } = useInstallPrompt()
+
+  // Hidden once installed (running standalone) — nothing to install then.
+  if (isStandalone()) return null
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Install app</p>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+        Add Companion to your home screen for quick access and notifications.
+      </p>
+      {hasPrompt ? (
+        <button className="btn btn-primary" onClick={install}>Install Companion</button>
+      ) : isIOS ? (
+        <p style={{ fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>
+          In Safari, tap the <strong>Share</strong> button (⬆️), then choose <strong>Add to Home Screen</strong>.
+          On iPad the Share icon is up in the address bar.
+        </p>
+      ) : (
+        <p style={{ fontSize: '0.85rem', lineHeight: 1.6, margin: 0, color: 'var(--color-muted)' }}>
+          {canInstall
+            ? 'Use your browser’s menu and choose "Install app" or "Add to Home screen".'
+            : 'Open Companion in Chrome or Safari on your phone to install it to your home screen.'}
+        </p>
+      )}
+    </div>
+  )
+}
+
+type UpdateState = 'idle' | 'checking' | 'available' | 'latest' | 'error'
+
+function UpdatesCard() {
+  const [state, setState] = useState<UpdateState>('idle')
+  const [latest, setLatest] = useState<string | null>(null)
+  const [applying, setApplying] = useState(false)
+
+  async function check() {
+    setState('checking')
+    try {
+      const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' })
+      const data = (await res.json()) as { version?: string }
+      // Also nudge the service worker to fetch a fresh build in the background.
+      await navigator.serviceWorker?.getRegistration().then((r) => r?.update()).catch(() => {})
+      if (data.version && data.version !== APP_VERSION) {
+        setLatest(data.version)
+        setState('available')
+      } else {
+        setState('latest')
+      }
+    } catch {
+      setState('error')
+    }
+  }
+
+  async function applyUpdate() {
+    setApplying(true)
+    const reg = await navigator.serviceWorker?.getRegistration()
+    if (reg?.waiting) {
+      // UpdatePrompt's controllerchange listener reloads once it activates.
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' })
+      return
+    }
+    if (reg) {
+      try {
+        await reg.update()
+        const w = reg.waiting ?? reg.installing
+        if (w) {
+          w.addEventListener('statechange', () => {
+            if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' })
+          })
+          if (reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); return }
+          return
+        }
+      } catch { /* fall through to hard reload */ }
+    }
+    window.location.reload()
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>App version</p>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+        You're on <strong>v{APP_VERSION}</strong>.
+      </p>
+
+      {state === 'available' ? (
+        <>
+          <p style={{ margin: '0 0 0.75rem', fontSize: '0.88rem', color: 'var(--color-ink)' }}>
+            Version <strong>v{latest}</strong> is available.
+          </p>
+          <button className="btn btn-primary" onClick={applyUpdate} disabled={applying}>
+            {applying ? <span className="spinner" /> : `Update to v${latest}`}
+          </button>
+        </>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={check} disabled={state === 'checking'}>
+            {state === 'checking' ? <span className="spinner" /> : 'Check for updates'}
+          </button>
+          {state === 'latest' && (
+            <span style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>You're on the latest version.</span>
+          )}
+          {state === 'error' && (
+            <span style={{ fontSize: '0.85rem', color: 'var(--color-error, #c0392b)' }}>Couldn't check right now — try again.</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LinksCard() {
+  const navigate = useNavigate()
+  const { profile } = useAuth()
+  const isCoordinator = profile?.role === 'coordinator'
+
+  const links: { label: string; path: string }[] = [
+    { label: "📋 What's new", path: '/release-notes' },
+    ...(isCoordinator ? [{ label: '🔐 Permissions', path: '/settings/permissions' }] : []),
+    { label: '💳 Subscription', path: '/account' },
+  ]
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem', padding: 0, overflow: 'hidden' }}>
+      {links.map((l, i) => (
+        <button key={l.path} onClick={() => navigate(l.path)}
+          style={{
+            display: 'flex', width: '100%', textAlign: 'left', alignItems: 'center', justifyContent: 'space-between',
+            background: 'none', border: 'none', cursor: 'pointer', padding: '0.9rem 1rem',
+            fontSize: '0.9rem', color: 'var(--color-ink)',
+            borderTop: i === 0 ? 'none' : '1px solid var(--color-border)',
+          }}>
+          <span>{l.label}</span>
+          <span style={{ color: 'var(--color-muted)' }}>›</span>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function NotificationsCard() {
   const { permission, subscribing, subscribe, notifyOnEntry, setNotifyOnEntry } = usePushNotifications()
@@ -331,6 +475,10 @@ export default function DisplaySettings() {
             </button>
           )}
         </div>
+
+        <InstallCard />
+        <UpdatesCard />
+        <LinksCard />
       </div>
     </div>
   )

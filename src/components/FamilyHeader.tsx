@@ -67,23 +67,13 @@ export default function FamilyHeader() {
                 }}>
                   {[
                     { label: '👥 Members', path: '/members' },
-                    { label: '🔐 Permissions', path: '/settings/permissions' },
                     { label: '⚙️ Settings', path: '/settings/display' },
-                    { label: '📋 Release notes', path: '/release-notes' },
                   ].map(({ label, path }) => (
                     <button key={path} onClick={() => { navigate(path); setShowMenu(false) }}
                       style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--color-text)' }}>
                       {label}
                     </button>
                   ))}
-                  <button onClick={() => {
-                      setShowMenu(false)
-                      navigator.serviceWorker?.getRegistration().then(r => r?.update())
-                      window.location.reload()
-                    }}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--color-text)' }}>
-                    🔄 Check for updates
-                  </button>
                   <button onClick={() => { handleSignOut(); setShowMenu(false) }}
                     style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--color-border)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: '0.875rem', color: '#ef4444' }}>
                     Sign out

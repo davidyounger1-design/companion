@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import { isStandalone } from '../lib/pwa'
+import { roleHome } from '../lib/roleHome'
 import artGroupPhoto from '../assets/landing-art-group.jpg'
 
 // ─── Phone mockup component ───────────────────────────────────────────────────
@@ -122,9 +125,18 @@ function CheckCircle() {
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
 export default function Landing() {
+  const { user, loading, profile, org } = useAuth()
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly')
   const [form, setForm] = useState({ name: '', email: '', org: '' })
   const [status, setStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle')
+
+  // Launched as an installed PWA while signed in? Skip the marketing page and
+  // go straight into the app. In a normal browser tab we leave the marketing
+  // site visible even when logged in. (All hooks are called above this early
+  // return so the rules of hooks hold.)
+  if (!loading && user && isStandalone()) {
+    return <Navigate to={roleHome(profile?.role, org?.org_type)} replace />
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

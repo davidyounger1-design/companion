@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
-
-const APP_VERSION = '0.5.56'
+import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
+  {
+    version: '0.5.57',
+    date: '6 July 2026',
+    title: 'Install & updates in Settings, and PWA opens straight in',
+    changes: [
+      { type: 'new', text: 'Settings now has an "Install app" section (hidden once installed), a version-aware "Check for updates" that tells you which version it\'s moving to, plus quick links to What\'s new, Permissions, and your Subscription' },
+      { type: 'change', text: 'Opening the installed app now takes you straight into Companion instead of the marketing page' },
+    ],
+  },
   {
     version: '0.5.56',
     date: '6 July 2026',
