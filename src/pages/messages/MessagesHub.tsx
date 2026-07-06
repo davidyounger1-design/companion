@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import FamilyStickyHeader from '../../components/FamilyStickyHeader'
+import { useUnreadMessagesMap } from '../../hooks/useUnreadMessagesMap'
 
 function formatTime(iso: string) {
   const d = new Date(iso)
@@ -75,29 +76,8 @@ export default function MessagesHub() {
     refetchInterval: 15000,
   })
 
-  // Unread count per contact
-  const { data: unreadMap = {} } = useQuery({
-    queryKey: ['msg-unread-map', user?.id],
-    queryFn: async () => {
-      const lastSeen = localStorage.getItem(`msg_last_seen_${user!.id}`) ?? new Date(0).toISOString()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any)
-        .from('messages')
-        .select('sender_id, recipient_id')
-        .eq('org_id', profile!.org_id!)
-        .gt('created_at', lastSeen)
-        .neq('sender_id', user!.id)
-        .or(`recipient_id.eq.${user!.id},recipient_id.is.null`)
-      const map: Record<string, number> = {}
-      for (const msg of data ?? []) {
-        const key = msg.recipient_id === null ? 'group' : msg.sender_id
-        map[key] = (map[key] ?? 0) + 1
-      }
-      return map
-    },
-    enabled: !!user && !!profile?.org_id,
-    refetchInterval: 15000,
-  })
+  // Unread count per contact — shared with FamilyBottomNav's badge total
+  const { data: unreadMap = {} } = useUnreadMessagesMap()
 
   // Realtime refresh
   useEffect(() => {

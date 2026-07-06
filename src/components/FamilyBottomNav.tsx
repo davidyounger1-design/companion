@@ -1,8 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
 import { usePendingTickets } from '../hooks/usePendingTickets'
+import { useUnreadMessagesMap } from '../hooks/useUnreadMessagesMap'
 import { JournalIcon, TimerIcon, ScheduleIcon, NoticesIcon, MessagesIcon, HelpIcon, PlanIcon } from './icons'
 
 type NavEntry = {
@@ -21,23 +20,11 @@ export default function FamilyBottomNav() {
   const isCoordinator = profile?.role === 'coordinator'
   const isRecipient = profile?.role === 'recipient'
 
-  const { data: unread = 0 } = useQuery({
-    queryKey: ['family-unread', user?.id],
-    queryFn: async () => {
-      if (!user || !profile?.org_id) return 0
-      const lastSeen = localStorage.getItem(`msg_last_seen_${user.id}`) ?? new Date(0).toISOString()
-      const { count } = await supabase
-        .from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('org_id', profile.org_id)
-        .gt('created_at', lastSeen)
-        .neq('sender_id', user.id)
-        .or(`recipient_id.eq.${user.id},recipient_id.is.null`)
-      return count ?? 0
-    },
-    enabled: !!user && !!profile?.org_id,
-    refetchInterval: 30_000,
-  })
+  // Same shared map MessagesHub renders per-contact, summed for a single
+  // badge — so the two can never disagree the way two independently
+  // polled, separately-implemented counts could.
+  const { data: unreadMap = {} } = useUnreadMessagesMap()
+  const unread = Object.values(unreadMap).reduce((sum, n) => sum + n, 0)
 
   const pendingTickets = usePendingTickets()
 

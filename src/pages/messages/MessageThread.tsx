@@ -112,7 +112,6 @@ export default function MessageThread() {
   useEffect(() => {
     localStorage.setItem(`msg_last_seen_${user!.id}`, new Date().toISOString())
     qc.invalidateQueries({ queryKey: ['unread-count'] })
-    qc.invalidateQueries({ queryKey: ['family-unread'] })
     qc.invalidateQueries({ queryKey: ['msg-unread-map'] })
   }, [user, qc])
 

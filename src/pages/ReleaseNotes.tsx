@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.51'
+const APP_VERSION = '0.5.52'
 
 const RELEASES = [
+  {
+    version: '0.5.52',
+    date: '5 July 2026',
+    title: 'Unify the unread message count',
+    changes: [
+      { type: 'fix', text: 'The nav\'s unread badge and the per-contact counts on Messages were two separately-polled counters that could briefly disagree — they now share one underlying count so they can\'t drift apart' },
+    ],
+  },
   {
     version: '0.5.51',
     date: '5 July 2026',
