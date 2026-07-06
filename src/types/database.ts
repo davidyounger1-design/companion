@@ -646,6 +646,10 @@ export interface Database {
         Args: { p_participant_name: string }
         Returns: Json
       }
+      create_organisation: {
+        Args: { p_name: string; p_state: string; p_services: string[] }
+        Returns: string
+      }
       promote_member: {
         Args: { p_user_id: string; p_new_role: string }
         Returns: Json

@@ -257,18 +257,23 @@ export default function MembersPage() {
     qc.invalidateQueries({ queryKey: ['org-members'] })
   }
 
+  const REMOVE_ERRORS: Record<string, string> = {
+    unauthorized: 'Only coordinators can remove members.',
+    not_in_your_org: 'That member isn\'t part of your organisation.',
+    last_coordinator: 'You can\'t remove the last coordinator — promote someone else first.',
+  }
+
   async function remove(memberId: string) {
     if (!confirm('Remove this member from the organisation? This will also delete their login account.')) return
     setActionError('')
-    // Remove from org data first
-    const { data } = await supabase.rpc('remove_member', { p_user_id: memberId })
-    const r = data as RpcResult | null
-    if (!r?.ok) { setActionError(r?.error ?? 'Removal failed'); return }
-    // Then delete auth user via edge function (best-effort — fails gracefully if not deployed)
-    try {
-      await supabase.functions.invoke('delete-member', { body: { user_id: memberId } })
-    } catch {
-      // Edge function not deployed yet — auth user remains but profile/org access is removed
+    // delete-member now does the org-scoped authorization, the last-coordinator
+    // guard, AND the cascade cleanup itself (deleting the auth user cascades the
+    // profile and every client linkage), so it's the single removal path — the
+    // old remove_member pre-detach would nil org_id and defeat the auth check.
+    const { data, error } = await supabase.functions.invoke('delete-member', { body: { user_id: memberId } })
+    if (error || !data?.ok) {
+      setActionError(REMOVE_ERRORS[data?.error] ?? data?.error ?? error?.message ?? 'Removal failed')
+      return
     }
     qc.invalidateQueries({ queryKey: ['org-members'] })
   }

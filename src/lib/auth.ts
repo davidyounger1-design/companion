@@ -68,31 +68,22 @@ export async function ensureProfile(userId: string, fullName: string) {
 }
 
 export async function createOrganisation(
-  userId: string,
   name: string,
   state: string,
   services: string[],
 ) {
-  // Generate the UUID client-side so we never need to .select() after insert.
-  // Doing .insert().select() would trigger the SELECT policy before the profile
-  // has an org_id set, causing an RLS denial (chicken-and-egg).
-  const orgId = crypto.randomUUID()
-
-  const { error: orgError } = await supabase
-    .from('organisations')
-    .insert({ id: orgId, name, state, services, plan: 'trial', billing_status: 'trial' })
-  if (orgError) throw new Error(supabaseMessage(orgError))
-
-  // Set the profile's org_id first so my_org_id() returns correctly for subsequent queries.
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ org_id: orgId })
-    .eq('id', userId)
-  if (profileError) throw new Error(supabaseMessage(profileError))
-
-  await supabase.from('org_settings').insert({ org_id: orgId })
-
-  return { id: orgId }
+  // Done in one SECURITY DEFINER RPC: users can no longer self-update their
+  // profile's org_id (that was a privilege-escalation hole — see migration
+  // 047), so org creation + the profile link + org_settings all happen
+  // server-side in create_organisation(), which also refuses to run if the
+  // caller is already in an org.
+  const { data, error } = await supabase.rpc('create_organisation', {
+    p_name: name,
+    p_state: state,
+    p_services: services,
+  })
+  if (error) throw new Error(supabaseMessage(error))
+  return { id: data as string }
 }
 
 export async function resetPassword(email: string) {

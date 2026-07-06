@@ -1,8 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.53'
+const APP_VERSION = '0.5.54'
 
 const RELEASES = [
+  {
+    version: '0.5.54',
+    date: '6 July 2026',
+    title: 'Security hardening',
+    changes: [
+      { type: 'change', text: 'Strengthened the safeguards around accounts, organisation membership, and invitations behind the scenes. No change to how you use the app' },
+    ],
+  },
   {
     version: '0.5.53',
     date: '6 July 2026',

@@ -23,8 +23,9 @@ serve(async (req) => {
       })
     }
 
-    const { data: callerProfile } = await callerClient.from('profiles').select('role').eq('id', caller.id).single()
-    if (callerProfile?.role !== 'coordinator') {
+    const { data: callerProfile } = await callerClient
+      .from('profiles').select('role, org_id').eq('id', caller.id).single()
+    if (callerProfile?.role !== 'coordinator' || !callerProfile.org_id) {
       return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -42,20 +43,44 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Look up user email so we can purge their pending invites
-    const { data: { user: targetUser } } = await admin.auth.admin.getUserById(user_id)
-    const targetEmail = targetUser?.email
+    // AUTHORIZATION: the target must be a member of the caller's own org.
+    // Without this check, any coordinator (every signup is one by default)
+    // could delete ANY account platform-wide just by passing its user_id.
+    // This runs before remove_member nils org_id, so it must be the sole
+    // deletion path (the frontend no longer pre-detaches via remove_member).
+    const { data: targetProfile } = await admin
+      .from('profiles').select('org_id, role').eq('id', user_id).maybeSingle()
+    if (!targetProfile || targetProfile.org_id !== callerProfile.org_id) {
+      return new Response(JSON.stringify({ ok: false, error: 'not_in_your_org' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-    // Delete any pending invites for this email (same org as caller)
-    if (targetEmail) {
+    // Don't let the org be orphaned: block removing the last coordinator.
+    if (targetProfile.role === 'coordinator') {
+      const { count } = await admin
+        .from('profiles').select('id', { count: 'exact', head: true })
+        .eq('org_id', callerProfile.org_id).eq('role', 'coordinator')
+      if ((count ?? 0) <= 1) {
+        return new Response(JSON.stringify({ ok: false, error: 'last_coordinator' }), {
+          status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    // Purge the target's pending invites in this org.
+    const { data: { user: targetUser } } = await admin.auth.admin.getUserById(user_id)
+    if (targetUser?.email) {
       await admin.from('invites')
         .delete()
-        .eq('email', targetEmail)
-        .eq('org_id', callerProfile.org_id ?? '')
+        .eq('email', targetUser.email)
+        .eq('org_id', callerProfile.org_id)
         .in('status', ['pending', 'expired'])
     }
 
-    // Delete the auth user (cascades nothing in auth — profile/org already removed by remove_member RPC)
+    // Delete the auth user. profiles.id → auth.users ON DELETE CASCADE, and
+    // client_workers/client_family/client_circle → profiles ON DELETE CASCADE,
+    // so this removes the profile and all org linkages in one shot.
     const { error: deleteErr } = await admin.auth.admin.deleteUser(user_id)
     if (deleteErr) {
       return new Response(JSON.stringify({ ok: false, error: deleteErr.message }), {

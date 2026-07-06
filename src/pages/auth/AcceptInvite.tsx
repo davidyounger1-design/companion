@@ -150,6 +150,7 @@ function InviteSignupForm({
   invite: InviteDetails
   onDone: (role: string) => void
 }) {
+  const navigate = useNavigate()
   const [name, setName]         = useState(invite.name ?? '')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
@@ -167,7 +168,13 @@ function InviteSignupForm({
     })
 
     if (fnErr || !redeemData?.ok) {
-      setError(redeemData?.error ?? fnErr?.message ?? 'Could not accept invitation.')
+      // An account already exists for this email — send them to sign in and
+      // accept from there, rather than (previously) resetting their password.
+      if (redeemData?.error === 'account_exists') {
+        navigate(`/sign-in?token=${encodeURIComponent(token)}`, { replace: true })
+        return
+      }
+      setError(redeemData?.message ?? redeemData?.error ?? fnErr?.message ?? 'Could not accept invitation.')
       setSubmitting(false)
       return
     }

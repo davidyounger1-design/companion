@@ -48,7 +48,7 @@ export default function Step1Service() {
     if (!user) return
     setServerError('')
     try {
-      await createOrganisation(user.id, data.orgName, data.state, selectedServices)
+      await createOrganisation(data.orgName, data.state, selectedServices)
       await refreshProfile()
       navigate('/setup/plan')
     } catch (err) {

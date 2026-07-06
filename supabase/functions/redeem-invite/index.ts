@@ -36,30 +36,32 @@ Deno.serve(async (req) => {
 
     const email = invite.email as string
 
-    // Check if this email already has an auth account
+    // Check if this email already has an auth account.
     const { data: { users: existing } } = await admin.auth.admin.listUsers()
     const existingUser = existing?.find((u) => u.email?.toLowerCase() === email.toLowerCase())
 
-    let userId: string
-
+    // SECURITY: never overwrite an existing account's password. Doing so let
+    // anyone who could obtain an invite token (they're returned by
+    // invite-member) reset an arbitrary user's password and take over their
+    // account. If an account already exists for this email, the person must
+    // sign in and accept the invite through the authenticated accept_invite
+    // path instead — the AcceptInvite page offers exactly that.
     if (existingUser) {
-      const { error: updateErr } = await admin.auth.admin.updateUserById(existingUser.id, {
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: name.trim() },
+      return json({
+        ok: false,
+        error: 'account_exists',
+        message: 'You already have an account for this email. Please sign in to accept the invitation.',
       })
-      if (updateErr) return json({ ok: false, error: updateErr.message })
-      userId = existingUser.id
-    } else {
-      const { data: created, error: createErr } = await admin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: name.trim() },
-      })
-      if (createErr) return json({ ok: false, error: createErr.message })
-      userId = created.user.id
     }
+
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: name.trim() },
+    })
+    if (createErr) return json({ ok: false, error: createErr.message })
+    const userId: string = created.user.id
 
     // Upsert profile — ensures the row exists even if the auth trigger hasn't fired yet.
     // Guard: never downgrade an existing coordinator to a lower-privilege role.
