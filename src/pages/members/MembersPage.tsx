@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { usePermissions } from '../../hooks/usePermissions'
 import { buildSmsLink } from '../../lib/smsLink'
 
-type OrgMember = { id: string; full_name: string; role: string; email?: string }
+type OrgMember = { id: string; full_name: string; role: string; email?: string; phone?: string | null }
 
 type RpcResult = { ok: boolean; error?: string; new_role?: string }
 
@@ -186,6 +186,7 @@ export default function MembersPage() {
   const qc = useQueryClient()
   const { user, profile, org } = useAuth()
   const [showInvite, setShowInvite] = useState(false)
+  const [editMember, setEditMember] = useState<OrgMember | null>(null)
   const [actionError, setActionError] = useState('')
   const [resendingId, setResendingId] = useState<string | null>(null)
   const [rescindingId, setRescindingId] = useState<string | null>(null)
@@ -202,7 +203,7 @@ export default function MembersPage() {
       if (!rpc.error) return (rpc.data ?? []) as OrgMember[]
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, role')
+        .select('id, full_name, role, phone')
         .eq('org_id', profile!.org_id!)
         .order('role')
         .order('full_name')
@@ -469,37 +470,47 @@ export default function MembersPage() {
                   </div>
 
                   {/* Actions — coordinator only, not for self, not for org owner */}
-                  {isCoordinator && m.id !== user?.id && !isOrgOwner(m.id) && (
+                  {isCoordinator && (
                     <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, alignItems: 'center' }}>
-                      {m.role === 'family' && isFamilyOrg && (
-                        <button className="btn btn-ghost" onClick={() => promote(m.id, 'coordinator')}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make coordinator">
-                          ↑ Coord
-                        </button>
-                      )}
-                      {m.role === 'support_worker' && (
-                        <button className="btn btn-ghost" onClick={() => promote(m.id, 'trusted_support_worker')}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make trusted worker">
-                          ↑ Trust
-                        </button>
-                      )}
-                      {m.role === 'coordinator' && isFamilyOrg && coordinatorCount > 1 && (
-                        <button className="btn btn-ghost" onClick={() => demote(m.id)}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to family member">
-                          ↓
-                        </button>
-                      )}
-                      {m.role === 'trusted_support_worker' && (
-                        <button className="btn btn-ghost" onClick={() => demote(m.id)}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to support worker">
-                          ↓
-                        </button>
-                      )}
-                      <button className="btn btn-ghost" onClick={() => remove(m.id)}
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', color: 'var(--color-danger, #c0392b)' }}
-                        title="Remove member">
-                        ✕
+                      {/* Edit name/phone — allowed for any member, incl. self & owner */}
+                      <button className="btn btn-ghost" onClick={() => setEditMember(m)}
+                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Edit details">
+                        ✏️
                       </button>
+                      {/* Role changes + removal — not for self or the org owner */}
+                      {m.id !== user?.id && !isOrgOwner(m.id) && (
+                        <>
+                          {m.role === 'family' && isFamilyOrg && (
+                            <button className="btn btn-ghost" onClick={() => promote(m.id, 'coordinator')}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make coordinator">
+                              ↑ Coord
+                            </button>
+                          )}
+                          {m.role === 'support_worker' && (
+                            <button className="btn btn-ghost" onClick={() => promote(m.id, 'trusted_support_worker')}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make trusted worker">
+                              ↑ Trust
+                            </button>
+                          )}
+                          {m.role === 'coordinator' && isFamilyOrg && coordinatorCount > 1 && (
+                            <button className="btn btn-ghost" onClick={() => demote(m.id)}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to family member">
+                              ↓
+                            </button>
+                          )}
+                          {m.role === 'trusted_support_worker' && (
+                            <button className="btn btn-ghost" onClick={() => demote(m.id)}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to support worker">
+                              ↓
+                            </button>
+                          )}
+                          <button className="btn btn-ghost" onClick={() => remove(m.id)}
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', color: 'var(--color-danger, #c0392b)' }}
+                            title="Remove member">
+                            ✕
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -527,6 +538,85 @@ export default function MembersPage() {
           }}
         />
       )}
+
+      {editMember && (
+        <EditMemberModal
+          member={editMember}
+          onClose={() => setEditMember(null)}
+          onSaved={() => {
+            setEditMember(null)
+            qc.invalidateQueries({ queryKey: ['org-members'] })
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function EditMemberModal({
+  member,
+  onClose,
+  onSaved,
+}: {
+  member: OrgMember
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [fullName, setFullName] = useState(member.full_name)
+  const [phone, setPhone] = useState(member.phone ?? '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function handleSave() {
+    if (!fullName.trim()) { setErr('Name is required'); return }
+    setSaving(true)
+    setErr('')
+    const { data, error } = await supabase.rpc('update_member', {
+      p_user_id: member.id,
+      p_full_name: fullName.trim(),
+      p_phone: phone.trim() || null,
+    })
+    setSaving(false)
+    const r = data as RpcResult | null
+    if (error || !r?.ok) { setErr(r?.error ?? error?.message ?? 'Could not save'); return }
+    onSaved()
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Edit member</p>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '1.25rem' }}>{member.full_name}</h2>
+
+        {err && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{err}</div>}
+
+        <div className="field" style={{ marginBottom: '1rem' }}>
+          <label htmlFor="edit-name">Full name</label>
+          <input id="edit-name" className="input" value={fullName}
+            onChange={(e) => setFullName(e.target.value)} autoFocus />
+        </div>
+
+        <div className="field" style={{ marginBottom: '1rem' }}>
+          <label htmlFor="edit-phone">
+            Mobile number <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>(optional)</span>
+          </label>
+          <input id="edit-phone" type="tel" className="input" placeholder="04xx xxx xxx"
+            value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </div>
+
+        {member.email && (
+          <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginBottom: '1rem' }}>
+            Email: {member.email} <span style={{ opacity: 0.7 }}>(can't be changed here)</span>
+          </p>
+        )}
+
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving || !fullName.trim()} style={{ flex: 2 }}>
+            {saving ? <span className="spinner" /> : 'Save changes'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

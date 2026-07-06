@@ -8,6 +8,60 @@ import SegmentedControl from '../../components/SegmentedControl'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import MfaCodeInput from '../../components/MfaCodeInput'
+import Toggle from '../../components/Toggle'
+import { usePushNotifications } from '../../hooks/usePushNotifications'
+
+function NotificationsCard() {
+  const { permission, subscribing, subscribe, notifyOnEntry, setNotifyOnEntry } = usePushNotifications()
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Notifications</p>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+        Get a notification on this device when something happens — messages, and optionally each new journal entry.
+      </p>
+
+      {permission === 'unsupported' && (
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+          This device or browser doesn't support notifications.
+        </p>
+      )}
+
+      {permission === 'denied' && (
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+          Notifications are blocked. Turn them on for Companion in your device or browser settings, then come back.
+        </p>
+      )}
+
+      {permission === 'default' && (
+        <button className="btn btn-primary" onClick={subscribe} disabled={subscribing}>
+          {subscribing ? <span className="spinner" /> : 'Enable notifications'}
+        </button>
+      )}
+
+      {permission === 'granted' && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+            <div>
+              <p style={{ margin: 0, fontWeight: 500, fontSize: '0.9rem' }}>New entry alerts</p>
+              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>
+                Notify me when a new journal entry is logged.
+              </p>
+            </div>
+            <Toggle
+              checked={!!notifyOnEntry}
+              onChange={() => setNotifyOnEntry(!notifyOnEntry)}
+              label="New entry alerts"
+            />
+          </div>
+          {notifyOnEntry === null && (
+            <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>Loading…</p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
 type TwoFactorStatus = 'loading' | 'off' | 'enrolling' | 'on'
 
@@ -217,6 +271,7 @@ export default function DisplaySettings() {
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
         <ContactNumberCard />
+        <NotificationsCard />
         <TwoFactorCard />
 
         <div className="card" style={{ marginBottom: '1rem' }}>

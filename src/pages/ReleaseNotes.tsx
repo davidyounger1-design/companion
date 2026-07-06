@@ -1,8 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
-const APP_VERSION = '0.5.55'
+const APP_VERSION = '0.5.56'
 
 const RELEASES = [
+  {
+    version: '0.5.56',
+    date: '6 July 2026',
+    title: 'Edit member details, and notifications moved to Settings',
+    changes: [
+      { type: 'new', text: 'Coordinators can now edit any member\'s name and mobile number — tap the ✏️ on a member in the Members list' },
+      { type: 'change', text: 'Notification controls (turn on notifications, and "new entry alerts") now live in Settings → Notifications, instead of on the Journal' },
+    ],
+  },
   {
     version: '0.5.55',
     date: '6 July 2026',

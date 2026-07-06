@@ -607,7 +607,7 @@ export default function FamilyDashboard() {
   const canShare = isCoordinator || isFamily || isRecipient
 
   const { canInstall, isIOS, isAndroid, hasPrompt, install } = useInstallPrompt()
-  const { permission: pushPermission, subscribing, subscribe, notifyOnEntry, setNotifyOnEntry } = usePushNotifications()
+  const { permission: pushPermission, subscribing, subscribe } = usePushNotifications()
   const [showIOSTip, setShowIOSTip] = useState(false)
   const [showAndroidTip, setShowAndroidTip] = useState(false)
   const [pushDismissed, setPushDismissed] = useState(
@@ -1100,41 +1100,7 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {/* Journal entry notification toggle — shown when push is active */}
-        {pushPermission === 'granted' && notifyOnEntry !== null && (
-          <div className="card" style={{ marginTop: '1rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '1.4rem' }}>📓</span>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem' }}>New entry alerts</p>
-              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>
-                Notify me when a new journal entry is logged.
-              </p>
-            </div>
-            {/* Toggle switch */}
-            <button
-              role="switch"
-              aria-checked={!!notifyOnEntry}
-              onClick={() => setNotifyOnEntry(!notifyOnEntry)}
-              style={{
-                position: 'relative', flexShrink: 0,
-                width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
-                background: notifyOnEntry ? 'var(--color-primary)' : 'var(--color-border)',
-                transition: 'background 0.2s',
-                padding: 0,
-              }}
-            >
-              <span style={{
-                position: 'absolute', top: 3,
-                left: notifyOnEntry ? 21 : 3,
-                width: 20, height: 20, borderRadius: '50%',
-                background: '#fff',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-                transition: 'left 0.18s',
-                display: 'block',
-              }} />
-            </button>
-          </div>
-        )}
+        {/* "New entry alerts" toggle now lives in Settings → Notifications. */}
 
         <MobileFooter />
       </div>
