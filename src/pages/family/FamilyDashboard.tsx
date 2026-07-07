@@ -14,6 +14,8 @@ import RecipientMoodLog from '../../components/RecipientMoodLog'
 import { MobileFooter } from '../../components/SiteFooter'
 import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
 import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
@@ -606,6 +608,14 @@ export default function FamilyDashboard() {
   const isRecipient = profile?.role === 'recipient'
   const canShare = isCoordinator || isFamily || isRecipient
 
+  // TEMPORARY fail-OPEN gate for mood check-ins. The features pipeline
+  // (check-features) isn't verified live yet, so we must NOT hide an
+  // already-shipped feature on an empty/errored response. Rule: show mood
+  // unless the hub actually returned a feature list that omits it. An empty
+  // set means "pipeline down, loading, or plan not configured" → show.
+  // FLIP TO STRICT once check-features is confirmed: `showMood = has(...)`.
+  const { features, has: hasFeature } = useFeatures()
+  const showMood = features.size === 0 || hasFeature(FEATURES.moodTracking)
   const { canInstall, isIOS, isAndroid, hasPrompt, install } = useInstallPrompt()
   const { permission: pushPermission, subscribing, subscribe } = usePushNotifications()
   const [showIOSTip, setShowIOSTip] = useState(false)
@@ -894,7 +904,7 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {clientId && org && (
+        {clientId && org && showMood && (
           <RecipientMoodLog clientId={clientId} orgId={org.id} participantName={participantName} />
         )}
 

@@ -10,7 +10,7 @@ export type DecisionMakerKind = 'self' | 'guardian' | 'nominee'
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'cancelled'
 export type InviteStatus = 'pending' | 'accepted' | 'expired'
 export type AccessAction = 'view' | 'share' | 'revoke'
-export type ScheduleCategory = 'therapy' | 'meal' | 'activity' | 'personal_care' | 'social' | 'appointment' | 'other'
+export type ScheduleCategory = 'therapy' | 'meal' | 'activity' | 'personal_care' | 'social' | 'appointment' | 'transport' | 'other'
 export type ScheduleRecurrence = 'once' | 'weekly'
 
 // ─── Supabase Database schema type ───────────────────────────────────────────
@@ -548,6 +548,28 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      schedule_item_skips: {
+        Row: {
+          id: string
+          schedule_item_id: string
+          occurrence_date: string
+          org_id: string
+          client_id: string
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          schedule_item_id: string
+          occurrence_date: string
+          org_id: string
+          client_id: string
+          created_by: string
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
       active_timers: {
         Row: {
           id: string
@@ -709,5 +731,6 @@ export type ClientFeedbackComment = Tables['client_feedback_comments']['Row']
 export type ScheduleItem = Tables['schedule_items']['Row']
 export type ScheduleItemNote = Tables['schedule_item_notes']['Row']
 export type ScheduleItemCompletion = Tables['schedule_item_completions']['Row']
+export type ScheduleItemSkip = Tables['schedule_item_skips']['Row']
 export type TimerAlert = Tables['timer_alerts']['Row']
 export type ActiveTimer = Tables['active_timers']['Row']

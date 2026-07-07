@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useClientId } from '../../hooks/useClientId'
+import { useScheduleSkips } from '../../hooks/useScheduleSkips'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
@@ -12,7 +13,7 @@ import UpNextHero from '../../components/UpNextHero'
 import { TimerIcon, BackIcon } from '../../components/icons'
 import { CATEGORY_ICONS } from '../../components/icons'
 import {
-  toLocalDateStr, findCurrentAndNext, occursOnDate, getItemStatus, timeToMinutes,
+  toLocalDateStr, findCurrentAndNext, occursOnDateActive, getItemStatus, timeToMinutes,
   formatCountdown, CATEGORY_META,
 } from '../../lib/schedule'
 import {
@@ -51,17 +52,18 @@ export default function FamilyTimer() {
     },
     enabled: !!clientId,
   })
+  const skips = useScheduleSkips(clientId)
   const todayStr = toLocalDateStr(new Date())
   const nowMinutes = new Date(now).getHours() * 60 + new Date(now).getMinutes()
-  const { current, next } = findCurrentAndNext(items, todayStr, nowMinutes)
+  const { current, next } = findCurrentAndNext(items, todayStr, nowMinutes, skips)
   const upcomingItem = current ?? next
 
   // Today's not-yet-started appointments — what "countdown to an activity" can target.
   const activityItems = useMemo(() => items
-    .filter((i) => occursOnDate(i, todayStr))
+    .filter((i) => occursOnDateActive(i, todayStr, skips))
     .filter((i) => getItemStatus(i, nowMinutes) === 'upcoming')
     .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
-  [items, todayStr, nowMinutes])
+  [items, todayStr, nowMinutes, skips])
 
   // ── Section B: shared timer, backed by active_timers ──────────────
   const { data: activeTimer, isLoading: timerLoading } = useQuery({

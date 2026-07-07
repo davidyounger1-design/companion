@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useClientId } from '../../hooks/useClientId'
 import { useKeyboardInset } from '../../hooks/useKeyboardInset'
+import { useScheduleSkips } from '../../hooks/useScheduleSkips'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
@@ -16,9 +17,19 @@ import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../t
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
-  occursOnDate, getItemStatus, itemDiskFraction, normalizeUrl,
+  occursOnDateActive, getItemStatus, itemDiskFraction, normalizeUrl,
 } from '../../lib/schedule'
 import { themedPageBackground } from '../../lib/timer'
+
+/** What the add/edit sheet is doing:
+ *  - new    → create a fresh item
+ *  - edit   → change an existing item (whole series, if it recurs)
+ *  - detach → make a one-off copy for a single date and skip the series that
+ *             day, so "just this Saturday" can differ without touching the rest */
+type FormIntent =
+  | { mode: 'new' }
+  | { mode: 'edit'; item: ScheduleItem }
+  | { mode: 'detach'; item: ScheduleItem; date: string }
 
 /** Minutes remaining in the activity if it's running now, else its total duration, else a sensible default. */
 function minutesForTimerButton(item: ScheduleItem, status: string | null, nowMinutes: number): number {
@@ -42,7 +53,11 @@ export default function FamilySchedule() {
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
   const [view, setView] = useState<'day' | 'week'>('day')
   const [now, setNow] = useState(() => Date.now())
-  const [formItem, setFormItem] = useState<ScheduleItem | 'new' | null>(null)
+  const [formIntent, setFormIntent] = useState<FormIntent | null>(null)
+  // A recurring item's edit/delete can apply to the whole series or just the
+  // day being viewed — this holds the pending choice until the user picks.
+  const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
+  const [copyDayOpen, setCopyDayOpen] = useState(false)
   const [showTimerModal, setShowTimerModal] = useState(false)
 
   useEffect(() => {
@@ -51,6 +66,7 @@ export default function FamilySchedule() {
   }, [])
 
   const { clientId, participantName, recipientProfileId } = useClientId()
+  const skips = useScheduleSkips(clientId)
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['schedule-items', clientId],
@@ -83,6 +99,7 @@ export default function FamilySchedule() {
   function invalidateAll() {
     qc.invalidateQueries({ queryKey: ['schedule-items', clientId] })
     qc.invalidateQueries({ queryKey: ['schedule-completions', clientId] })
+    qc.invalidateQueries({ queryKey: ['schedule-skips', clientId] })
   }
 
   async function toggleComplete(item: ScheduleItem) {
@@ -107,6 +124,51 @@ export default function FamilySchedule() {
     invalidateAll()
   }
 
+  // Remove a recurring item for ONE day, leaving the series intact.
+  async function skipOccurrence(item: ScheduleItem, date: string) {
+    if (!user || !clientId || !profile?.org_id) return
+    await supabase.from('schedule_item_skips').insert({
+      schedule_item_id: item.id, occurrence_date: date,
+      client_id: clientId, org_id: profile.org_id, created_by: user.id,
+    })
+    invalidateAll()
+  }
+
+  // Copy every item showing on `fromDate` to `toDate` as one-off items.
+  async function copyDayTo(fromDate: string, toDate: string) {
+    if (!user || !clientId || !profile?.org_id) return
+    const source = items
+      .filter((i) => occursOnDateActive(i, fromDate, skips))
+    if (source.length === 0) return
+    const rows = source.map((i) => ({
+      title: i.title,
+      description: i.description,
+      category: i.category,
+      start_time: i.start_time,
+      end_time: i.end_time,
+      url: i.url,
+      recurrence: 'once' as const,
+      specific_date: toDate,
+      days_of_week: null,
+      client_id: clientId,
+      org_id: profile!.org_id!,
+      created_by: user.id,
+    }))
+    await supabase.from('schedule_items').insert(rows)
+    invalidateAll()
+  }
+
+  // Edit/delete on a recurring item asks "this day or every week?" first;
+  // one-off items act immediately.
+  function handleEdit(item: ScheduleItem) {
+    if (item.recurrence === 'weekly') setScopeChoice({ item, action: 'edit' })
+    else setFormIntent({ mode: 'edit', item })
+  }
+  function handleDelete(item: ScheduleItem) {
+    if (item.recurrence === 'weekly') setScopeChoice({ item, action: 'delete' })
+    else deleteItem(item.id)
+  }
+
   async function startRemoteTimer(remoteLabel: string, minutes: number, notify: boolean) {
     if (!clientId || !user || !profile?.org_id) return
     const endsAt = new Date(Date.now() + minutes * 60_000).toISOString()
@@ -125,9 +187,9 @@ export default function FamilySchedule() {
 
   const dayItems = useMemo(() => {
     return items
-      .filter((i) => occursOnDate(i, selectedDate))
+      .filter((i) => occursOnDateActive(i, selectedDate, skips))
       .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
-  }, [items, selectedDate])
+  }, [items, selectedDate, skips])
 
   const currentItem = isToday
     ? dayItems.find((i) => !completedIds.has(i.id) && getItemStatus(i, nowMinutes) === 'current')
@@ -266,11 +328,16 @@ export default function FamilySchedule() {
                 showTimerButton={isRecipient}
                 nowMinutes={nowMinutes}
                 onToggleDone={() => toggleComplete(item)}
-                onEdit={() => setFormItem(item)}
-                onDelete={() => deleteItem(item.id)}
+                onEdit={() => handleEdit(item)}
+                onDelete={() => handleDelete(item)}
                 onStartTimer={() => navigate(`/family/timer?minutes=${minutesForTimerButton(item, isToday ? getItemStatus(item, nowMinutes) : null, nowMinutes)}&label=${encodeURIComponent(item.title)}`)}
               />
             ))}
+            {canManage && dayItems.length > 0 && (
+              <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost" style={{
+                width: '100%', marginTop: '0.25rem', fontSize: '0.82rem', color: 'var(--color-primary)',
+              }}>Copy this day to another date…</button>
+            )}
           </>
         )}
 
@@ -278,6 +345,7 @@ export default function FamilySchedule() {
           <WeekView
             weekDates={weekDates}
             items={items}
+            skips={skips}
             todayStr={todayStr}
             onSelectDay={(date) => { setSelectedDate(date); setView('day') }}
           />
@@ -287,20 +355,41 @@ export default function FamilySchedule() {
       </div>
 
       {(canManage || isRecipient) && (
-        <button onClick={() => setFormItem('new')} aria-label="Add to schedule" className="fab">
+        <button onClick={() => setFormIntent({ mode: 'new' })} aria-label="Add to schedule" className="fab">
           <PlusIcon size={22} />
         </button>
       )}
 
-      {formItem && clientId && profile?.org_id && user && (
+      {formIntent && clientId && profile?.org_id && user && (
         <ScheduleItemForm
-          item={formItem === 'new' ? null : formItem}
+          intent={formIntent}
           clientId={clientId}
           orgId={profile.org_id}
           userId={user.id}
           defaultDate={selectedDate}
-          onClose={() => setFormItem(null)}
-          onSaved={() => { setFormItem(null); invalidateAll() }}
+          onClose={() => setFormIntent(null)}
+          onSaved={() => { setFormIntent(null); invalidateAll() }}
+        />
+      )}
+
+      {scopeChoice && (
+        <ScopeChooser
+          item={scopeChoice.item}
+          action={scopeChoice.action}
+          date={selectedDate}
+          onClose={() => setScopeChoice(null)}
+          onEditSeries={() => { setFormIntent({ mode: 'edit', item: scopeChoice.item }); setScopeChoice(null) }}
+          onEditThisDay={() => { setFormIntent({ mode: 'detach', item: scopeChoice.item, date: selectedDate }); setScopeChoice(null) }}
+          onDeleteSeries={() => { deleteItem(scopeChoice.item.id); setScopeChoice(null) }}
+          onDeleteThisDay={() => { skipOccurrence(scopeChoice.item, selectedDate); setScopeChoice(null) }}
+        />
+      )}
+
+      {copyDayOpen && (
+        <CopyDayModal
+          fromDate={selectedDate}
+          onClose={() => setCopyDayOpen(false)}
+          onCopy={async (toDate) => { await copyDayTo(selectedDate, toDate); setCopyDayOpen(false) }}
         />
       )}
 
@@ -320,10 +409,11 @@ export default function FamilySchedule() {
 
 
 function WeekView({
-  weekDates, items, todayStr, onSelectDay,
+  weekDates, items, skips, todayStr, onSelectDay,
 }: {
   weekDates: string[]
   items: ScheduleItem[]
+  skips: Set<string>
   todayStr: string
   onSelectDay: (date: string) => void
 }) {
@@ -331,7 +421,7 @@ function WeekView({
     <div>
       {weekDates.map((date) => {
         const dayItems = items
-          .filter((i) => occursOnDate(i, date))
+          .filter((i) => occursOnDateActive(i, date, skips))
           .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
         const isToday = date === todayStr
         const label = parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -472,9 +562,9 @@ function ScheduleCard({
 }
 
 function ScheduleItemForm({
-  item, clientId, orgId, userId, defaultDate, onClose, onSaved,
+  intent, clientId, orgId, userId, defaultDate, onClose, onSaved,
 }: {
-  item: ScheduleItem | null
+  intent: FormIntent
   clientId: string
   orgId: string
   userId: string
@@ -482,18 +572,27 @@ function ScheduleItemForm({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [title, setTitle] = useState(item?.title ?? '')
-  const [description, setDescription] = useState(item?.description ?? '')
-  const [category, setCategory] = useState<ScheduleCategory>(item?.category ?? 'other')
-  const [startTime, setStartTime] = useState(item?.start_time?.slice(0, 5) ?? '09:00')
-  const [endTime, setEndTime] = useState(item?.end_time?.slice(0, 5) ?? '')
-  const [recurrence, setRecurrence] = useState<ScheduleRecurrence>(item?.recurrence ?? 'once')
-  const [specificDate, setSpecificDate] = useState(item?.specific_date ?? defaultDate)
-  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(item?.days_of_week ?? [])
-  const [url, setUrl] = useState(item?.url ?? '')
+  // For edit/detach we seed from the existing item; for new, blanks.
+  const seed = intent.mode === 'new' ? null : intent.item
+  const isDetach = intent.mode === 'detach'
+
+  const [title, setTitle] = useState(seed?.title ?? '')
+  const [description, setDescription] = useState(seed?.description ?? '')
+  const [category, setCategory] = useState<ScheduleCategory>(seed?.category ?? 'other')
+  const [startTime, setStartTime] = useState(seed?.start_time?.slice(0, 5) ?? '09:00')
+  const [endTime, setEndTime] = useState(seed?.end_time?.slice(0, 5) ?? '')
+  // Detach always produces a one-off for the chosen date; the when-picker is hidden.
+  const [recurrence, setRecurrence] = useState<ScheduleRecurrence>(isDetach ? 'once' : (seed?.recurrence ?? 'once'))
+  const [specificDate, setSpecificDate] = useState(isDetach ? intent.date : (seed?.specific_date ?? defaultDate))
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(isDetach ? [] : (seed?.days_of_week ?? []))
+  const [url, setUrl] = useState(seed?.url ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const keyboardInset = useKeyboardInset()
+
+  const detachLabel = isDetach
+    ? parseLocalDate(intent.date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+    : ''
 
   function toggleDay(d: number) {
     setDaysOfWeek((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort())
@@ -517,9 +616,27 @@ function ScheduleItemForm({
       url: url.trim() ? normalizeUrl(url) : null,
     }
 
-    const { error: saveError } = item
-      ? await supabase.from('schedule_items').update(payload).eq('id', item.id)
-      : await supabase.from('schedule_items').insert({ ...payload, client_id: clientId, org_id: orgId, created_by: userId })
+    let saveError = null
+    if (intent.mode === 'edit') {
+      ({ error: saveError } = await supabase.from('schedule_items').update(payload).eq('id', intent.item.id))
+    } else if (intent.mode === 'detach') {
+      // A one-off replacement for just this date, plus a skip so the recurring
+      // series doesn't ALSO show that day. Insert the item first; only skip the
+      // series once the replacement actually landed.
+      const { error: insErr } = await supabase.from('schedule_items')
+        .insert({ ...payload, client_id: clientId, org_id: orgId, created_by: userId })
+      saveError = insErr
+      if (!insErr) {
+        const { error: skipErr } = await supabase.from('schedule_item_skips').insert({
+          schedule_item_id: intent.item.id, occurrence_date: intent.date,
+          client_id: clientId, org_id: orgId, created_by: userId,
+        })
+        saveError = skipErr
+      }
+    } else {
+      ({ error: saveError } = await supabase.from('schedule_items')
+        .insert({ ...payload, client_id: clientId, org_id: orgId, created_by: userId }))
+    }
 
     setSaving(false)
     if (saveError) { setError(saveError.message); return }
@@ -540,9 +657,14 @@ function ScheduleItemForm({
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
 
-        <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '1.05rem' }}>
-          {item ? 'Edit schedule item' : 'Add to schedule'}
+        <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '1.05rem' }}>
+          {intent.mode === 'detach' ? 'Edit just this day' : intent.mode === 'edit' ? 'Edit schedule item' : 'Add to schedule'}
         </p>
+        {isDetach && (
+          <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+            Changes apply to <strong>{detachLabel}</strong> only — the weekly series stays as it is on other days.
+          </p>
+        )}
 
         <div className="field" style={{ marginBottom: '0.75rem' }}>
           <label>Title</label>
@@ -585,14 +707,15 @@ function ScheduleItemForm({
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
           <div className="field" style={{ flex: 1 }}>
             <label>Start time</label>
-            <input className="input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <input className="input" type="time" step={300} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>End time (optional)</label>
-            <input className="input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <input className="input" type="time" step={300} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           </div>
         </div>
 
+        {!isDetach && (
         <div style={{ marginBottom: '0.75rem' }}>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>When</label>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.6rem' }}>
@@ -629,6 +752,7 @@ function ScheduleItemForm({
             </div>
           )}
         </div>
+        )}
 
         {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.82rem' }}>{error}</div>}
         <div style={{ height: '0.75rem' }} />
@@ -641,7 +765,7 @@ function ScheduleItemForm({
       }}>
         <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
         <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ flex: 2 }}>
-          {saving ? <span className="spinner" /> : item ? 'Save changes' : 'Add to schedule'}
+          {saving ? <span className="spinner" /> : intent.mode === 'new' ? 'Add to schedule' : 'Save changes'}
         </button>
       </div>
       </div>
@@ -729,3 +853,119 @@ function RemoteTimerModal({
     </>
   )
 }
+
+/** Asks whether an edit/delete on a recurring item applies to just the day
+ * being viewed or the whole weekly series. */
+function ScopeChooser({
+  item, action, date, onClose, onEditSeries, onEditThisDay, onDeleteSeries, onDeleteThisDay,
+}: {
+  item: ScheduleItem
+  action: 'edit' | 'delete'
+  date: string
+  onClose: () => void
+  onEditSeries: () => void
+  onEditThisDay: () => void
+  onDeleteSeries: () => void
+  onDeleteThisDay: () => void
+}) {
+  const dayLabel = parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+  const keyboardInset = useKeyboardInset()
+
+  return (
+    <>
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.4)' }} />
+      <div className="sheet-panel" style={{
+        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 100,
+        background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
+        boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',
+        padding: '1rem 1.25rem calc(1rem + env(safe-area-inset-bottom))',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        </div>
+        <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '1.05rem' }}>
+          “{item.title}” repeats weekly
+        </p>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+          {action === 'edit'
+            ? `Do you want to change every week, or just ${dayLabel}?`
+            : `Remove it from every week, or just ${dayLabel}?`}
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {action === 'edit' ? (
+            <>
+              <button className="btn btn-primary" onClick={onEditThisDay}>Edit just this day</button>
+              <button className="btn btn-secondary" onClick={onEditSeries}>Edit every week</button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={onDeleteThisDay}>Remove just this day</button>
+              <button className="btn btn-ghost" onClick={onDeleteSeries} style={{ color: 'var(--color-error)', fontWeight: 600 }}>Delete every week</button>
+            </>
+          )}
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/** Copies a whole day's items onto another date. */
+function CopyDayModal({
+  fromDate, onClose, onCopy,
+}: {
+  fromDate: string
+  onClose: () => void
+  onCopy: (toDate: string) => Promise<void>
+}) {
+  // Default the target to the same day next week — the most common "repeat".
+  const defaultTarget = useMemo(() => {
+    const d = parseLocalDate(fromDate)
+    d.setDate(d.getDate() + 7)
+    return toLocalDateStr(d)
+  }, [fromDate])
+  const [toDate, setToDate] = useState(defaultTarget)
+  const [saving, setSaving] = useState(false)
+  const keyboardInset = useKeyboardInset()
+  const fromLabel = parseLocalDate(fromDate).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  async function handleCopy() {
+    setSaving(true)
+    await onCopy(toDate)
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.4)' }} />
+      <div className="sheet-panel" style={{
+        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 100,
+        background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
+        boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',
+        padding: '1rem 1.25rem calc(1rem + env(safe-area-inset-bottom))',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        </div>
+        <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '1.05rem' }}>Copy this day</p>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+          Everything showing on <strong>{fromLabel}</strong> will be copied to the date you choose, as one-off items.
+        </p>
+
+        <div className="field" style={{ marginBottom: '1rem' }}>
+          <label>Copy to</label>
+          <input className="input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.6rem' }}>
+          <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleCopy} disabled={saving || toDate === fromDate} style={{ flex: 2 }}>
+            {saving ? <span className="spinner" /> : 'Copy day'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+

@@ -10,6 +10,7 @@ export const CATEGORY_META: Record<ScheduleCategory, { label: string; emoji: str
   personal_care: { label: 'Personal care', emoji: '🛁', color: 'var(--color-sky)',        badge: 'badge-sky' },
   social:        { label: 'Social',        emoji: '👋', color: 'var(--color-lavender)',   badge: 'badge-lavender' },
   appointment:   { label: 'Appointment',   emoji: '📅', color: 'var(--color-rose)',       badge: 'badge-rose' },
+  transport:     { label: 'Transport',     emoji: '🚌', color: 'var(--color-teal)',       badge: 'badge-teal' },
   other:         { label: 'Other',         emoji: '⭐', color: 'var(--color-muted)',      badge: 'badge-muted' },
 }
 
@@ -57,6 +58,21 @@ export function occursOnDate(item: Pick<ScheduleItem, 'recurrence' | 'specific_d
   return (item.days_of_week ?? []).includes(dow)
 }
 
+/** Stable key for a single occurrence — used to look an item up in a set of
+ * "skipped" (removed-for-that-day) occurrences. */
+export function skipKey(scheduleItemId: string, dateStr: string) {
+  return `${scheduleItemId}|${dateStr}`
+}
+
+/** Occurs on the date AND hasn't been skipped for that date. */
+export function occursOnDateActive(
+  item: Pick<ScheduleItem, 'id' | 'recurrence' | 'specific_date' | 'days_of_week'>,
+  dateStr: string,
+  skips?: Set<string>,
+) {
+  return occursOnDate(item, dateStr) && !(skips?.has(skipKey(item.id, dateStr)) ?? false)
+}
+
 export type ItemStatus = 'current' | 'next' | 'upcoming' | 'past'
 
 /** Live status of an item, only meaningful when viewing today. */
@@ -91,9 +107,9 @@ export function itemDiskFraction(item: Pick<ScheduleItem, 'start_time' | 'end_ti
 }
 
 /** Finds today's current item (if any) and the next upcoming one from a client's active schedule items. */
-export function findCurrentAndNext(items: ScheduleItem[], todayStr: string, nowMinutes: number) {
+export function findCurrentAndNext(items: ScheduleItem[], todayStr: string, nowMinutes: number, skips?: Set<string>) {
   const dayItems = items
-    .filter((i) => occursOnDate(i, todayStr))
+    .filter((i) => occursOnDateActive(i, todayStr, skips))
     .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
   const current = dayItems.find((i) => getItemStatus(i, nowMinutes) === 'current')
   const next = dayItems.find((i) => getItemStatus(i, nowMinutes) === 'upcoming')
