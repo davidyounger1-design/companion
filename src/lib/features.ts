@@ -30,3 +30,25 @@ export const FEATURES = {
   recipientLogin: 'recipient_login',
   moodTracking: 'mood_tracking',
 } as const
+
+/**
+ * Retention window (in days) for the current subscription, parsed from a
+ * `retention_<n>` feature (e.g. `retention_30`). Assign such a feature to a
+ * plan in MAB to cap how long journal entries are kept; omit it to keep
+ * entries forever.
+ *
+ * FAIL SAFE: returns null (= keep forever, never delete) when no retention
+ * feature is present — including while features are loading or on any error.
+ * If several are somehow assigned, the most restrictive (smallest) wins.
+ * Data is only ever purged when a positive window is explicitly present.
+ */
+export function retentionDaysFromFeatures(features: Set<string>): number | null {
+  let days: number | null = null
+  for (const key of features) {
+    const m = /^retention_(\d+)$/.exec(key)
+    if (!m) continue
+    const n = parseInt(m[1], 10)
+    if (n > 0 && (days === null || n < days)) days = n
+  }
+  return days
+}

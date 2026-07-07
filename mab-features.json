@@ -4,5 +4,6 @@
   { "key": "ndis_exports", "name": "NDIS-ready exports" },
   { "key": "provider_dashboard", "name": "Provider dashboard" },
   { "key": "recipient_login", "name": "Care-recipient login" },
-  { "key": "mood_tracking", "name": "Mood check-ins" }
+  { "key": "mood_tracking", "name": "Mood check-ins" },
+  { "key": "retention_30", "name": "30-day journal retention" }
 ]
