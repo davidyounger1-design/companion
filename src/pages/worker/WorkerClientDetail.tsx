@@ -9,6 +9,8 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import MoodSlider from '../../components/MoodSlider'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 import Lightbox from '../../components/Lightbox'
 import EntryComments from '../../components/EntryComments'
 import EntryReactions from '../../components/EntryReactions'
@@ -67,6 +69,8 @@ function MediaCell({ path }: { path: string }) {
 export default function WorkerClientDetail() {
   const { clientId } = useParams<{ clientId: string }>()
   const { user, profile } = useAuth()
+  const { has } = useFeatures()
+  const showMood = has(FEATURES.moodTracking)
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -298,7 +302,7 @@ export default function WorkerClientDetail() {
           <p style={{ fontWeight: 700, marginBottom: '1rem', fontSize: '0.95rem' }}>New log entry</p>
 
           <div className="log-type-grid" style={{ marginBottom: '1rem' }}>
-            {LOG_TYPES.map(({ type, icon, label }) => (
+            {LOG_TYPES.filter((t) => showMood || t.type !== 'mood').map(({ type, icon, label }) => (
               <button key={type} type="button"
                 className={`log-type-btn${selectedType === type ? ' selected' : ''}`}
                 onClick={() => setSelectedType(type)}>
@@ -330,7 +334,7 @@ export default function WorkerClientDetail() {
               />
             </div>
 
-            <MoodSlider value={newMood} onChange={setNewMood} />
+            {showMood && <MoodSlider value={newMood} onChange={setNewMood} />}
 
             <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={pickMedia} />
             {preview ? (
@@ -404,7 +408,7 @@ export default function WorkerClientDetail() {
                 return (
                   <div key={log.id} className="card card-sm" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <div className="log-type-grid">
-                      {LOG_TYPES.map(({ type, icon, label }) => (
+                      {LOG_TYPES.filter((t) => showMood || t.type !== 'mood').map(({ type, icon, label }) => (
                         <button key={type} type="button"
                           className={`log-type-btn${editType === type ? ' selected' : ''}`}
                           onClick={() => setEditType(type)}>
@@ -415,6 +419,7 @@ export default function WorkerClientDetail() {
                     <textarea className="input" rows={2} value={editLabel}
                       onChange={(e) => setEditLabel(e.target.value)}
                       autoFocus style={{ resize: 'vertical' }} />
+                    {showMood && (
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
                         <label style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Mood rating</label>
@@ -428,6 +433,7 @@ export default function WorkerClientDetail() {
                         <span>😊</span>
                       </div>
                     </div>
+                    )}
                     {updateLog.isError && (
                       <div className="alert alert-error" style={{ fontSize: '0.8rem' }}>
                         {updateLog.error instanceof Error ? updateLog.error.message : 'Could not save.'}
@@ -461,7 +467,7 @@ export default function WorkerClientDetail() {
                         <> · <AiBadge reason={log.ai_reason} /></>
                       )}
                     </p>
-                    <MoodBar score={log.mood_score} />
+                    {showMood && <MoodBar score={log.mood_score} />}
                     {log.photo_path && <MediaCell path={log.photo_path} />}
                     <EntryReactions entryId={log.id} />
                     <EntryComments entryId={log.id} clientId={log.client_id} orgId={log.org_id} />
