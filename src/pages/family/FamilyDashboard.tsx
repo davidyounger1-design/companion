@@ -15,7 +15,7 @@ import { MobileFooter } from '../../components/SiteFooter'
 import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { useFeatures } from '../../hooks/useFeatures'
-import { FEATURES } from '../../lib/features'
+import { FEATURES, retentionDaysFromFeatures } from '../../lib/features'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
 import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
@@ -37,11 +37,9 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
 }
 
-const RETENTION_DAYS = 30
-
-function daysUntilExpiry(occurredAt: string): number {
+function daysUntilExpiry(occurredAt: string, retentionDays: number): number {
   const elapsed = Math.floor((Date.now() - new Date(occurredAt).getTime()) / 86_400_000)
-  return RETENTION_DAYS - elapsed
+  return retentionDays - elapsed
 }
 
 function ExpiryChip({ daysLeft }: { daysLeft: number }) {
@@ -602,7 +600,6 @@ export default function FamilyDashboard() {
   const { user, profile, org } = useAuth()
   const qc = useQueryClient()
 
-  const isFamilyPlan = org?.plan === 'family'
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const isRecipient = profile?.role === 'recipient'
@@ -616,6 +613,10 @@ export default function FamilyDashboard() {
   // FLIP TO STRICT once check-features is confirmed: `showMood = has(...)`.
   const { features, has: hasFeature } = useFeatures()
   const showMood = features.size === 0 || hasFeature(FEATURES.moodTracking)
+  // Retention is a plan entitlement (`retention_<n>` from MAB), not tied to the
+  // family plan. null = keep entries forever. FAIL SAFE: while features load or
+  // on any error this is null, so nothing is ever purged on uncertainty.
+  const retentionDays = retentionDaysFromFeatures(features)
   const { canInstall, isIOS, isAndroid, hasPrompt, install } = useInstallPrompt()
   const { permission: pushPermission, subscribing, subscribe } = usePushNotifications()
   const [showIOSTip, setShowIOSTip] = useState(false)
@@ -681,11 +682,11 @@ export default function FamilyDashboard() {
   }
 
   const retentionCutoff = useMemo(() => {
-    if (!isFamilyPlan) return null
-    const d = new Date(Date.now() - RETENTION_DAYS * 86_400_000)
+    if (retentionDays == null) return null
+    const d = new Date(Date.now() - retentionDays * 86_400_000)
     d.setHours(0, 0, 0, 0)
     return d.toISOString()
-  }, [isFamilyPlan])
+  }, [retentionDays])
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['family-journal', clientId, retentionCutoff],
@@ -818,15 +819,18 @@ export default function FamilyDashboard() {
     return () => { supabase.removeChannel(ch) }
   }, [clientId, qc])
 
-  // Delete expired entries (+ their photos) for free Family plan — once per session per client
+  // Delete expired entries (+ their photos) when the plan has a finite
+  // retention window — once per session per client. FAIL SAFE: only runs when
+  // retentionDays is a positive number, so an unknown/errored entitlement
+  // (retentionDays == null = keep forever) never deletes anything.
   useEffect(() => {
-    if (!isFamilyPlan || !clientId) return
+    if (retentionDays == null || retentionDays <= 0 || !clientId) return
     const key = `retention-cleanup-${clientId}`
     if (sessionStorage.getItem(key)) return
     sessionStorage.setItem(key, '1')
 
     async function runCleanup() {
-      const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000).toISOString()
+      const cutoff = new Date(Date.now() - retentionDays! * 86_400_000).toISOString()
       const { data: expired } = await supabase
         .from('log_entries')
         .select('id, photo_path')
@@ -843,7 +847,7 @@ export default function FamilyDashboard() {
     }
 
     runCleanup()
-  }, [isFamilyPlan, clientId, qc])
+  }, [retentionDays, clientId, qc])
 
   // Tick every second while any own entry is still within the 60s window
   const hasRecentOwn = entries.some(
@@ -1031,7 +1035,7 @@ export default function FamilyDashboard() {
                 <EntryCard key={e.id} entry={e} showAuthor={true} showMood={!isRecipient}
                   canEdit={isOwnEntry} canShare={canShare}
                   canDeleteOwn={canDeleteOwn} now={now}
-                  expiryDays={isFamilyPlan ? daysUntilExpiry(e.occurred_at) : undefined}
+                  expiryDays={retentionDays != null ? daysUntilExpiry(e.occurred_at, retentionDays) : undefined}
                   onEdit={setEditingEntry} onDelete={deleteOwnEntry} />
               )
             })}
