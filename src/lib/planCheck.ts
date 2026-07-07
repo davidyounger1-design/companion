@@ -19,12 +19,11 @@ export async function checkPlan(): Promise<PlanInfo> {
 
 export const FAMILY_PLAN = 'companion_family'
 
-// Every family-tier MAB plan behaves the same way in the app (family org,
-// one recipient, unlimited members). Free `companion_family` and the paid
-// flat-fee `companion_family_plus` both onboard as a family org. Add future
-// family tiers here so signup routing recognises them.
-const FAMILY_PLANS = new Set([FAMILY_PLAN, 'companion_family_plus'])
-
+// Any MAB plan whose id starts with `companion_family` is a family-tier plan:
+// the free `companion_family`, the paid flat-fee `companion_family_plus`, and
+// any future family tiers. They all behave identically in the app (family org,
+// one recipient, unlimited members). Naming a plan with this prefix in MAB is
+// what marks it as family — no app change is needed to add more.
 export function isFamilyPlan(plan: string | null): boolean {
-  return plan != null && FAMILY_PLANS.has(plan)
+  return plan != null && plan.startsWith(FAMILY_PLAN)
 }

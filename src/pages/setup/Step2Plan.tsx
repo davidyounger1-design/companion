@@ -42,7 +42,7 @@ export default function Step2Plan() {
     // and fallback. The plan picker just drops the free & enterprise tiers.
     fetchCatalog().then(catalog => {
       const appPlans = catalog
-        .filter(p => p.id !== 'companion_family' && p.id !== 'companion_family_plus' && p.id !== 'companion_enterprise')
+        .filter(p => !p.id.startsWith('companion_family') && p.id !== 'companion_enterprise')
         .map((p): Plan => ({
           id: p.id,
           name: p.name,
