@@ -33,20 +33,47 @@ Deno.serve(async (req) => {
     // features; fall back to the service key server-side if not separately set.
     const readKey = Deno.env.get('MAB_PUBLISHABLE_KEY') || serviceKey
 
-    // 1. Resolve the caller's subscription from their email (same lookup as
-    //    check-plan — we never trust a client-supplied subscription id).
-    const subRes = await fetch(
-      `${mabUrl}/api/v1/apps/companion/subscription/check?email=${encodeURIComponent(user.email)}`,
-      { headers: { Authorization: `Bearer ${serviceKey}` } },
-    )
-    if (!subRes.ok) return json({ features: [], plan: null, status: null })
-    const sub = await subRes.json()
-    const subscriptionId: string | null = sub?.subscription_id ?? null
-    const plan: string | null = sub?.plan ?? null
-    const status: string | null = sub?.status ?? null
+    let subscriptionId: string | null = null
+    let plan: string | null = null
+    let status: string | null = null
 
-    if (!subscriptionId || !['active', 'trialing'].includes(status ?? '')) {
-      return json({ features: [], plan, status })
+    // 1a. Prefer the caller's ORG subscription, so every member of an org
+    //     (workers, family, recipient — not just the account owner) resolves
+    //     the same entitlements. Read it with the service role so RLS can't
+    //     hide the org from a non-owner member.
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+    const { data: profile } = await admin
+      .from('profiles').select('org_id').eq('id', user.id).maybeSingle()
+    if (profile?.org_id) {
+      const { data: org } = await admin
+        .from('organisations')
+        .select('myappbuddy_subscription_id, billing_status')
+        .eq('id', profile.org_id)
+        .maybeSingle()
+      if (org?.myappbuddy_subscription_id && ['active', 'trial', 'trialing'].includes(org.billing_status ?? '')) {
+        subscriptionId = org.myappbuddy_subscription_id
+        status = org.billing_status ?? null
+      }
+    }
+
+    // 1b. Fallback: resolve by the caller's own email (account owner, or an org
+    //     without a stored subscription id yet).
+    if (!subscriptionId) {
+      const subRes = await fetch(
+        `${mabUrl}/api/v1/apps/companion/subscription/check?email=${encodeURIComponent(user.email)}`,
+        { headers: { Authorization: `Bearer ${serviceKey}` } },
+      )
+      if (!subRes.ok) return json({ features: [], plan: null, status: null })
+      const sub = await subRes.json()
+      subscriptionId = sub?.subscription_id ?? null
+      plan = sub?.plan ?? null
+      status = sub?.status ?? null
+      if (!subscriptionId || !['active', 'trialing', 'trial'].includes(status ?? '')) {
+        return json({ features: [], plan, status })
+      }
     }
 
     // 2. Ask the hub which features this subscription includes.

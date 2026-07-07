@@ -19,7 +19,10 @@ export function useFeatures() {
     queryKey: ['mab-features', user?.id],
     queryFn: fetchFeatures,
     enabled: !!user,
-    staleTime: 5 * 60_000,
+    // Short stale window + refetch on focus so plan/entitlement changes made in
+    // MAB show up within about a minute (or on next focus), not cached for long.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
   })
 
   return {

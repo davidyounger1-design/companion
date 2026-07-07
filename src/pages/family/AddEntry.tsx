@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import MoodSlider from '../../components/MoodSlider'
 import { encryptFile, mimeFromPath } from '../../lib/photoEncryption'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 
 type EntryType = 'meal' | 'activity' | 'mood' | 'note'
 
@@ -26,6 +28,8 @@ function isVideo(file: File) {
 export default function AddEntry() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const { has } = useFeatures()
+  const showMood = has(FEATURES.moodTracking)
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -145,7 +149,7 @@ export default function AddEntry() {
 
         {/* Type selector */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
-          {TYPES.map((t) => (
+          {TYPES.filter((t) => showMood || t.key !== 'mood').map((t) => (
             <button key={t.key} type="button" onClick={() => setType(t.key)} style={{
               padding: '1rem', borderRadius: 12,
               border: `2px solid ${type === t.key ? 'var(--color-primary)' : 'var(--color-border)'}`,
@@ -174,7 +178,7 @@ export default function AddEntry() {
         </div>
 
         {/* Mood slider */}
-        <MoodSlider value={moodScore} onChange={setMoodScore} />
+        {showMood && <MoodSlider value={moodScore} onChange={setMoodScore} />}
 
         {/* Media picker */}
         <input ref={fileRef} type="file" accept="image/*,video/*"
