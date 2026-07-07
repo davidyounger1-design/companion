@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useClientId } from '../hooks/useClientId'
+import { useScheduleSkips } from '../hooks/useScheduleSkips'
 import { CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown, findCurrentAndNext } from '../lib/schedule'
 import { formatDuration } from '../lib/timer'
 import type { ScheduleItem, ActiveTimer } from '../types/database'
@@ -24,6 +25,7 @@ export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: b
   const location = useLocation()
   const { profile } = useAuth()
   const { clientId } = useClientId()
+  const skips = useScheduleSkips(clientId)
   const [now, setNow] = useState(() => Date.now())
 
   const isRecipient = profile?.role === 'recipient'
@@ -108,7 +110,7 @@ export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: b
 
   const todayStr = toLocalDateStr(new Date())
   const nowMinutes = new Date(now).getHours() * 60 + new Date(now).getMinutes()
-  const { current, next } = findCurrentAndNext(items, todayStr, nowMinutes)
+  const { current, next } = findCurrentAndNext(items, todayStr, nowMinutes, skips)
   const item = current ?? next
   if (!item) return null
 

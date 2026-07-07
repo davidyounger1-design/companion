@@ -198,6 +198,20 @@ export function SocialIcon({ size = 18 }: IconProps) {
   )
 }
 
+export function TransportIcon({ size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 17V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+      <path d="M6 21v-2M18 21v-2" />
+      <circle cx="8" cy="15" r="1" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="15" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 export function OtherCategoryIcon({ size = 18 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -247,5 +261,6 @@ export const CATEGORY_ICONS: Record<ScheduleCategory, (props: IconProps) => Reac
   personal_care: PersonalCareIcon,
   social: SocialIcon,
   appointment: ScheduleIcon,
+  transport: TransportIcon,
   other: OtherCategoryIcon,
 }

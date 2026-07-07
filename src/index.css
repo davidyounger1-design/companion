@@ -17,6 +17,7 @@
   --color-sky:         #5b8ba8;
   --color-lavender:    #8a76b0;
   --color-rose:        #c06a87;
+  --color-teal:        #3f8f86;
 
   /* Semantic aliases. Primary/radius/fonts consume the MAB platform branding
      vars (--accent / --r* / --ff-*) when present, falling back to the built-in
@@ -694,6 +695,7 @@ select.input {
 .badge-sky      { background: color-mix(in srgb, var(--color-sky) 15%, transparent);      color: #2f5871; }
 .badge-lavender { background: color-mix(in srgb, var(--color-lavender) 15%, transparent); color: #574a80; }
 .badge-rose     { background: color-mix(in srgb, var(--color-rose) 15%, transparent);     color: #8a3a54; }
+.badge-teal     { background: color-mix(in srgb, var(--color-teal) 15%, transparent);     color: #256058; }
 
 /* ── Toast / alert ─────────────────────────────────────────────── */
 .alert {

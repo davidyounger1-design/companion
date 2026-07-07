@@ -28,4 +28,5 @@ export const FEATURES = {
   ndisExports: 'ndis_exports',
   providerDashboard: 'provider_dashboard',
   recipientLogin: 'recipient_login',
+  moodTracking: 'mood_tracking',
 } as const
