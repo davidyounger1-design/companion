@@ -19,6 +19,12 @@ export async function checkPlan(): Promise<PlanInfo> {
 
 export const FAMILY_PLAN = 'companion_family'
 
+// Every family-tier MAB plan behaves the same way in the app (family org,
+// one recipient, unlimited members). Free `companion_family` and the paid
+// flat-fee `companion_family_plus` both onboard as a family org. Add future
+// family tiers here so signup routing recognises them.
+const FAMILY_PLANS = new Set([FAMILY_PLAN, 'companion_family_plus'])
+
 export function isFamilyPlan(plan: string | null): boolean {
-  return plan === FAMILY_PLAN
+  return plan != null && FAMILY_PLANS.has(plan)
 }
