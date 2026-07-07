@@ -1,0 +1,7 @@
+[
+  { "key": "behaviour_notes", "name": "Behaviour notes" },
+  { "key": "therapy_circles", "name": "Therapist sharing & care circles" },
+  { "key": "ndis_exports", "name": "NDIS-ready exports" },
+  { "key": "provider_dashboard", "name": "Provider dashboard" },
+  { "key": "recipient_login", "name": "Care-recipient login" }
+]

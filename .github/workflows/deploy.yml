@@ -30,3 +30,24 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # Declare this app's candidate features to MyAppBuddy (the single source of
+      # truth for which plan includes which feature). Idempotent: known keys are
+      # a no-op; a brand-new key is created "included in no plan" and waits for an
+      # admin to assign it to tiers. Self-skips if the publish key isn't set, and
+      # never fails the deploy.
+      - name: Publish feature manifest to MyAppBuddy
+        env:
+          MAB_PUBLISH_KEY: ${{ secrets.MAB_PUBLISH_KEY }}
+        run: |
+          if [ -z "${MAB_PUBLISH_KEY}" ]; then
+            echo "MAB_PUBLISH_KEY not set — skipping feature manifest publish."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            "https://myappbuddy.com.au/api/v1/apps/companion/features/publish" \
+            -H "Authorization: Bearer ${MAB_PUBLISH_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"features\": $(cat mab-features.json)}" \
+            && echo "Feature manifest published." \
+            || echo "Feature manifest publish failed (non-fatal — deploy already shipped)."
