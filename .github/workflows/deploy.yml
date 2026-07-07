@@ -44,18 +44,10 @@ jobs:
             echo "MAB_PUBLISH_KEY not set — skipping feature manifest publish."
             exit 0
           fi
-          echo "=== Manifest being sent ==="
-          cat mab-features.json
-          echo ""
-          echo "=== POST /api/v1/apps/companion/features/publish ==="
-          http_code=$(curl -sS -o /tmp/pub_resp.txt -w "%{http_code}" -X POST \
+          curl -fsS -X POST \
             "https://myappbuddy.com.au/api/v1/apps/companion/features/publish" \
             -H "Authorization: Bearer ${MAB_PUBLISH_KEY}" \
             -H "Content-Type: application/json" \
-            -d "{\"features\": $(cat mab-features.json)}")
-          echo "HTTP status: ${http_code}"
-          echo "=== Response body ==="
-          cat /tmp/pub_resp.txt || true
-          echo ""
-          echo "=== DIAGNOSTIC: forcing step to fail so the above is captured in logs ==="
-          exit 1
+            -d "{\"features\": $(cat mab-features.json)}" \
+            && echo "Feature manifest published." \
+            || echo "Feature manifest publish failed (non-fatal — deploy already shipped)."
