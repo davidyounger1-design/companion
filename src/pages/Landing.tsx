@@ -1,10 +1,43 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { isStandalone } from '../lib/pwa'
 import { roleHome } from '../lib/roleHome'
+import { fetchCatalog, type CatalogPlan } from '../lib/catalog'
 import artGroupPhoto from '../assets/landing-art-group.jpg'
+
+// Turn a catalog plan into the marketing pricing card, honouring the billing
+// toggle. Price framing (free / trial / talk-to-us) is derived from the plan's
+// shape, not hard-coded per plan name.
+interface PricingCard {
+  name: string
+  desc: string
+  price: number | null   // dollars/mo for the chosen interval; null = free
+  perSeat: boolean
+  features: string[]
+  cta: string
+  highlight: boolean
+  ctaTo: string
+  ctaDemo: boolean
+}
+
+function toCard(p: CatalogPlan, billing: 'monthly' | 'annual'): PricingCard {
+  const free = !p.priceMonth
+  const monthCents = billing === 'annual' && p.priceYear ? p.priceYear / 12 : p.priceMonth ?? 0
+  const price = free ? null : Math.round(monthCents / 100)
+  return {
+    name: p.name,
+    desc: p.blurb,
+    price,
+    perSeat: p.perSeat,
+    features: p.features,
+    highlight: p.popular,
+    cta: free ? 'Get started free' : p.perSeat ? 'Talk to us' : 'Start free trial',
+    ctaTo: free ? '/sign-up?plan=family' : p.perSeat ? '/' : '/sign-up',
+    ctaDemo: p.perSeat,
+  }
+}
 
 // ─── Phone mockup component ───────────────────────────────────────────────────
 
@@ -129,6 +162,13 @@ export default function Landing() {
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly')
   const [form, setForm] = useState({ name: '', email: '', org: '' })
   const [status, setStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle')
+  const [catalog, setCatalog] = useState<CatalogPlan[]>([])
+
+  // Pricing comes from the shared hub catalog (single display source), same as
+  // the in-app plan picker. Enterprise is excluded from the public table.
+  useEffect(() => {
+    fetchCatalog().then(c => setCatalog(c.filter(p => p.id !== 'companion_enterprise')))
+  }, [])
 
   // Launched as an installed PWA while signed in? Skip the marketing page and
   // go straight into the app. In a normal browser tab we leave the marketing
@@ -149,45 +189,6 @@ export default function Landing() {
     })
     setStatus(error ? 'error' : 'done')
   }
-
-  const plans = [
-    {
-      name: 'Family',
-      price: null as number | null,
-      cap: 'for families & guardians',
-      desc: 'Stay connected to your loved one\'s care — forever free.',
-      features: ['Daily digest & timeline', 'Conversation starters', 'Messaging with the team', 'Control who sees what', "A login for your loved one, if they'd like one"],
-      cta: 'Get started free',
-      highlight: false,
-    },
-    {
-      name: 'Solo',
-      price: billing === 'monthly' ? 29 : 24,
-      cap: '3 participants',
-      desc: 'Perfect for sole traders and tiny teams.',
-      features: ['3 active participants', 'Unlimited workers', 'Family digest', 'Behaviour notes', 'NDIS-ready records'],
-      cta: 'Start free trial',
-      highlight: false,
-    },
-    {
-      name: 'Starter',
-      price: billing === 'monthly' ? 49 : 41,
-      cap: '10 participants',
-      desc: 'For growing providers with a proper team.',
-      features: ['10 active participants', 'Unlimited workers', 'Everything in Solo', 'Shared therapy circles', 'Priority support'],
-      cta: 'Start free trial',
-      highlight: true,
-    },
-    {
-      name: 'Team',
-      price: billing === 'monthly' ? 7 : 6,
-      cap: 'per participant / mo',
-      desc: 'Scales with your caseload — no cap.',
-      features: ['Unlimited participants', 'Unlimited workers', 'Everything in Starter', 'Usage billing (NDIS-ready)', 'Dedicated onboarding'],
-      cta: 'Talk to us',
-      highlight: false,
-    },
-  ]
 
   return (
     <div style={{ fontFamily: 'var(--font-ui)', color: 'var(--color-ink)', background: 'var(--color-bg)' }}>
@@ -657,7 +658,7 @@ export default function Landing() {
 
           {/* Plan cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-            {plans.map(plan => (
+            {catalog.map(p => toCard(p, billing)).map(plan => (
               <div key={plan.name} style={{
                 background: plan.highlight ? 'var(--color-primary-deep)' : '#fff',
                 border: plan.highlight ? 'none' : '1.5px solid rgba(47,44,38,0.1)',
@@ -691,7 +692,7 @@ export default function Landing() {
                   </span>
                   {plan.price !== null && (
                     <span style={{ fontSize: '0.875rem', color: plan.highlight ? 'rgba(255,255,255,0.65)' : 'var(--color-muted)', marginLeft: 4 }}>
-                      {plan.name === 'Team' ? '/ participant / mo' : '/ mo'}
+                      {plan.perSeat ? '/ participant / mo' : '/ mo'}
                     </span>
                   )}
                 </div>
@@ -707,8 +708,8 @@ export default function Landing() {
                   ))}
                 </ul>
                 <Link
-                  to={plan.name === 'Team' ? '/' : plan.name === 'Family' ? '/sign-up?plan=family' : '/sign-up'}
-                  onClick={plan.name === 'Team' ? (e) => { e.preventDefault(); document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }) } : undefined}
+                  to={plan.ctaTo}
+                  onClick={plan.ctaDemo ? (e) => { e.preventDefault(); document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }) } : undefined}
                   state={undefined}
                   style={{
                     display: 'block',

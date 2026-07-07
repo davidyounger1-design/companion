@@ -2,25 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { fetchCatalog } from '../../lib/catalog'
 
-const CATALOG_URL = 'https://myappbuddy.com.au/api/v1/catalog'
 const CHECKOUT_URL = 'https://myappbuddy.com.au/api/v1/checkout'
-const APP_ID = 'companion'
-
-interface CatalogPlan {
-  id: string
-  appId: string
-  name: string
-  blurb: string
-  priceMonth: number | null
-  priceYear: number | null
-  perSeat: boolean
-  popular: boolean
-  features: string[]
-  sort?: number
-  archived?: boolean
-  hidden?: boolean
-}
 
 interface Plan {
   id: string
@@ -54,32 +38,23 @@ export default function Step2Plan() {
   const [orgId, setOrgId] = useState<string | null>(profile?.org_id ?? null)
 
   useEffect(() => {
-    fetch(`${CATALOG_URL}?app=${APP_ID}&currency=AUD`)
-      .then(r => r.json())
-      .then((data: { plans: CatalogPlan[] }) => {
-        const appPlans = (data.plans ?? [])
-          .filter(p => p.appId === APP_ID && !p.archived && !p.hidden)
-          .filter(p => p.id !== 'companion_family' && p.id !== 'companion_enterprise')
-          .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-          .map((p): Plan => ({
-            id: p.id,
-            name: p.name,
-            priceMonthCents: p.priceMonth ?? 0,
-            priceYearCents: p.priceYear && p.priceYear > 0 ? p.priceYear : null,
-            perSeat: p.perSeat,
-            sub: p.blurb,
-            features: p.features,
-            featured: p.popular,
-          }))
-        setPlans(appPlans)
-      })
-      .catch(() => {
-        setPlans([
-          { id: 'companion_solo',    name: 'Solo',    priceMonthCents: 2900,  priceYearCents: 29200, perSeat: false, sub: 'Up to 3 participants',  features: ['3 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes'], featured: false },
-          { id: 'companion_starter', name: 'Starter', priceMonthCents: 4900,  priceYearCents: null,  perSeat: false, sub: 'Up to 10 participants', features: ['10 active participants', 'Unlimited workers & family', 'Daily digest', 'Behaviour notes', 'Provider dashboard'], featured: true },
-          { id: 'companion_team',    name: 'Team',    priceMonthCents: 700,   priceYearCents: 7056,  perSeat: true,  sub: 'Unlimited, per seat',   features: ['Unlimited participants', 'NDIS exports', 'Incident workflows', 'Priority support'], featured: false },
-        ])
-      })
+    // Single display source: the shared catalog (lib/catalog) owns the fetch
+    // and fallback. The plan picker just drops the free & enterprise tiers.
+    fetchCatalog().then(catalog => {
+      const appPlans = catalog
+        .filter(p => p.id !== 'companion_family' && p.id !== 'companion_enterprise')
+        .map((p): Plan => ({
+          id: p.id,
+          name: p.name,
+          priceMonthCents: p.priceMonth ?? 0,
+          priceYearCents: p.priceYear && p.priceYear > 0 ? p.priceYear : null,
+          perSeat: p.perSeat,
+          sub: p.blurb,
+          features: p.features,
+          featured: p.popular,
+        }))
+      setPlans(appPlans)
+    })
   }, [])
 
   useEffect(() => {
