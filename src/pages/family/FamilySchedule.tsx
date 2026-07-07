@@ -10,6 +10,7 @@ import FamilyBottomNav from '../../components/FamilyBottomNav'
 import { MobileFooter } from '../../components/SiteFooter'
 import ScheduleItemNotes from '../../components/ScheduleItemNotes'
 import MiniDisk from '../../components/MiniDisk'
+import TimeField from '../../components/TimeField'
 import SegmentedControl from '../../components/SegmentedControl'
 import UpNextHero from '../../components/UpNextHero'
 import { ScheduleIcon, BackIcon, EditIcon, TrashIcon, PlusIcon, CheckIcon, CATEGORY_ICONS } from '../../components/icons'
@@ -704,14 +705,14 @@ function ScheduleItemForm({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          <div className="field" style={{ flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <div className="field">
             <label>Start time</label>
-            <input className="input" type="time" step={300} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <TimeField value={startTime} onChange={setStartTime} />
           </div>
-          <div className="field" style={{ flex: 1 }}>
+          <div className="field">
             <label>End time (optional)</label>
-            <input className="input" type="time" step={300} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <TimeField value={endTime} onChange={setEndTime} optional />
           </div>
         </div>
 
