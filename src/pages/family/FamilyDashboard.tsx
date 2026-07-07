@@ -16,6 +16,7 @@ import type { LogType } from '../../types/database'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES, retentionDaysFromFeatures } from '../../lib/features'
+import { ensureFreeFamilySubscription } from '../../lib/familyPlan'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
 import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
@@ -814,6 +815,20 @@ export default function FamilyDashboard() {
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [clientId, qc])
+
+  // Backfill: a free family org created before we registered subscriptions has
+  // no MAB subscription, so its entitlements can't resolve. The owner
+  // (coordinator) registers the free plan once — new signups already do this at
+  // setup, so this only fires for pre-existing orgs.
+  useEffect(() => {
+    if (!isCoordinator || org?.org_type !== 'family') return
+    if (org?.myappbuddy_subscription_id || !org?.id || !user?.email) return
+    const key = `family-sub-backfill-${org.id}`
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+    ensureFreeFamilySubscription({ email: user.email, name: profile?.full_name ?? '', orgId: org.id })
+      .then(() => qc.invalidateQueries({ queryKey: ['mab-features'] }))
+  }, [isCoordinator, org?.org_type, org?.myappbuddy_subscription_id, org?.id, user?.email, profile?.full_name, qc])
 
   // Delete expired entries (+ their photos) when the plan has a finite
   // retention window — once per session per client. FAIL SAFE: only runs when
