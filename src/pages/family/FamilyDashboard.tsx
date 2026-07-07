@@ -211,10 +211,11 @@ function EntryCard({
 }
 
 function EditEntryModal({
-  entry, canDelete, onSave, onDelete, onClose,
+  entry, canDelete, showMood, onSave, onDelete, onClose,
 }: {
   entry: EntryWithAuthor
   canDelete: boolean
+  showMood: boolean
   onSave: (id: string, label: string, type: LogType, moodScore: number) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onClose: () => void
@@ -245,7 +246,7 @@ function EditEntryModal({
         <p style={{ fontWeight: 600, marginBottom: '1rem' }}>Edit entry</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
-          {LOG_TYPES.map(({ type, icon, label }) => (
+          {LOG_TYPES.filter(t => showMood || t.type !== 'mood').map(({ type, icon, label }) => (
             <button key={type} type="button"
               className={`log-type-btn${editType === type ? ' selected' : ''}`}
               onClick={() => setEditType(type)}>
@@ -259,6 +260,7 @@ function EditEntryModal({
             onChange={(e) => setEditLabel(e.target.value)} autoFocus style={{ resize: 'vertical' }} />
         </div>
 
+        {showMood && (
         <div style={{ marginBottom: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
             <label style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Mood rating</label>
@@ -272,6 +274,7 @@ function EditEntryModal({
             <span>😊</span>
           </div>
         </div>
+        )}
 
         {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>{error}</div>}
 
@@ -993,7 +996,7 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {!isRecipient && entries.length > 0 && <MoodChart entries={entries} />}
+        {showMood && !isRecipient && entries.length > 0 && <MoodChart entries={entries} />}
 
         {/* Date filter bar */}
         {entries.length > 0 && (
@@ -1043,7 +1046,7 @@ export default function FamilyDashboard() {
               const isOwnEntry = e.author_id === user?.id
               const canDeleteOwn = isOwnEntry && (now - new Date(e.created_at).getTime()) < 60_000
               return (
-                <EntryCard key={e.id} entry={e} showAuthor={true} showMood={!isRecipient}
+                <EntryCard key={e.id} entry={e} showAuthor={true} showMood={showMood && !isRecipient}
                   canEdit={isOwnEntry} canShare={canShare}
                   canDeleteOwn={canDeleteOwn} now={now}
                   expiryDays={retentionDays != null ? daysUntilExpiry(e.occurred_at, retentionDays) : undefined}
@@ -1138,6 +1141,7 @@ export default function FamilyDashboard() {
         <EditEntryModal
           entry={editingEntry}
           canDelete={isCoordinator}
+          showMood={showMood}
           onSave={saveEntryEdit}
           onDelete={deleteEntry}
           onClose={() => setEditingEntry(null)}
