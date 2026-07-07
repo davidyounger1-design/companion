@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { roleHome } from '../lib/roleHome'
+import { fetchCatalog } from '../lib/catalog'
 
 const PLAN_LABEL: Record<string, string> = {
   family: 'Family (free)',
@@ -18,7 +20,19 @@ const BILLING_LABEL: Record<string, { label: string; color: string; bg: string }
 
 export default function Account() {
   const navigate = useNavigate()
-  const { org, profile } = useAuth()
+  const { user, org, profile } = useAuth()
+  const [catalogName, setCatalogName] = useState<string | null>(null)
+
+  // Resolve the real plan name from the hub catalog by the org's plan id
+  // (e.g. companion_family_029 → "Family +"), so upgrades show correctly
+  // instead of the local 'family' sentinel.
+  useEffect(() => {
+    if (!org?.plan) return
+    fetchCatalog().then((plans) => {
+      const match = plans.find((p) => p.id === org.plan)
+      if (match) setCatalogName(match.name)
+    })
+  }, [org?.plan])
 
   // Only the coordinator (account owner) may view/change the subscription.
   // Other roles reaching /account directly are sent back to their home.
@@ -27,7 +41,10 @@ export default function Account() {
   }
 
   const billing = BILLING_LABEL[org?.billing_status ?? '']
-  const planLabel = PLAN_LABEL[org?.plan ?? ''] ?? (org?.plan ?? 'Unknown')
+  const planLabel = catalogName ?? PLAN_LABEL[org?.plan ?? ''] ?? (org?.plan ?? 'Unknown')
+  const pricingSrc = `https://myappbuddy.com.au/?embed=1&tab=pricing&app=companion`
+    + (user?.email ? `&email=${encodeURIComponent(user.email)}` : '')
+    + (profile?.full_name ? `&name=${encodeURIComponent(profile.full_name)}` : '')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--color-bg)' }}>
@@ -62,7 +79,7 @@ export default function Account() {
       <div style={{ flex: 1, minHeight: 0, padding: '0.75rem 1rem 0' }}>
         <p className="eyebrow" style={{ margin: '0 0 0.5rem' }}>Change plan</p>
         <iframe
-          src="https://myappbuddy.com.au/?embed=1&tab=pricing&app=companion"
+          src={pricingSrc}
           style={{ border: 'none', width: '100%', height: 'calc(100% - 1.5rem)', display: 'block', borderRadius: 8 }}
           title="Manage your Companion plan"
         />
