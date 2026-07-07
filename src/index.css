@@ -832,9 +832,10 @@ a { touch-action: manipulation; }
 .landing-nav-links {
   display: flex;
   gap: 2rem;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Normal flex item (not absolutely centered) so it can never overlap the
+     Sign in / Book a demo actions and swallow their taps — that was blocking
+     Sign in at ~800–900px widths (iPad portrait). */
+  margin: 0 auto;
 }
 
 .landing-phone-col {
@@ -856,8 +857,13 @@ a { touch-action: manipulation; }
     margin-bottom: 3rem;
     padding: 0 1.25rem;
   }
-  .landing-nav-links { display: none; }
   .landing-footer-grid { grid-template-columns: 1fr 1fr; gap: 2rem; }
+}
+
+/* Hide the centre nav links below ~900px so iPad portrait (~820–834px) shows a
+   clean logo + Sign in + Book a demo, with nothing able to cover the actions. */
+@media (max-width: 900px) {
+  .landing-nav-links { display: none; }
 }
 
 @media (max-width: 480px) {
