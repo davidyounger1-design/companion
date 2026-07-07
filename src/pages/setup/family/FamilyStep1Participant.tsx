@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { supabase } from '../../../lib/supabase'
+import { ensureFreeFamilySubscription } from '../../../lib/familyPlan'
 
 export default function FamilyStep1Participant() {
   const navigate = useNavigate()
-  const { user, refreshProfile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -15,10 +16,16 @@ export default function FamilyStep1Participant() {
     setSaving(true)
     setError('')
     try {
-      const { error: rpcError } = await supabase.rpc('setup_family_org', {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('setup_family_org', {
         p_participant_name: name.trim(),
       })
       if (rpcError) throw rpcError
+      // Register the free family plan as a real MAB subscription so its
+      // entitlements resolve like any other plan. Best-effort — don't block.
+      const orgId = (rpcData as { org_id?: string } | null)?.org_id
+      if (orgId && user.email) {
+        await ensureFreeFamilySubscription({ email: user.email, name: profile?.full_name ?? '', orgId })
+      }
       await refreshProfile()
       navigate('/setup/family/invite')
     } catch (e) {
