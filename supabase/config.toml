@@ -25,3 +25,14 @@ verify_enabled = true
 enabled = true
 uri = "https://oprsmhyvihrahxpfvdih.supabase.co/functions/v1/auth-email-hook"
 secrets = "env(SEND_EMAIL_HOOK_SECRET)"
+
+# These functions do their own auth (they read the Authorization header and
+# fail closed) and are called cross-origin from the browser, so the platform
+# JWT gate must be OFF — otherwise it 401s the CORS preflight before the
+# function runs. Deploy them with `--no-verify-jwt`; this records that intent
+# so a config-driven redeploy can't silently re-enable the gate.
+[functions.check-features]
+verify_jwt = false
+
+[functions.check-plan]
+verify_jwt = false
