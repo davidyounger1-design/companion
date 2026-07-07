@@ -605,14 +605,10 @@ export default function FamilyDashboard() {
   const isRecipient = profile?.role === 'recipient'
   const canShare = isCoordinator || isFamily || isRecipient
 
-  // TEMPORARY fail-OPEN gate for mood check-ins. The features pipeline
-  // (check-features) isn't verified live yet, so we must NOT hide an
-  // already-shipped feature on an empty/errored response. Rule: show mood
-  // unless the hub actually returned a feature list that omits it. An empty
-  // set means "pipeline down, loading, or plan not configured" → show.
-  // FLIP TO STRICT once check-features is confirmed: `showMood = has(...)`.
+  // Strict, fail-closed mood gate: mood shows only when the plan's entitlements
+  // include mood_tracking. Free family (no mood entitlement) → hidden.
   const { features, has: hasFeature } = useFeatures()
-  const showMood = features.size === 0 || hasFeature(FEATURES.moodTracking)
+  const showMood = hasFeature(FEATURES.moodTracking)
   // Retention is a plan entitlement (`retention_<n>` from MAB), not tied to the
   // family plan. null = keep entries forever. FAIL SAFE: while features load or
   // on any error this is null, so nothing is ever purged on uncertainty.
