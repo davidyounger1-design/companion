@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { roleHome } from '../lib/roleHome'
 
 const PLAN_LABEL: Record<string, string> = {
   family: 'Family (free)',
@@ -17,7 +18,13 @@ const BILLING_LABEL: Record<string, { label: string; color: string; bg: string }
 
 export default function Account() {
   const navigate = useNavigate()
-  const { org } = useAuth()
+  const { org, profile } = useAuth()
+
+  // Only the coordinator (account owner) may view/change the subscription.
+  // Other roles reaching /account directly are sent back to their home.
+  if (profile && profile.role !== 'coordinator') {
+    return <Navigate to={roleHome(profile.role, org?.org_type)} replace />
+  }
 
   const billing = BILLING_LABEL[org?.billing_status ?? '']
   const planLabel = PLAN_LABEL[org?.plan ?? ''] ?? (org?.plan ?? 'Unknown')

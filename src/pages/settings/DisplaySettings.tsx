@@ -133,8 +133,10 @@ function LinksCard() {
 
   const links: { label: string; path: string }[] = [
     { label: "📋 What's new", path: '/release-notes' },
-    ...(isCoordinator ? [{ label: '🔐 Permissions', path: '/settings/permissions' }] : []),
-    { label: '💳 Subscription', path: '/account' },
+    ...(isCoordinator ? [
+      { label: '🔐 Permissions', path: '/settings/permissions' },
+      { label: '💳 Subscription', path: '/account' },
+    ] : []),
   ]
 
   return (
