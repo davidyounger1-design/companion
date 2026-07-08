@@ -1,7 +1,11 @@
 import { supabase } from './supabase'
 
 export interface PlanInfo {
+  /** Display name from MAB (`planName`), for showing the plan to the user. */
   plan: string | null
+  /** The MAB plan id (e.g. companion_solo_participant) — authoritative for
+   *  planMeters()/isFamilyPlan(). Null until MAB's /link response includes it. */
+  plan_id: string | null
   status: string | null
   subscription_id: string | null
   account_id: string | null
@@ -12,11 +16,11 @@ export interface PlanInfo {
 export async function checkPlan(): Promise<PlanInfo> {
   try {
     const { data, error } = await supabase.functions.invoke('check-plan')
-    const empty: PlanInfo = { plan: null, status: null, subscription_id: null, account_id: null, seats: null }
+    const empty: PlanInfo = { plan: null, plan_id: null, status: null, subscription_id: null, account_id: null, seats: null }
     if (error) return empty
     return { ...empty, ...(data ?? {}) }
   } catch {
-    return { plan: null, status: null, subscription_id: null, account_id: null, seats: null }
+    return { plan: null, plan_id: null, status: null, subscription_id: null, account_id: null, seats: null }
   }
 }
 

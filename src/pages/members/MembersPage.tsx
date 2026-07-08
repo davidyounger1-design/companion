@@ -324,7 +324,9 @@ export default function MembersPage() {
     enabled: isCoordinator,
     staleTime: 60_000,
   })
-  const meteredAxis = planMeters(org?.plan ?? null)
+  // Prefer the authoritative plan id from MAB (once /link returns it); fall
+  // back to org.plan (the id stored at checkout for provider orgs).
+  const meteredAxis = planMeters(planInfo?.plan_id ?? org?.plan ?? null)
   const seats = planInfo?.seats ?? null
   const workerCount = members.filter((m) => m.role === 'support_worker' || m.role === 'trusted_support_worker').length
   const recipientCount = members.filter((m) => m.role === 'recipient').length
