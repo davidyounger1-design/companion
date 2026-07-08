@@ -64,6 +64,17 @@ Deno.serve(async (req) => {
       debug.subscriptionCheck = { httpStatus: r.status, body: (await r.text()).slice(0, 300) }
     } catch (e) { debug.subscriptionCheck = { error: String(e) } }
 
+    // Probe the /link listing too — it uses the same secret key and may be the
+    // usable path for discovering a subscription (and its plan) by email, since
+    // subscription/check rejects this key.
+    try {
+      const r = await fetch(
+        `${mabUrl}/api/v1/link/subscriptions?app=companion&status=all`,
+        { headers: { Authorization: `Bearer ${serviceKey}` } },
+      )
+      debug.linkSubscriptions = { httpStatus: r.status, body: (await r.text()).slice(0, 500) }
+    } catch (e) { debug.linkSubscriptions = { error: String(e) } }
+
     let subscriptionId: string | null = null
     let plan: string | null = null
     let status: string | null = null
@@ -119,15 +130,36 @@ Deno.serve(async (req) => {
 
     let data: unknown = null
     try { data = JSON.parse(featBodyText) } catch { data = null }
-    const dataObj = data as { features?: unknown[]; included?: unknown[] } | null
-    const raw: unknown[] = Array.isArray(data)
-      ? data
-      : Array.isArray(dataObj?.features) ? dataObj!.features
-      : Array.isArray(dataObj?.included) ? dataObj!.included
-      : []
+
+    // MyAppBuddy returns an OBJECT MAP of app-prefixed keys to their value:
+    //   { "companion.mood_tracking": true, "companion.participants": "Free", ... }
+    // A boolean `true` means the feature is included; `false` means not. Non-
+    // boolean values (e.g. "Free") are tier/quota labels, not on/off gates, so
+    // they are not treated as included. We also still accept the older shapes
+    // ({features:[...]}, {included:[...]}, or a bare array) for robustness.
+    const dataObj = data as Record<string, unknown> | null
+    let raw: unknown[]
+    if (Array.isArray(data)) {
+      raw = data
+    } else if (Array.isArray(dataObj?.features)) {
+      raw = dataObj!.features as unknown[]
+    } else if (Array.isArray(dataObj?.included)) {
+      raw = dataObj!.included as unknown[]
+    } else if (dataObj && typeof dataObj === 'object') {
+      raw = Object.entries(dataObj)
+        .filter(([, v]) => v === true)
+        .map(([k]) => k)
+    } else {
+      raw = []
+    }
+
+    // Normalise to bare keys the app knows: unwrap {key}, drop the leading
+    // "companion." app prefix, and discard empties.
     const features = raw
       .map((f) => (typeof f === 'string' ? f : (f as { key?: string })?.key))
       .filter((k): k is string => typeof k === 'string' && k.length > 0)
+      .map((k) => k.replace(/^companion\./, ''))
+      .filter((k) => k.length > 0)
 
     return json({ features, plan, status })
   } catch (e) {
