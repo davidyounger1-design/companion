@@ -7,41 +7,44 @@ import { supabase } from '../lib/supabase'
 import { MabEmbed } from '../components/MabEmbed'
 import { WidgetBoundary } from '../components/WidgetBoundary'
 
-// The Subscription screen is the two MyAppBuddy drop-in web components
-// (from /embed/v1.js, loaded in index.html): the license-manager shows the
-// current subscription and its manage/cancel actions; the pricing-table shows
-// the available plans and drives changes. MAB owns all the billing logic, so
-// there is no hand-built plan grid or PLAN_LABEL map here.
+// MyAppBuddy has no "current subscription" embed — its pricing-table deliberately
+// EXCLUDES the current plan (shows only switch-to options), and license-manager
+// is a seat allocator, not a plan summary. So the current-plan line here is
+// native (from checkPlan), the plan CHANGE grid is MAB's <myappbuddy-pricing-table>,
+// and cancel/invoices go through MAB's billing portal (Manage subscription).
+const MAB_STATUS: Record<string, string> = {
+  active: 'active', trialing: 'trial', trial: 'trial',
+  past_due: 'past_due', paused: 'past_due', canceled: 'cancelled', cancelled: 'cancelled',
+}
+const BILLING_LABEL: Record<string, { label: string; color: string; bg: string }> = {
+  trial:    { label: 'Free trial',      color: 'var(--color-primary-deep)', bg: 'color-mix(in srgb, var(--color-primary) 15%, transparent)' },
+  active:   { label: 'Active',          color: 'var(--color-primary-deep)', bg: 'color-mix(in srgb, var(--color-primary) 15%, transparent)' },
+  past_due: { label: 'Payment overdue', color: 'var(--color-error)',        bg: 'color-mix(in srgb, var(--color-error) 15%, transparent)' },
+  cancelled:{ label: 'Cancelled',       color: 'var(--color-muted)',        bg: 'color-mix(in srgb, var(--color-muted) 15%, transparent)' },
+}
+
 export default function Account() {
   const navigate = useNavigate()
   const { org, profile } = useAuth()
   const [pk, setPk] = useState<string | null>(null)
-  const [sub, setSub] = useState<{ id: string | null; planId: string | null }>({ id: null, planId: null })
-  const [resolved, setResolved] = useState(false)
-  const [ready, setReady] = useState(
-    () => !!customElements.get('myappbuddy-license-manager') && !!customElements.get('myappbuddy-pricing-table'),
-  )
+  const [live, setLive] = useState<{ plan: string | null; planId: string | null; status: string | null }>({ plan: null, planId: null, status: null })
+  const [portalBusy, setPortalBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [ready, setReady] = useState(() => !!customElements.get('myappbuddy-pricing-table'))
 
-  // Server-derived publishable key (safe client-side) + resolve the caller's
-  // real subscription id / plan id from MAB.
   useEffect(() => {
     supabase.functions.invoke('mab-embed-key')
       .then(({ data }) => { if (data?.publishableKey) setPk(data.publishableKey) })
       .catch(() => {})
     checkPlan()
-      .then((info) => setSub({ id: info.subscription_id, planId: info.plan_id ?? info.plan }))
+      .then((info) => setLive({ plan: info.plan, planId: info.plan_id ?? info.plan, status: info.status }))
       .catch(() => {})
-      .finally(() => setResolved(true))
   }, [])
 
-  // Wait for the custom elements (registered by v1.js in index.html).
   useEffect(() => {
     if (ready) return
     let alive = true
-    Promise.all([
-      customElements.whenDefined('myappbuddy-license-manager'),
-      customElements.whenDefined('myappbuddy-pricing-table'),
-    ]).then(() => { if (alive) setReady(true) })
+    customElements.whenDefined('myappbuddy-pricing-table').then(() => { if (alive) setReady(true) })
     return () => { alive = false }
   }, [ready])
 
@@ -50,7 +53,24 @@ export default function Account() {
     return <Navigate to={roleHome(profile.role, org?.org_type)} replace />
   }
 
-  const loading = !ready || !resolved || !pk
+  const planLabel = live.plan ?? org?.plan ?? 'Unknown'
+  const statusKey = (live.status ? MAB_STATUS[live.status] : null) ?? org?.billing_status ?? ''
+  const billing = BILLING_LABEL[statusKey]
+
+  async function openPortal() {
+    setPortalBusy(true)
+    setError('')
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('companion-billing-portal')
+      const url: string | undefined = data?.url
+      if (fnErr || !url) { setError('Could not open the billing portal just now. Please try again.'); return }
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch {
+      setError('Could not open the billing portal just now. Please try again.')
+    } finally {
+      setPortalBusy(false)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--color-bg)' }}>
@@ -66,36 +86,43 @@ export default function Account() {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem 1rem calc(1rem + env(safe-area-inset-bottom))' }}>
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-muted)' }}><span className="spinner" /></div>
-        )}
-
-        {!loading && !pk && (
-          <div className="alert alert-error">Couldn't load your subscription just now. Please try again in a moment.</div>
-        )}
-
-        {!loading && pk && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Current subscription + manage/cancel */}
-            {sub.id && (
-              <WidgetBoundary fallback={null}>
-                <MabEmbed tag="myappbuddy-license-manager" attrs={{
-                  subscription: sub.id,
-                  'publishable-key': pk,
-                }} />
-              </WidgetBoundary>
-            )}
-
-            {/* Available plans (highlights the current plan by id) */}
-            <WidgetBoundary fallback={null}>
-              <MabEmbed tag="myappbuddy-pricing-table" attrs={{
-                app: 'companion',
-                'publishable-key': pk,
-                currency: 'AUD',
-                ...(sub.planId ? { 'current-plan': sub.planId } : {}),
-              }} />
-            </WidgetBoundary>
+        {/* Current plan (native — MAB has no current-plan embed) */}
+        <div className="card card-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p className="eyebrow" style={{ margin: 0 }}>Current plan</p>
+            <p style={{ margin: '0.2rem 0 0', fontWeight: 700, fontSize: '1rem' }}>{planLabel}</p>
           </div>
+          {billing && (
+            <span style={{
+              fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.7rem', borderRadius: 99,
+              background: billing.bg, color: billing.color,
+            }}>{billing.label}</span>
+          )}
+        </div>
+
+        {/* Manage subscription — MAB billing portal (cancel, invoices, payment) */}
+        <button className="btn btn-primary btn-full" onClick={openPortal} disabled={portalBusy}
+          style={{ marginTop: '0.75rem', fontSize: '0.95rem' }}>
+          {portalBusy ? <span className="spinner" /> : 'Manage subscription'}
+        </button>
+        <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', margin: '0.4rem 0 0', textAlign: 'center' }}>
+          Cancel, update payment, or view invoices in your secure billing portal.
+        </p>
+        {error && <div className="alert alert-error" style={{ marginTop: '0.75rem' }}>{error}</div>}
+
+        {/* Change plan — MAB's pricing-table (shows the plans you can switch to) */}
+        <p className="eyebrow" style={{ margin: '1.5rem 0 0.5rem' }}>Change plan</p>
+        {!pk || !ready ? (
+          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--color-muted)' }}><span className="spinner" /></div>
+        ) : (
+          <WidgetBoundary fallback={<p style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>Plans are unavailable right now.</p>}>
+            <MabEmbed tag="myappbuddy-pricing-table" attrs={{
+              app: 'companion',
+              'publishable-key': pk,
+              currency: 'AUD',
+              ...(live.planId ? { 'current-plan': live.planId } : {}),
+            }} />
+          </WidgetBoundary>
         )}
       </div>
     </div>
