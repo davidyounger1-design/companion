@@ -198,6 +198,8 @@ export default function MembersPage() {
   // Care-recipient login is a plan-selectable feature. FAIL CLOSED: unless the
   // subscription includes it, no one can invite/create a recipient account.
   const canInviteRecipient = has(FEATURES.recipientLogin)
+  // Therapist invites seed a care circle — a therapy_circles plan feature.
+  const canInviteTherapist = has(FEATURES.therapyCircles)
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const isFamilyOrg = org?.org_type === 'family'
@@ -332,8 +334,12 @@ export default function MembersPage() {
       }
       return ['support_worker']
     })()
-    // Drop 'recipient' unless the plan includes care-recipient login.
-    return canInviteRecipient ? roles : roles.filter((r) => r !== 'recipient')
+    // Drop roles the plan doesn't include: care-recipient login, therapist circles.
+    return roles.filter((r) => {
+      if (r === 'recipient' && !canInviteRecipient) return false
+      if (r === 'therapist' && !canInviteTherapist) return false
+      return true
+    })
   })()
 
   const grouped = ROLE_ORDER.reduce<Record<string, OrgMember[]>>((acc, r) => {

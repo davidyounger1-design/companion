@@ -1,5 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useFeatures } from '../hooks/useFeatures'
+import { FEATURES } from '../lib/features'
 import { usePendingTickets } from '../hooks/usePendingTickets'
 import { useUnreadMessagesMap } from '../hooks/useUnreadMessagesMap'
 import { JournalIcon, TimerIcon, ScheduleIcon, NoticesIcon, MessagesIcon, HelpIcon, PlanIcon } from './icons'
@@ -19,6 +21,8 @@ export default function FamilyBottomNav() {
   const isOrgOwner = !!user && !!org?.owner_id && org.owner_id === user.id
   const isCoordinator = profile?.role === 'coordinator'
   const isRecipient = profile?.role === 'recipient'
+  const { has } = useFeatures()
+  const showMessages = !isRecipient && has(FEATURES.messaging)
 
   // Same shared map MessagesHub renders per-contact, summed for a single
   // badge — so the two can never disagree the way two independently
@@ -34,8 +38,8 @@ export default function FamilyBottomNav() {
     { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
     // The visual timer is a recipient-only tool.
     ...(isRecipient ? [{ label: 'Timer', icon: <TimerIcon />, path: '/family/timer' }] : []),
-    // Recipients don't have a messaging inbox — omit the Messages tab for them.
-    ...(isRecipient ? [] : [{ label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread, badgeLabel: 'unread messages' }]),
+    // Recipients don't have a messaging inbox; and messaging is a plan feature.
+    ...(showMessages ? [{ label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread, badgeLabel: 'unread messages' }] : []),
     // When a ticket is awaiting the user's reply, send Help straight to the
     // Support tab so the badge points at what needs attention.
     { label: 'Help',     icon: <HelpIcon />,     path: pendingTickets > 0 ? '/help?tab=support' : '/help', badge: pendingTickets, badgeLabel: 'support tickets awaiting your reply' },

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import BehaviourNotesSection from './BehaviourNotesSection'
+import { useFeatures } from '../hooks/useFeatures'
+import { FEATURES } from '../lib/features'
 
 type Kind = 'self' | 'guardian' | 'nominee'
 type Candidate = { id: string; full_name: string; source: 'family' | 'recipient' }
@@ -14,6 +16,7 @@ export default function ClientManagePanel({
   participantName: string
 }) {
   const qc = useQueryClient()
+  const { has } = useFeatures()
 
   const { data: client } = useQuery({
     queryKey: ['client-manage', clientId],
@@ -133,7 +136,7 @@ export default function ClientManagePanel({
         )}
       </div>
 
-      <div style={{ marginBottom: '1.5rem' }}>
+      {has(FEATURES.therapyCircles) && <div style={{ marginBottom: '1.5rem' }}>
         <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Therapist circle</p>
         {!circle?.length ? (
           <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
@@ -151,9 +154,9 @@ export default function ClientManagePanel({
             </div>
           ))
         )}
-      </div>
+      </div>}
 
-      <BehaviourNotesSection clientId={clientId} participantName={participantName} />
+      {has(FEATURES.behaviourNotes) && <BehaviourNotesSection clientId={clientId} participantName={participantName} />}
     </div>
   )
 }

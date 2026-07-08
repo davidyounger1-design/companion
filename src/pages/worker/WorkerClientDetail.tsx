@@ -71,6 +71,7 @@ export default function WorkerClientDetail() {
   const { user, profile } = useAuth()
   const { has } = useFeatures()
   const showMood = has(FEATURES.moodTracking)
+  const showBehaviourNotesFeature = has(FEATURES.behaviourNotes)
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -256,7 +257,7 @@ export default function WorkerClientDetail() {
         )}
       </div>
 
-      <div className="card" style={{ marginBottom: '1.25rem', padding: '0.875rem 1rem' }}>
+      {showBehaviourNotesFeature && <div className="card" style={{ marginBottom: '1.25rem', padding: '0.875rem 1rem' }}>
         <button
           onClick={() => setShowBehaviourNotes((x) => !x)}
           style={{
@@ -286,7 +287,7 @@ export default function WorkerClientDetail() {
             <BehaviourNotesSection clientId={client.id} participantName={client.full_name} />
           </div>
         )}
-      </div>
+      </div>}
 
       {successMsg && (
         <div className="alert alert-success" style={{ marginBottom: '1rem' }}>{successMsg}</div>

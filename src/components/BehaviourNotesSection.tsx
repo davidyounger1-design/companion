@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useFeatures } from '../hooks/useFeatures'
+import { FEATURES } from '../lib/features'
 import type { BehaviourNote } from '../types/database'
 import { notesToCsv, downloadCsv } from '../lib/behaviourNotes'
 import BehaviourNoteCard from './BehaviourNoteCard'
@@ -16,6 +18,8 @@ export default function BehaviourNotesSection({
   participantName?: string
 }) {
   const { user, profile } = useAuth()
+  const { has } = useFeatures()
+  const canExport = has(FEATURES.ndisExports)
   const [selected, setSelected] = useState<BehaviourNote | null>(null)
   const [showChart, setShowChart] = useState(false)
 
@@ -62,7 +66,7 @@ export default function BehaviourNotesSection({
               {showChart ? 'Hide pattern' : 'Pattern view'}
             </button>
           )}
-          {!!notes?.length && (
+          {!!notes?.length && canExport && (
             <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }} onClick={exportCsv}>
               Export CSV
             </button>
