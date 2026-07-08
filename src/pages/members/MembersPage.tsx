@@ -346,10 +346,10 @@ export default function MembersPage() {
   const invitableRoles: string[] = (() => {
     const roles = (() => {
       if (isCoordinator) {
-        // Coordinator can always invite; family org includes 'family' role
-        return isFamilyOrg
-          ? ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
-          : ['recipient', 'support_worker', 'trusted_support_worker', 'therapist']
+        // A participant's family is the same concept on every plan — they can
+        // see their own participant's data whether the org is family or
+        // provider — so 'family' is always invitable, not just on family orgs.
+        return ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
       }
       if (!perms.invite_members) return []
       // Family members can invite the same set as a coordinator, including the recipient
