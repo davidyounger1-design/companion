@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 import { buildSmsLink } from '../../lib/smsLink'
 
 type OrgMember = { id: string; full_name: string; role: string; email?: string; phone?: string | null }
@@ -192,6 +194,10 @@ export default function MembersPage() {
   const [rescindingId, setRescindingId] = useState<string | null>(null)
 
   const perms = usePermissions()
+  const { has } = useFeatures()
+  // Care-recipient login is a plan-selectable feature. FAIL CLOSED: unless the
+  // subscription includes it, no one can invite/create a recipient account.
+  const canInviteRecipient = has(FEATURES.recipientLogin)
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const isFamilyOrg = org?.org_type === 'family'
@@ -308,22 +314,26 @@ export default function MembersPage() {
 
   // Roles the current user is allowed to invite
   const invitableRoles: string[] = (() => {
-    if (isCoordinator) {
-      // Coordinator can always invite; family org includes 'family' role
-      return isFamilyOrg
-        ? ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
-        : ['recipient', 'support_worker', 'trusted_support_worker', 'therapist']
-    }
-    if (!perms.invite_members) return []
-    // Family members can invite the same set as a coordinator, including the recipient
-    // (trusted workers keep the prior set — they can't invite a recipient)
-    if (profile?.role === 'family') {
-      return ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
-    }
-    if (profile?.role === 'trusted_support_worker') {
-      return ['family', 'support_worker', 'trusted_support_worker']
-    }
-    return ['support_worker']
+    const roles = (() => {
+      if (isCoordinator) {
+        // Coordinator can always invite; family org includes 'family' role
+        return isFamilyOrg
+          ? ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
+          : ['recipient', 'support_worker', 'trusted_support_worker', 'therapist']
+      }
+      if (!perms.invite_members) return []
+      // Family members can invite the same set as a coordinator, including the recipient
+      // (trusted workers keep the prior set — they can't invite a recipient)
+      if (profile?.role === 'family') {
+        return ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
+      }
+      if (profile?.role === 'trusted_support_worker') {
+        return ['family', 'support_worker', 'trusted_support_worker']
+      }
+      return ['support_worker']
+    })()
+    // Drop 'recipient' unless the plan includes care-recipient login.
+    return canInviteRecipient ? roles : roles.filter((r) => r !== 'recipient')
   })()
 
   const grouped = ROLE_ORDER.reduce<Record<string, OrgMember[]>>((acc, r) => {
