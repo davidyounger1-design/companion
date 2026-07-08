@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { roleHome } from '../lib/roleHome'
-import { checkPlan, isFamilyPlan } from '../lib/planCheck'
+import { checkPlan } from '../lib/planCheck'
 import { supabase } from '../lib/supabase'
 import { MabEmbed } from '../components/MabEmbed'
 import { WidgetBoundary } from '../components/WidgetBoundary'
@@ -13,6 +13,10 @@ import type { BillingStatus } from '../types/database'
 // is a seat allocator, not a plan summary. So the current-plan line here is
 // native (from checkPlan), the plan CHANGE grid is MAB's <myappbuddy-pricing-table>,
 // and cancel/invoices go through MAB's billing portal (Manage subscription).
+//
+// Reconciling org.plan/org_type with the live subscription happens once per
+// session in AuthContext (reconcileOrgPlan) — not here, to avoid two places
+// writing to organisations. This screen only reads checkPlan() for display.
 const MAB_STATUS: Record<string, BillingStatus> = {
   active: 'active', trialing: 'trial', trial: 'trial',
   past_due: 'past_due', paused: 'past_due', canceled: 'cancelled', cancelled: 'cancelled',
@@ -26,7 +30,7 @@ const BILLING_LABEL: Record<string, { label: string; color: string; bg: string }
 
 export default function Account() {
   const navigate = useNavigate()
-  const { org, profile, refreshProfile } = useAuth()
+  const { org, profile } = useAuth()
   const [pk, setPk] = useState<string | null>(null)
   const [live, setLive] = useState<{ plan: string | null; planId: string | null; status: string | null }>({ plan: null, planId: null, status: null })
   const [planReady, setPlanReady] = useState(false)
@@ -43,24 +47,9 @@ export default function Account() {
       .then(({ data }) => { if (data?.publishableKey) setPk(data.publishableKey) })
       .catch(() => {})
     checkPlan()
-      .then(async (info) => {
+      .then((info) => {
         setLive({ plan: info.plan, planId: info.plan_id ?? info.plan, status: info.status })
         setPlanReady(true)
-        // Experience follows the plan: reconcile org_type with the live plan so
-        // a family→provider (or reverse) switch lands in the right portal. Only
-        // act on a confident plan_id; a null/failed lookup never changes org_type.
-        if (info.plan_id && org?.id && profile) {
-          const nextType = isFamilyPlan(info.plan_id) ? 'family' : 'provider'
-          if (org.org_type !== nextType) {
-            await supabase.from('organisations').update({
-              org_type: nextType,
-              plan: info.plan_id,
-              billing_status: MAB_STATUS[info.status ?? ''] ?? org.billing_status ?? 'active',
-            }).eq('id', org.id)
-            await refreshProfile?.()
-            navigate(roleHome(profile.role, nextType), { replace: true })
-          }
-        }
       })
       .catch(() => setPlanReady(true))
     // Member headcount for this org (active profiles). RPC first (RLS-safe),
