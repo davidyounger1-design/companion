@@ -44,6 +44,8 @@ export function isFamilyPlan(plan: string | null): boolean {
 export type MeteredAxis = 'workers' | 'participants'
 export function planMeters(plan: string | null): MeteredAxis | null {
   if (!plan) return null
+  // Family plans are always participant-restricted — no suffix needed.
+  if (isFamilyPlan(plan)) return 'participants'
   if (/workers?$/i.test(plan)) return 'workers'
   if (/participants?$/i.test(plan)) return 'participants'
   return null

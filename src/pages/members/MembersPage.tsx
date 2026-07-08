@@ -324,9 +324,13 @@ export default function MembersPage() {
     enabled: isCoordinator,
     staleTime: 60_000,
   })
-  // Prefer the authoritative plan id from MAB (once /link returns it); fall
-  // back to org.plan (the id stored at checkout for provider orgs).
-  const meteredAxis = planMeters(planInfo?.plan_id ?? org?.plan ?? null)
+  // Family orgs are always participant-restricted (their stored plan is the
+  // 'family' sentinel, so read the org type directly). Providers derive the
+  // axis from the plan id — the authoritative one from MAB /link if present,
+  // else org.plan (the id stored at checkout).
+  const meteredAxis: ReturnType<typeof planMeters> = isFamilyOrg
+    ? 'participants'
+    : planMeters(planInfo?.plan_id ?? org?.plan ?? null)
   const seats = planInfo?.seats ?? null
   const workerCount = members.filter((m) => m.role === 'support_worker' || m.role === 'trusted_support_worker').length
   const recipientCount = members.filter((m) => m.role === 'recipient').length
