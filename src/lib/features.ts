@@ -29,6 +29,7 @@ export const FEATURES = {
   providerDashboard: 'provider_dashboard',
   recipientLogin: 'recipient_login',
   moodTracking: 'mood_tracking',
+  messaging: 'messaging',
 } as const
 
 /**
