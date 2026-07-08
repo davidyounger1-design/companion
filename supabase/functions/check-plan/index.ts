@@ -6,8 +6,21 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface LinkSub {
+  id?: string
+  status?: string
+  planName?: string
+  ownerEmail?: string
+  accountId?: string
+  createdAt?: string
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+
+  const nullPlan = { plan: null, status: null, subscription_id: null, account_id: null }
+  const json = (body: unknown) =>
+    new Response(JSON.stringify(body), { headers: { ...cors, 'Content-Type': 'application/json' } })
 
   try {
     const authHeader = req.headers.get('Authorization')
@@ -23,38 +36,43 @@ Deno.serve(async (req) => {
     if (error || !user?.email) return new Response('Unauthorized', { status: 401, headers: cors })
 
     const mabUrl = Deno.env.get('MAB_API_URL') ?? 'https://myappbuddy.com.au'
-    // The server-side secret that authorises MAB reads. The configured secret
-    // is MAB_SECRET_KEY (same one mabLink uses); COMPANION_SERVICE_KEY is kept
-    // only as a legacy fallback. Sending an empty key here 401s and yields a
-    // null plan, so this must resolve to the real secret.
     const serviceKey = Deno.env.get('MAB_SECRET_KEY')
       || Deno.env.get('COMPANION_SERVICE_KEY') || ''
 
+    // Resolve the caller's subscription from the /link listing. The dedicated
+    // subscription/check endpoint rejects this key type (401), but /link accepts
+    // it. Match by owner email; among the caller's subscriptions prefer active
+    // ones, then the most recently created (their current plan).
     const res = await fetch(
-      `${mabUrl}/api/v1/apps/companion/subscription/check?email=${encodeURIComponent(user.email)}`,
-      { headers: { Authorization: `Bearer ${serviceKey}` } }
+      `${mabUrl}/api/v1/link/subscriptions?app=companion&status=all`,
+      { headers: { Authorization: `Bearer ${serviceKey}` } },
     )
-
-    if (!res.ok) {
-      return new Response(JSON.stringify({ plan: null, status: null }), {
-        headers: { ...cors, 'Content-Type': 'application/json' },
-      })
-    }
+    if (!res.ok) return json(nullPlan)
 
     const data = await res.json()
+    const subs: LinkSub[] = Array.isArray(data) ? data : (data?.subscriptions ?? [])
+    const email = user.email.toLowerCase()
+    const mine = subs.filter((s) => s.ownerEmail?.toLowerCase() === email)
+    const active = mine.filter((s) => ['active', 'trialing', 'trial'].includes(s.status ?? ''))
+    const pool = active.length ? active : mine
+    pool.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+    const chosen = pool[0]
+    if (!chosen?.id) return json(nullPlan)
 
-    // Keep MAB's app_ref up to date on every login — cheap, idempotent, and
-    // self-healing if it's ever missing or stale (see registerAppRef).
-    if (data?.subscription_id && ['active', 'trialing'].includes(data?.status)) {
-      await registerAppRef(data.subscription_id, user.email)
+    const result = {
+      plan: chosen.planName ?? null,
+      status: chosen.status ?? null,
+      subscription_id: chosen.id ?? null,
+      account_id: chosen.accountId ?? null,
     }
 
-    return new Response(JSON.stringify(data), {
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    })
+    // Keep MAB's app_ref current on login — cheap, idempotent, self-healing.
+    if (result.subscription_id && ['active', 'trialing', 'trial'].includes(result.status ?? '')) {
+      await registerAppRef(result.subscription_id, user.email)
+    }
+
+    return json(result)
   } catch {
-    return new Response(JSON.stringify({ plan: null, status: null }), {
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    })
+    return json(nullPlan)
   }
 })
