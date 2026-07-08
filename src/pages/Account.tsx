@@ -31,6 +31,10 @@ export default function Account() {
   const [portalBusy, setPortalBusy] = useState(false)
   const [error, setError] = useState('')
   const [ready, setReady] = useState(() => !!customElements.get('myappbuddy-pricing-table'))
+  // "Seats" for Companion = active members in the org (a headcount from our own
+  // profiles table — MAB has no seat licensing for Companion). Not a "used of N"
+  // cap; there is no seat limit.
+  const [memberCount, setMemberCount] = useState<number | null>(null)
 
   useEffect(() => {
     supabase.functions.invoke('mab-embed-key')
@@ -39,7 +43,18 @@ export default function Account() {
     checkPlan()
       .then((info) => setLive({ plan: info.plan, planId: info.plan_id ?? info.plan, status: info.status }))
       .catch(() => {})
-  }, [])
+    // Member headcount for this org (active profiles). RPC first (RLS-safe),
+    // profiles count as fallback — same pattern as the Members page.
+    ;(async () => {
+      const rpc = await supabase.rpc('get_org_members')
+      if (!rpc.error && Array.isArray(rpc.data)) { setMemberCount(rpc.data.length); return }
+      if (org?.id) {
+        const { count } = await supabase
+          .from('profiles').select('id', { count: 'exact', head: true }).eq('org_id', org.id)
+        if (typeof count === 'number') setMemberCount(count)
+      }
+    })().catch(() => {})
+  }, [org?.id])
 
   useEffect(() => {
     if (ready) return
@@ -90,7 +105,14 @@ export default function Account() {
         <div className="card card-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <p className="eyebrow" style={{ margin: 0 }}>Current plan</p>
-            <p style={{ margin: '0.2rem 0 0', fontWeight: 700, fontSize: '1rem' }}>{planLabel}</p>
+            <p style={{ margin: '0.2rem 0 0', fontWeight: 700, fontSize: '1rem' }}>
+              {planLabel}
+              {memberCount != null && (
+                <span style={{ fontWeight: 400, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+                  {' · '}{memberCount} member{memberCount === 1 ? '' : 's'}
+                </span>
+              )}
+            </p>
           </div>
           {billing && (
             <span style={{
