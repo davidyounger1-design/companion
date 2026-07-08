@@ -243,68 +243,7 @@ export default function Account() {
           style={{ fontSize: '0.8rem', color: 'var(--color-muted)', textDecoration: 'none' }}>
           Invoices &amp; payment methods →
         </a>
-        <Diagnostics org={org} />
       </div>
-    </div>
-  )
-}
-
-// TEMPORARY: coordinator-only readout of exactly what the plan/entitlement
-// resolution chain returns, so a subscription/mood mismatch can be traced to
-// the precise step (org row → check-plan by email → check-features). Safe to
-// remove once the MAB-side resolution is confirmed working.
-function Diagnostics({ org }: { org: { plan?: string | null; billing_status?: string | null; myappbuddy_subscription_id?: string | null } | null }) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [out, setOut] = useState<Record<string, unknown> | null>(null)
-
-  const run = async () => {
-    setLoading(true)
-    const result: Record<string, unknown> = {
-      org: {
-        plan: org?.plan ?? null,
-        billing_status: org?.billing_status ?? null,
-        myappbuddy_subscription_id: org?.myappbuddy_subscription_id ?? null,
-      },
-    }
-    try {
-      result.checkPlan = await checkPlan()
-    } catch (e) {
-      result.checkPlan = { error: String(e) }
-    }
-    try {
-      const { data, error } = await supabase.functions.invoke('check-features')
-      result.checkFeatures = error ? { error: error.message } : data
-    } catch (e) {
-      result.checkFeatures = { error: String(e) }
-    }
-    setOut(result)
-    setLoading(false)
-  }
-
-  return (
-    <div style={{ marginTop: '0.75rem' }}>
-      <button
-        onClick={() => { setOpen((o) => !o); if (!out) void run() }}
-        className="btn btn-ghost"
-        style={{ fontSize: '0.7rem', color: 'var(--color-muted)', padding: '0.2rem 0.5rem' }}>
-        {open ? 'Hide' : 'Show'} diagnostics
-      </button>
-      {open && (
-        <div style={{ marginTop: '0.5rem', textAlign: 'left' }}>
-          <button onClick={() => void run()} className="btn btn-ghost"
-            style={{ fontSize: '0.7rem', marginBottom: '0.4rem' }}>
-            {loading ? 'Checking…' : 'Refresh'}
-          </button>
-          <pre style={{
-            fontSize: '0.65rem', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-            background: 'var(--color-surface, #f5f5f5)', color: 'var(--color-text)',
-            padding: '0.6rem', borderRadius: 6, margin: 0, maxHeight: '40vh', overflow: 'auto',
-          }}>
-            {out ? JSON.stringify(out, null, 2) : 'No data yet.'}
-          </pre>
-        </div>
-      )}
     </div>
   )
 }
