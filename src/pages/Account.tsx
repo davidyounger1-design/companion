@@ -16,6 +16,11 @@ const PLAN_LABEL: Record<string, string> = {
   team: 'Team',
   enterprise: 'Enterprise',
 }
+// MyAppBuddy status strings → the billing_status keys this screen renders.
+const MAB_STATUS: Record<string, string> = {
+  active: 'active', trialing: 'trial', trial: 'trial',
+  past_due: 'past_due', paused: 'past_due', canceled: 'cancelled', cancelled: 'cancelled',
+}
 const BILLING_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   trial:    { label: 'Free trial',       color: 'var(--color-primary-deep)', bg: 'color-mix(in srgb, var(--color-primary) 15%, transparent)' },
   active:   { label: 'Active',           color: 'var(--color-primary-deep)', bg: 'color-mix(in srgb, var(--color-primary) 15%, transparent)' },
@@ -40,11 +45,23 @@ export default function Account() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  // The LIVE subscription as MyAppBuddy sees it — the source of truth for what
+  // to display. org.plan/org.billing_status are only a local mirror that can go
+  // stale (a family signup hardcodes them once), so they're the fallback only.
+  const [live, setLive] = useState<{ plan: string | null; status: string | null } | null>(null)
 
   // Single display source: the shared hub catalog drives both the plan name
   // shown above and the switchable plan list below — no MAB admin site embed.
   useEffect(() => {
     fetchCatalog().then(setPlans)
+  }, [])
+
+  // Ask MyAppBuddy for the real current plan/status on load. If it fails we
+  // simply fall back to the local org values below.
+  useEffect(() => {
+    checkPlan().then((info) => {
+      if (info.plan || info.status) setLive({ plan: info.plan, status: info.status })
+    })
   }, [])
 
   // Only the coordinator (account owner) may view/change the subscription.
@@ -53,14 +70,26 @@ export default function Account() {
   }
 
   const isFamilyOrg = org?.org_type === 'family'
-  const currentName = plans.find((p) => p.id === org?.plan)?.name
-  const billing = BILLING_LABEL[org?.billing_status ?? '']
-  const planLabel = currentName ?? PLAN_LABEL[org?.plan ?? ''] ?? (org?.plan ?? 'Unknown')
+
+  // Resolve the display name for whatever MAB reports live: if it's a plan id
+  // (e.g. companion_family_029) map it through the catalog; if it's already a
+  // display name (our /link resolver returns planName), use it as-is.
+  const livePlanName = live?.plan
+    ? (plans.find((p) => p.id === live.plan)?.name ?? live.plan)
+    : null
+  const localName = plans.find((p) => p.id === org?.plan)?.name
+  const planLabel =
+    livePlanName ?? localName ?? PLAN_LABEL[org?.plan ?? ''] ?? (org?.plan ?? 'Unknown')
+
+  // Live status wins; fall back to the local mirror only if MAB didn't answer.
+  const statusKey = (live?.status ? MAB_STATUS[live.status] : null) ?? org?.billing_status ?? ''
+  const billing = BILLING_LABEL[statusKey]
 
   // Plans the org can switch to: family orgs stay on family-tier plans; provider
   // orgs see provider plans. Never offer the enterprise tier or the current plan.
   const switchable = plans.filter((p) => {
     if (p.id === org?.plan) return false
+    if (livePlanName && p.name === livePlanName) return false
     if (p.id === 'companion_enterprise') return false
     return isFamilyOrg ? isFamilyPlan(p.id) : !isFamilyPlan(p.id)
   })
