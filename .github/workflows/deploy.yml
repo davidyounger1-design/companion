@@ -23,7 +23,18 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/hostinger_myappbuddy
           chmod 600 ~/.ssh/hostinger_myappbuddy
-          ssh-keyscan -p 65002 153.92.11.14 >> ~/.ssh/known_hosts
+          # ssh-keyscan intermittently can't reach Hostinger and exits non-zero,
+          # which used to fail the whole deploy. Retry a few times, and only
+          # fail if we never got a host key after all attempts.
+          for i in 1 2 3 4 5; do
+            if ssh-keyscan -p 65002 153.92.11.14 >> ~/.ssh/known_hosts 2>/dev/null && [ -s ~/.ssh/known_hosts ]; then
+              echo "Host key captured on attempt $i."; break
+            fi
+            echo "ssh-keyscan attempt $i failed; retrying in $((i*3))s…"; sleep $((i*3))
+          done
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::error::Could not reach Hostinger to capture host key after 5 attempts."; exit 1
+          fi
 
       - name: Deploy to companion.myappbuddy.com.au
         run: bash deploy.sh live
