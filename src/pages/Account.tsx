@@ -69,8 +69,6 @@ export default function Account() {
     return <Navigate to={roleHome(profile.role, org?.org_type)} replace />
   }
 
-  const isFamilyOrg = org?.org_type === 'family'
-
   // Resolve the display name for whatever MAB reports live: if it's a plan id
   // (e.g. companion_family_029) map it through the catalog; if it's already a
   // display name (our /link resolver returns planName), use it as-is.
@@ -85,13 +83,13 @@ export default function Account() {
   const statusKey = (live?.status ? MAB_STATUS[live.status] : null) ?? org?.billing_status ?? ''
   const billing = BILLING_LABEL[statusKey]
 
-  // Plans the org can switch to: family orgs stay on family-tier plans; provider
-  // orgs see provider plans. Never offer the enterprise tier or the current plan.
+  // Every plan is switchable — just not the one you're already on. (Catalog
+  // already drops archived/hidden tiers like Enterprise.) Switching also flips
+  // org_type below so the experience follows the plan.
   const switchable = plans.filter((p) => {
     if (p.id === org?.plan) return false
     if (livePlanName && p.name === livePlanName) return false
-    if (p.id === 'companion_enterprise') return false
-    return isFamilyOrg ? isFamilyPlan(p.id) : !isFamilyPlan(p.id)
+    return true
   })
   const hasAnnual = switchable.some((p) => p.priceYear && p.priceYear > 0)
 
@@ -130,6 +128,9 @@ export default function Account() {
         .from('organisations')
         .update({
           plan: plan.id,
+          // Experience follows the plan: a family-tier plan runs the family
+          // portal, anything else the provider portal.
+          org_type: isFamilyPlan(plan.id) ? 'family' : 'provider',
           billing_status: status === 'trialing' ? 'trial' : 'active',
           ...(subId && { myappbuddy_subscription_id: subId }),
           ...(accountId && { myappbuddy_account_id: accountId }),
