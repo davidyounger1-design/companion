@@ -41,7 +41,7 @@ interface LinkSub {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
-  const nullPlan = { plan: null, status: null, subscription_id: null, account_id: null }
+  const nullPlan = { plan: null, plan_id: null, status: null, subscription_id: null, account_id: null, seats: null }
   const json = (body: unknown) =>
     new Response(JSON.stringify(body), { headers: { ...cors, 'Content-Type': 'application/json' } })
 
