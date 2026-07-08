@@ -1,9 +1,29 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { registerAppRef } from '../_shared/mabLink.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Inlined from _shared/mabLink.ts so this function deploys as a single file
+// (the dashboard editor doesn't bundle ../_shared). Keeps MAB's app_ref pointed
+// at the signed-in user so the embedded support/ideas widgets work.
+async function registerAppRef(subscriptionId: string, email: string): Promise<boolean> {
+  const secretKey = Deno.env.get('MAB_SECRET_KEY') || Deno.env.get('COMPANION_SERVICE_KEY')
+  if (!secretKey || !subscriptionId || !email) return false
+  try {
+    const res = await fetch(
+      `https://myappbuddy.com.au/api/v1/link/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: email }),
+      },
+    )
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 interface LinkSub {
