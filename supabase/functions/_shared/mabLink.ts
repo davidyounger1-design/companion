@@ -8,7 +8,7 @@
 const MAB_API_BASE = 'https://myappbuddy.com.au/api/v1'
 
 export async function registerAppRef(subscriptionId: string, email: string): Promise<boolean> {
-  const secretKey = Deno.env.get('MAB_SECRET_KEY')
+  const secretKey = Deno.env.get('MAB_SECRET_KEY') || Deno.env.get('COMPANION_SERVICE_KEY')
   if (!secretKey || !subscriptionId || !email) return false
   try {
     const res = await fetch(`${MAB_API_BASE}/link/subscriptions/${encodeURIComponent(subscriptionId)}`, {
@@ -33,7 +33,7 @@ export async function registerAppRef(subscriptionId: string, email: string): Pro
 /** Fallback lookup for when we don't already have a subscription id on file
  * — matches by the account owner's email against MAB's subscription list. */
 export async function findSubscriptionIdByEmail(email: string): Promise<string | null> {
-  const secretKey = Deno.env.get('MAB_SECRET_KEY')
+  const secretKey = Deno.env.get('MAB_SECRET_KEY') || Deno.env.get('COMPANION_SERVICE_KEY')
   if (!secretKey || !email) return null
   try {
     const res = await fetch(`${MAB_API_BASE}/link/subscriptions?app=companion&status=all`, {
