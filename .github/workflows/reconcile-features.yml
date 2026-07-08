@@ -1,0 +1,67 @@
+name: Reconcile features (MAB)
+
+# Manual only. Compares MyAppBuddy's companion.* feature catalog against this
+# app's mab-features.json and removes orphans (in MAB, no longer supported).
+#
+# This is DESTRUCTIVE and deliberately kept OFF the deploy path:
+#   - Dry-run by default (confirm=false) — reports what WOULD be removed, deletes
+#     nothing. Run it, read the list, then re-run with confirm=true.
+#   - Refuses to run unless mab-features.json is a valid, non-empty array, so a
+#     missing/empty manifest can never trigger a catalog wipeout.
+# The hub endpoint enforces the same guards and only touches companion.* keys
+# that aren't flagged MAB-managed; this workflow is the human-in-the-loop trigger.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Actually delete orphaned entitlements? Leave unchecked for a dry-run."
+        type: boolean
+        default: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — manifest must be a non-empty array
+        run: |
+          if [ ! -s mab-features.json ]; then
+            echo "::error::mab-features.json is missing or empty — refusing to reconcile."
+            exit 1
+          fi
+          count=$(jq 'if type=="array" then length else -1 end' mab-features.json)
+          if [ "${count}" -lt 1 ]; then
+            echo "::error::mab-features.json is not a non-empty array (length=${count}) — refusing to reconcile."
+            exit 1
+          fi
+          echo "Manifest OK — ${count} features declared."
+
+      - name: Reconcile with MyAppBuddy
+        env:
+          MAB_PUBLISH_KEY: ${{ secrets.MAB_PUBLISH_KEY }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ -z "${MAB_PUBLISH_KEY}" ]; then
+            echo "::error::MAB_PUBLISH_KEY not set — cannot reconcile."
+            exit 1
+          fi
+          CONFIRM="${CONFIRM:-false}"
+          if [ "${CONFIRM}" = "true" ]; then
+            echo "⚠️  confirm=true — orphaned entitlements WILL be deleted in MAB."
+          else
+            echo "Dry-run (confirm=false) — nothing will be deleted; reporting orphans only."
+          fi
+          payload=$(jq -n --argjson f "$(cat mab-features.json)" --argjson c "${CONFIRM}" \
+            '{features: $f, confirm: $c}')
+          echo "=== MyAppBuddy reconcile response ==="
+          curl -fsS -X POST \
+            "https://myappbuddy.com.au/api/v1/apps/companion/features/reconcile" \
+            -H "Authorization: Bearer ${MAB_PUBLISH_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "${payload}" | tee /tmp/reconcile.json | jq . || {
+              echo "::error::Reconcile request failed (endpoint may not be deployed yet)."
+              cat /tmp/reconcile.json 2>/dev/null || true
+              exit 1
+            }
