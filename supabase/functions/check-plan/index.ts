@@ -23,7 +23,12 @@ Deno.serve(async (req) => {
     if (error || !user?.email) return new Response('Unauthorized', { status: 401, headers: cors })
 
     const mabUrl = Deno.env.get('MAB_API_URL') ?? 'https://myappbuddy.com.au'
-    const serviceKey = Deno.env.get('COMPANION_SERVICE_KEY') ?? ''
+    // The server-side secret that authorises MAB reads. The configured secret
+    // is MAB_SECRET_KEY (same one mabLink uses); COMPANION_SERVICE_KEY is kept
+    // only as a legacy fallback. Sending an empty key here 401s and yields a
+    // null plan, so this must resolve to the real secret.
+    const serviceKey = Deno.env.get('MAB_SECRET_KEY')
+      || Deno.env.get('COMPANION_SERVICE_KEY') || ''
 
     const res = await fetch(
       `${mabUrl}/api/v1/apps/companion/subscription/check?email=${encodeURIComponent(user.email)}`,

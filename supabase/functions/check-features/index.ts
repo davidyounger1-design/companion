@@ -28,9 +28,14 @@ Deno.serve(async (req) => {
     if (!user?.email) return json({ features: [], plan: null, status: null })
 
     const mabUrl = Deno.env.get('MAB_API_URL') ?? 'https://myappbuddy.com.au'
-    const serviceKey = Deno.env.get('COMPANION_SERVICE_KEY') ?? ''
-    // Publishable key is what the hub expects for reading a subscription's
-    // features; fall back to the service key server-side if not separately set.
+    // Server-side secret for the subscription lookup. MAB_SECRET_KEY is the one
+    // actually configured (mabLink uses it too); COMPANION_SERVICE_KEY is a
+    // legacy fallback. An empty key 401s and returns no features.
+    const serviceKey = Deno.env.get('MAB_SECRET_KEY')
+      || Deno.env.get('COMPANION_SERVICE_KEY') || ''
+    // The features endpoint asks for a publishable key (pk_…). Use it if set;
+    // otherwise fall back to the secret key, which is strictly more privileged
+    // and is accepted where a publishable key is.
     const readKey = Deno.env.get('MAB_PUBLISHABLE_KEY') || serviceKey
 
     let subscriptionId: string | null = null
