@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useFeatures } from '../hooks/useFeatures'
+import { FEATURES } from '../lib/features'
 import type { BehaviourNote } from '../types/database'
 import { moodEmoji5, formatNoteDate, logNoteAccess } from '../lib/behaviourNotes'
 import Toggle from './Toggle'
@@ -26,6 +28,7 @@ export default function BehaviourNoteDetail({
   onClose: () => void
 }) {
   const { user } = useAuth()
+  const { has } = useFeatures()
   const qc = useQueryClient()
   const loggedView = useRef(false)
 
@@ -149,7 +152,7 @@ export default function BehaviourNoteDetail({
           ) : null
         )}
 
-        {canShare && (
+        {canShare && has(FEATURES.therapyCircles) && (
           <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
             <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.75rem' }}>Share with therapists</p>
             {!circle?.length ? (

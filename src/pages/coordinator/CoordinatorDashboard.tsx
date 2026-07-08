@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 import { signOut } from '../../lib/auth'
 import { useState } from 'react'
 import { SettingsIcon } from '../../components/icons'
@@ -10,6 +12,7 @@ import ClientManagePanel from '../../components/ClientManagePanel'
 
 export default function CoordinatorDashboard() {
   const { profile } = useAuth()
+  const { has } = useFeatures()
   const navigate = useNavigate()
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null)
 
@@ -114,11 +117,13 @@ export default function CoordinatorDashboard() {
             value={clientsLoading ? '…' : `${loggedToday} / ${activeClients.length}`}
             icon="✅"
           />
-          <StatCard
-            label="Needs review"
-            value={flaggedNotes ? String(flaggedNotes.length) : '…'}
-            icon="🔍"
-          />
+          {has(FEATURES.behaviourNotes) && (
+            <StatCard
+              label="Needs review"
+              value={flaggedNotes ? String(flaggedNotes.length) : '…'}
+              icon="🔍"
+            />
+          )}
         </div>
 
         {/* Participants */}

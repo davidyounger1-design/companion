@@ -1,6 +1,8 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from '../../lib/auth'
 import { useAuth } from '../../context/AuthContext'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 import { useUnreadMessagesMap } from '../../hooks/useUnreadMessagesMap'
 import { SettingsIcon } from '../../components/icons'
 import ColorModePill from '../../components/ColorModePill'
@@ -12,6 +14,8 @@ export default function WorkerLayout() {
   // badge consistent with the list the same way FamilyBottomNav's is.
   const { data: unreadMap = {} } = useUnreadMessagesMap()
   const unread = Object.values(unreadMap).reduce((sum, n) => sum + n, 0)
+  const { has } = useFeatures()
+  const showMessages = has(FEATURES.messaging)
 
   async function handleSignOut() {
     await signOut()
@@ -70,22 +74,24 @@ export default function WorkerLayout() {
           <span style={{ fontSize: '1.25rem' }}>📌</span>
           Notices
         </NavLink>
-        <NavLink to="/messages" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
-          <span style={{ fontSize: '1.25rem', position: 'relative', display: 'inline-flex' }}>
-            💬
-            {unread > 0 && (
-              <span style={{
-                position: 'absolute', top: -4, right: -6,
-                background: '#ef4444', color: '#fff',
-                borderRadius: '50%', width: 16, height: 16,
-                fontSize: '0.6rem', fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                lineHeight: 1,
-              }}>{unread > 9 ? '9+' : unread}</span>
-            )}
-          </span>
-          Messages
-        </NavLink>
+        {showMessages && (
+          <NavLink to="/messages" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+            <span style={{ fontSize: '1.25rem', position: 'relative', display: 'inline-flex' }}>
+              💬
+              {unread > 0 && (
+                <span style={{
+                  position: 'absolute', top: -4, right: -6,
+                  background: '#ef4444', color: '#fff',
+                  borderRadius: '50%', width: 16, height: 16,
+                  fontSize: '0.6rem', fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  lineHeight: 1,
+                }}>{unread > 9 ? '9+' : unread}</span>
+              )}
+            </span>
+            Messages
+          </NavLink>
+        )}
         <NavLink to="/feedback" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
           <span style={{ fontSize: '1.25rem' }}>📝</span>
           Feedback

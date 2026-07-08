@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { useFeatures } from './hooks/useFeatures'
+import { FEATURES } from './lib/features'
 import { getStoredFontScale, applyFontScale } from './lib/fontScale'
 import { getStoredColorMode, applyColorMode } from './lib/colorScheme'
 import { useKeyboardInset } from './hooks/useKeyboardInset'
@@ -109,6 +111,30 @@ function BlockWorker({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Gate a route on a MyAppBuddy entitlement. FAIL CLOSED: while features load or
+// on any error, the feature is treated as not included. Shows a clear "not in
+// your plan" panel rather than redirecting, so deep links don't bounce.
+function RequireFeature({ feature, children }: { feature: string; children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  const { has, isLoading } = useFeatures()
+  if (loading || isLoading) return <FullPageSpinner />
+  if (!user) return <Navigate to="/sign-in" replace />
+  if (!has(feature)) return <FeatureNotIncluded />
+  return <>{children}</>
+}
+
+function FeatureNotIncluded() {
+  return (
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '2rem', textAlign: 'center' }}>
+      <p style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Not included in your plan</p>
+      <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', margin: 0, maxWidth: 320 }}>
+        This feature isn't part of your current subscription.
+      </p>
+      <a href="/account" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>View plans</a>
+    </div>
+  )
+}
+
 function RequireNoAuth({ children }: { children: React.ReactNode }) {
   const { user, loading, profile, org } = useAuth()
   if (loading) return <FullPageSpinner />
@@ -201,8 +227,8 @@ export default function App() {
             </Route>
 
             {/* Unified messaging */}
-            <Route path="/messages" element={<BlockRecipient><MessagesHub /></BlockRecipient>} />
-            <Route path="/messages/:userId" element={<BlockRecipient><MessageThread /></BlockRecipient>} />
+            <Route path="/messages" element={<BlockRecipient><RequireFeature feature={FEATURES.messaging}><MessagesHub /></RequireFeature></BlockRecipient>} />
+            <Route path="/messages/:userId" element={<BlockRecipient><RequireFeature feature={FEATURES.messaging}><MessageThread /></RequireFeature></BlockRecipient>} />
 
             {/* Family journal — shared header + "up next" banner via FamilyLayout */}
             <Route path="/family" element={<BlockWorker><FamilyLayout /></BlockWorker>}>
@@ -218,7 +244,7 @@ export default function App() {
             <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />
 
             {/* Therapist portal — read-only, explicitly-shared behaviour notes */}
-            <Route path="/therapist" element={<RequireAuth><TherapistDashboard /></RequireAuth>} />
+            <Route path="/therapist" element={<RequireAuth><RequireFeature feature={FEATURES.therapyCircles}><TherapistDashboard /></RequireFeature></RequireAuth>} />
 
             {/* Member management */}
             <Route path="/members" element={<RequireAuth><MembersPage /></RequireAuth>} />

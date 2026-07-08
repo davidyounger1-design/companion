@@ -963,7 +963,7 @@ export default function FamilyDashboard() {
           </div>
         )}
 
-        {!isRecipient && clientId && (
+        {!isRecipient && clientId && hasFeature(FEATURES.behaviourNotes) && (
           <div className="card" style={{ marginBottom: '1rem', padding: '0.875rem 1rem' }}>
             <button
               onClick={() => setShowBehaviourNotes((x) => !x)}
