@@ -1,7 +1,11 @@
 import { supabase } from './supabase'
 
 export interface PlanInfo {
+  /** Display name from MAB (`planName`), for showing the plan to the user. */
   plan: string | null
+  /** The MAB plan id (e.g. companion_solo_participant) — authoritative for
+   *  planMeters()/isFamilyPlan(). Null until MAB's /link response includes it. */
+  plan_id: string | null
   status: string | null
   subscription_id: string | null
   account_id: string | null
@@ -12,11 +16,11 @@ export interface PlanInfo {
 export async function checkPlan(): Promise<PlanInfo> {
   try {
     const { data, error } = await supabase.functions.invoke('check-plan')
-    const empty: PlanInfo = { plan: null, status: null, subscription_id: null, account_id: null, seats: null }
+    const empty: PlanInfo = { plan: null, plan_id: null, status: null, subscription_id: null, account_id: null, seats: null }
     if (error) return empty
     return { ...empty, ...(data ?? {}) }
   } catch {
-    return { plan: null, status: null, subscription_id: null, account_id: null, seats: null }
+    return { plan: null, plan_id: null, status: null, subscription_id: null, account_id: null, seats: null }
   }
 }
 
@@ -32,15 +36,17 @@ export function isFamilyPlan(plan: string | null): boolean {
 }
 
 // Which resource a plan's `seats` quantity meters, read straight off the plan
-// id — the same "semantics live in the id" pattern as isFamilyPlan. A plan id
-// ending in `worker` caps workers (recipients unlimited); one ending in
-// `participant` caps participants (workers unlimited). Anything else (family,
-// unmetered/all-you-can-eat tiers) returns null = no cap. Only the metering
-// AXIS lives here; the quantity is the subscription's seats.
+// id — the same "semantics live in the id" pattern as isFamilyPlan. Rules:
+//   - family plans (or the local 'family' sentinel) → participants
+//   - any plan id ending in `participant` → participants
+//   - every other (provider) plan → workers, the default
+// So the only suffix you ever add is `participant`; worker-metering is implicit.
+// Returns null only when the plan is unknown (→ caller fails open, no cap). The
+// quantity comes from the subscription's seats, not from here.
 export type MeteredAxis = 'workers' | 'participants'
 export function planMeters(plan: string | null): MeteredAxis | null {
   if (!plan) return null
-  if (/workers?$/i.test(plan)) return 'workers'
+  if (plan === 'family' || isFamilyPlan(plan)) return 'participants'
   if (/participants?$/i.test(plan)) return 'participants'
-  return null
+  return 'workers'
 }
