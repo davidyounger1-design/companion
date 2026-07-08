@@ -10,8 +10,11 @@ interface LinkSub {
   id?: string
   status?: string
   planName?: string
+  planId?: string
+  plan_id?: string
   ownerEmail?: string
   accountId?: string
+  seats?: number
   createdAt?: string
 }
 
@@ -61,9 +64,11 @@ Deno.serve(async (req) => {
 
     const result = {
       plan: chosen.planName ?? null,
+      plan_id: chosen.planId ?? chosen.plan_id ?? null,
       status: chosen.status ?? null,
       subscription_id: chosen.id ?? null,
       account_id: chosen.accountId ?? null,
+      seats: typeof chosen.seats === 'number' ? chosen.seats : null,
     }
 
     // Keep MAB's app_ref current on login — cheap, idempotent, self-healing.

@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES } from '../../lib/features'
+import { checkPlan, planMeters } from '../../lib/planCheck'
 import { buildSmsLink } from '../../lib/smsLink'
 
 type OrgMember = { id: string; full_name: string; role: string; email?: string; phone?: string | null }
@@ -314,6 +315,27 @@ export default function MembersPage() {
     }
   }
 
+  // Seat quota: the plan id's suffix (…worker / …participant) says which
+  // resource the subscription's `seats` count caps; the other is unlimited.
+  // FAIL OPEN — if seats/plan can't be read, never block adding staff.
+  const { data: planInfo } = useQuery({
+    queryKey: ['plan-seats', org?.id],
+    queryFn: checkPlan,
+    enabled: isCoordinator,
+    staleTime: 60_000,
+  })
+  const meteredAxis = planMeters(org?.plan ?? null)
+  const seats = planInfo?.seats ?? null
+  const workerCount = members.filter((m) => m.role === 'support_worker' || m.role === 'trusted_support_worker').length
+  const recipientCount = members.filter((m) => m.role === 'recipient').length
+  const workerCapReached = meteredAxis === 'workers' && seats != null && workerCount >= seats
+  const recipientCapReached = meteredAxis === 'participants' && seats != null && recipientCount >= seats
+  const capNote = workerCapReached
+    ? `You've reached your plan's limit of ${seats} worker${seats === 1 ? '' : 's'}. Increase your plan quantity to add more.`
+    : recipientCapReached
+    ? `You've reached your plan's limit of ${seats} participant${seats === 1 ? '' : 's'}. Increase your plan quantity to add more.`
+    : ''
+
   // Roles the current user is allowed to invite
   const invitableRoles: string[] = (() => {
     const roles = (() => {
@@ -334,10 +356,13 @@ export default function MembersPage() {
       }
       return ['support_worker']
     })()
-    // Drop roles the plan doesn't include: care-recipient login, therapist circles.
+    // Drop roles the plan doesn't include (care-recipient login, therapist
+    // circles) or that are at their seat quota (workers / participants).
     return roles.filter((r) => {
       if (r === 'recipient' && !canInviteRecipient) return false
       if (r === 'therapist' && !canInviteTherapist) return false
+      if ((r === 'support_worker' || r === 'trusted_support_worker') && workerCapReached) return false
+      if (r === 'recipient' && recipientCapReached) return false
       return true
     })
   })()
@@ -372,6 +397,9 @@ export default function MembersPage() {
       </div>
 
       <div style={{ maxWidth: 540, margin: '0 auto', padding: '1rem' }}>
+        {capNote && (
+          <div className="alert" style={{ marginBottom: '1rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary-deep)' }}>{capNote}</div>
+        )}
         {actionError && (
           <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{actionError}</div>
         )}
