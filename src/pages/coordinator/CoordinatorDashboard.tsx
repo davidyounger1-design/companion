@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -14,6 +14,7 @@ export default function CoordinatorDashboard() {
   const { profile } = useAuth()
   const { has } = useFeatures()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null)
 
   const { data: clients, isLoading: clientsLoading } = useQuery({
@@ -250,13 +251,68 @@ export default function CoordinatorDashboard() {
                   </div>
                 </div>
                 {expandedClientId === client.id && (
-                  <ClientManagePanel clientId={client.id} participantName={client.full_name} orgId={profile!.org_id!} />
+                  <ClientManagePanel
+                    clientId={client.id}
+                    participantName={client.full_name}
+                    orgId={profile!.org_id!}
+                    onRemoved={() => {
+                      setExpandedClientId(null)
+                      qc.invalidateQueries({ queryKey: ['clients', profile?.org_id] })
+                    }}
+                  />
                 )}
               </div>
             ))}
           </div>
         )}
+
+        {!clientsLoading && clients?.some((c) => !c.active) && (
+          <InactiveParticipants clients={clients.filter((c) => !c.active)} orgId={profile!.org_id!} />
+        )}
       </main>
+    </div>
+  )
+}
+
+function InactiveParticipants({ clients, orgId }: { clients: { id: string; full_name: string }[]; orgId: string }) {
+  const qc = useQueryClient()
+  const [expanded, setExpanded] = useState(false)
+
+  const reactivate = useMutation({
+    mutationFn: async (clientId: string) => {
+      const { error } = await supabase.from('clients').update({ active: true }).eq('id', clientId)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients', orgId] }),
+  })
+
+  return (
+    <div style={{ marginTop: '2rem' }}>
+      <button className="btn btn-ghost" style={{ fontSize: '0.85rem' }} onClick={() => setExpanded((e) => !e)}>
+        {expanded ? '▲' : '▼'} {clients.length} inactive participant{clients.length === 1 ? '' : 's'}
+      </button>
+      {expanded && (
+        <div className="scroll-list" style={{ marginTop: '0.75rem' }}>
+          {clients.map((c) => (
+            <div key={c.id} className="card card-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 600 }}>{c.full_name}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
+                <button className="btn btn-secondary" style={{ fontSize: '0.8rem' }} disabled={reactivate.isPending}
+                  onClick={() => reactivate.mutate(c.id)}>
+                  {reactivate.isPending ? <span className="spinner" /> : 'Reactivate'}
+                </button>
+                {reactivate.isError && reactivate.variables === c.id && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-error)' }}>
+                    {(reactivate.error as Error).message.includes('Participant seat limit reached')
+                      ? "You're at your plan's participant limit. Increase your plan quantity or deactivate another participant first."
+                      : (reactivate.error as Error).message}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -16,16 +16,21 @@ export default function ClientManagePanel({
   clientId,
   participantName,
   orgId,
+  onRemoved,
 }: {
   clientId: string
   participantName: string
   orgId: string
+  /** Called after the participant is deactivated or permanently deleted, so the parent can collapse/refresh its list. */
+  onRemoved: () => void
 }) {
   const { user } = useAuth()
   const qc = useQueryClient()
   const { has } = useFeatures()
   const [addingWorkerId, setAddingWorkerId] = useState('')
   const [showIncidentForm, setShowIncidentForm] = useState(false)
+  const [dangerMode, setDangerMode] = useState<'deactivate' | 'delete' | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
   const { data: client } = useQuery({
     queryKey: ['client-manage', clientId],
@@ -168,6 +173,22 @@ export default function ClientManagePanel({
     onSuccess: () => qc.invalidateQueries({ queryKey: ['client-circle-manage', clientId] }),
   })
 
+  const deactivateClient = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('clients').update({ active: false }).eq('id', clientId)
+      if (error) throw error
+    },
+    onSuccess: onRemoved,
+  })
+
+  const deleteClientPermanently = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('clients').delete().eq('id', clientId)
+      if (error) throw error
+    },
+    onSuccess: onRemoved,
+  })
+
   return (
     <div style={{ padding: '1rem', borderTop: '1px solid var(--color-border)' }}>
       <div style={{ marginBottom: '1.5rem' }}>
@@ -285,6 +306,70 @@ export default function ClientManagePanel({
       )}
 
       {has(FEATURES.behaviourNotes) && <BehaviourNotesSection clientId={clientId} participantName={participantName} />}
+
+      <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
+        <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--color-error)' }}>Danger zone</p>
+
+        {dangerMode === null && (
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }} onClick={() => setDangerMode('deactivate')}>
+              Deactivate participant
+            </button>
+            <button className="btn btn-ghost" style={{ fontSize: '0.8rem', color: 'var(--color-error)' }} onClick={() => setDangerMode('delete')}>
+              Delete permanently
+            </button>
+          </div>
+        )}
+
+        {dangerMode === 'deactivate' && (
+          <div className="card card-sm" style={{ background: 'color-mix(in srgb, var(--color-error) 8%, transparent)' }}>
+            <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+              {participantName} will be hidden from dashboards and worker/family views, and their seat will be freed.
+              Their history is kept — you can reactivate them later from the "inactive participants" list.
+            </p>
+            {deactivateClient.isError && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-error)', marginBottom: '0.5rem' }}>
+                {(deactivateClient.error as Error).message}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-ghost" onClick={() => setDangerMode(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ background: 'var(--color-error)' }} disabled={deactivateClient.isPending}
+                onClick={() => deactivateClient.mutate()}>
+                {deactivateClient.isPending ? <span className="spinner" /> : `Deactivate ${participantName}`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {dangerMode === 'delete' && (
+          <div className="card card-sm" style={{ background: 'color-mix(in srgb, var(--color-error) 8%, transparent)' }}>
+            <p style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+              This permanently deletes {participantName} and ALL their records — journal entries, behaviour notes,
+              incidents, goals, schedule, and messages. This cannot be undone. If you just want to free up a seat or
+              pause billing for them, use Deactivate instead.
+            </p>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
+              Type <strong>DELETE</strong> to confirm.
+            </p>
+            {deleteClientPermanently.isError && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-error)', marginBottom: '0.5rem' }}>
+                {(deleteClientPermanently.error as Error).message}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <input className="input" style={{ flex: '1 1 140px' }} value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)} placeholder="DELETE" />
+              <button className="btn btn-ghost" onClick={() => { setDangerMode(null); setDeleteConfirmText('') }}>Cancel</button>
+              <button className="btn btn-primary" style={{ background: 'var(--color-error)' }}
+                disabled={deleteConfirmText !== 'DELETE' || deleteClientPermanently.isPending}
+                onClick={() => deleteClientPermanently.mutate()}>
+                {deleteClientPermanently.isPending ? <span className="spinner" /> : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
