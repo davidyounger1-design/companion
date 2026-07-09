@@ -59,9 +59,45 @@ export default function CoordinatorDashboard() {
     enabled: !!profile?.org_id,
   })
 
+  // Org-wide workforce overview — a provider_dashboard feature. Base dashboard
+  // (stats above, per-participant management below) works the same with or
+  // without this; it only adds the aggregate command-centre view.
+  const showWorkforce = has(FEATURES.providerDashboard)
+
+  const { data: workerCount } = useQuery({
+    queryKey: ['org-worker-count', profile?.org_id],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('profiles').select('id', { count: 'exact', head: true })
+        .eq('org_id', profile!.org_id!)
+        .in('role', ['support_worker', 'trusted_support_worker'])
+      return count ?? 0
+    },
+    enabled: !!profile?.org_id && showWorkforce,
+  })
+
+  const { data: clientWorkerRows } = useQuery({
+    queryKey: ['org-client-workers', profile?.org_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_workers')
+        .select('client_id, worker_id')
+        .in('client_id', (clients ?? []).map((c) => c.id))
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!profile?.org_id && showWorkforce && !!clients?.length,
+  })
+
   const loggedClientIds = new Set(todayLogs?.map((l) => l.client_id))
   const activeClients = clients?.filter((c) => c.active) ?? []
   const loggedToday = activeClients.filter((c) => loggedClientIds.has(c.id)).length
+
+  const workerCountByClient = new Map<string, number>()
+  for (const row of clientWorkerRows ?? []) {
+    workerCountByClient.set(row.client_id, (workerCountByClient.get(row.client_id) ?? 0) + 1)
+  }
+  const unassignedCount = activeClients.filter((c) => !workerCountByClient.get(c.id)).length
 
   async function handleSignOut() {
     await signOut()
@@ -124,6 +160,20 @@ export default function CoordinatorDashboard() {
               icon="🔍"
             />
           )}
+          {showWorkforce && (
+            <StatCard
+              label="Workers"
+              value={workerCount != null ? String(workerCount) : '…'}
+              icon="🧑‍🤝‍🧑"
+            />
+          )}
+          {showWorkforce && unassignedCount > 0 && (
+            <StatCard
+              label="Needs a worker"
+              value={String(unassignedCount)}
+              icon="⚠️"
+            />
+          )}
         </div>
 
         {/* Participants */}
@@ -163,6 +213,13 @@ export default function CoordinatorDashboard() {
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {showWorkforce && (
+                      workerCountByClient.get(client.id) ? (
+                        <span className="badge badge-muted">{workerCountByClient.get(client.id)} worker{workerCountByClient.get(client.id) === 1 ? '' : 's'}</span>
+                      ) : (
+                        <span className="badge" style={{ background: 'color-mix(in srgb, var(--color-error) 15%, transparent)', color: 'var(--color-error)' }}>No worker</span>
+                      )
+                    )}
                     {loggedClientIds.has(client.id) ? (
                       <span className="badge badge-sage">Logged</span>
                     ) : (
