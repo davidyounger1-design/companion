@@ -30,6 +30,20 @@ export default function CoordinatorDashboard() {
     enabled: !!profile?.org_id,
   })
 
+  const { data: openIncidents } = useQuery({
+    queryKey: ['open-incidents', profile?.org_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('incidents')
+        .select('id')
+        .eq('org_id', profile!.org_id!)
+        .in('status', ['open', 'escalated'])
+      if (error) throw error
+      return data
+    },
+    enabled: !!profile?.org_id && has(FEATURES.incidentWorkflows),
+  })
+
   const { data: flaggedNotes } = useQuery({
     queryKey: ['flagged-notes', profile?.org_id],
     queryFn: async () => {
@@ -172,6 +186,13 @@ export default function CoordinatorDashboard() {
               label="Needs a worker"
               value={String(unassignedCount)}
               icon="⚠️"
+            />
+          )}
+          {has(FEATURES.incidentWorkflows) && (
+            <StatCard
+              label="Open incidents"
+              value={openIncidents ? String(openIncidents.length) : '…'}
+              icon="🚨"
             />
           )}
         </div>

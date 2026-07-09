@@ -17,6 +17,8 @@ import EntryReactions from '../../components/EntryReactions'
 import ClientFeedback from '../../components/ClientFeedback'
 import BehaviourNoteForm from '../../components/BehaviourNoteForm'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
+import IncidentForm from '../../components/IncidentForm'
+import IncidentsSection from '../../components/IncidentsSection'
 import type { LogType } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -72,12 +74,15 @@ export default function WorkerClientDetail() {
   const { has } = useFeatures()
   const showMood = has(FEATURES.moodTracking)
   const showBehaviourNotesFeature = has(FEATURES.behaviourNotes)
+  const showIncidentWorkflows = has(FEATURES.incidentWorkflows)
   const navigate = useNavigate()
   const qc = useQueryClient()
 
   const [showFeedback, setShowFeedback] = useState(false)
   const [showBehaviourNotes, setShowBehaviourNotes] = useState(false)
   const [showBehaviourForm, setShowBehaviourForm] = useState(false)
+  const [showIncidents, setShowIncidents] = useState(false)
+  const [showIncidentForm, setShowIncidentForm] = useState(false)
   const [selectedType, setSelectedType] = useState<LogType>('activity')
   const [showForm, setShowForm] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
@@ -285,6 +290,38 @@ export default function WorkerClientDetail() {
               />
             )}
             <BehaviourNotesSection clientId={client.id} participantName={client.full_name} />
+          </div>
+        )}
+      </div>}
+
+      {showIncidentWorkflows && <div className="card" style={{ marginBottom: '1.25rem', padding: '0.875rem 1rem' }}>
+        <button
+          onClick={() => setShowIncidents((x) => !x)}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            width: '100%', background: 'none', border: 'none', padding: 0,
+            cursor: 'pointer', textAlign: 'left', fontSize: '0.9375rem', fontWeight: 500,
+          }}
+        >
+          🚨 Incidents for {client.full_name}
+          <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showIncidents ? '▲' : '▼'}</span>
+        </button>
+        {showIncidents && (
+          <div style={{ marginTop: '0.875rem' }}>
+            {!showIncidentForm ? (
+              <button className="btn btn-primary btn-full" onClick={() => setShowIncidentForm(true)} style={{ marginBottom: '1.25rem' }}>
+                + Report incident
+              </button>
+            ) : (
+              <IncidentForm
+                clientId={client.id}
+                orgId={client.org_id}
+                authorId={user!.id}
+                onSaved={() => setShowIncidentForm(false)}
+                onCancel={() => setShowIncidentForm(false)}
+              />
+            )}
+            <IncidentsSection clientId={client.id} canManage={false} />
           </div>
         )}
       </div>}

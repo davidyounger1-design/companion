@@ -30,6 +30,7 @@ export const FEATURES = {
   recipientLogin: 'recipient_login',
   moodTracking: 'mood_tracking',
   messaging: 'messaging',
+  incidentWorkflows: 'incident_workflows',
 } as const
 
 /**
