@@ -87,7 +87,14 @@ export default function Account() {
     try {
       const { data, error: fnErr } = await supabase.functions.invoke('companion-billing-portal')
       const url: string | undefined = data?.url
-      if (fnErr || !url) { setError('Could not open the billing portal just now. Please try again.'); return }
+      if (fnErr || !url) {
+        setError(
+          data?.error === 'no-subscription'
+            ? "We couldn't find an active subscription for your account. Contact support if this persists."
+            : 'Could not open the billing portal just now. Please try again.'
+        )
+        return
+      }
       window.open(url, '_blank', 'noopener,noreferrer')
     } catch {
       setError('Could not open the billing portal just now. Please try again.')

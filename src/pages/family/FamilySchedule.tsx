@@ -27,7 +27,7 @@ import { themedPageBackground } from '../../lib/timer'
  *  - edit   → change an existing item (whole series, if it recurs)
  *  - detach → make a one-off copy for a single date and skip the series that
  *             day, so "just this Saturday" can differ without touching the rest */
-type FormIntent =
+export type FormIntent =
   | { mode: 'new' }
   | { mode: 'edit'; item: ScheduleItem }
   | { mode: 'detach'; item: ScheduleItem; date: string }
@@ -409,7 +409,7 @@ export default function FamilySchedule() {
 }
 
 
-function WeekView({
+export function WeekView({
   weekDates, items, skips, todayStr, onSelectDay,
 }: {
   weekDates: string[]
@@ -464,7 +464,7 @@ function WeekView({
   )
 }
 
-function ScheduleCard({
+export function ScheduleCard({
   item, occurrenceDate, clientId, orgId, done, status, isNext, canManage, showTimerButton, nowMinutes,
   onToggleDone, onEdit, onDelete, onStartTimer,
 }: {
@@ -562,7 +562,7 @@ function ScheduleCard({
   )
 }
 
-function ScheduleItemForm({
+export function ScheduleItemForm({
   intent, clientId, orgId, userId, defaultDate, onClose, onSaved,
 }: {
   intent: FormIntent
@@ -857,7 +857,7 @@ function RemoteTimerModal({
 
 /** Asks whether an edit/delete on a recurring item applies to just the day
  * being viewed or the whole weekly series. */
-function ScopeChooser({
+export function ScopeChooser({
   item, action, date, onClose, onEditSeries, onEditThisDay, onDeleteSeries, onDeleteThisDay,
 }: {
   item: ScheduleItem
@@ -913,7 +913,7 @@ function ScopeChooser({
 }
 
 /** Copies a whole day's items onto another date. */
-function CopyDayModal({
+export function CopyDayModal({
   fromDate, onClose, onCopy,
 }: {
   fromDate: string

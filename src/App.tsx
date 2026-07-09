@@ -40,6 +40,7 @@ import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
 import WorkerNoticeBoard from './pages/worker/WorkerNoticeBoard'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
+import CoordinatorClientDetail from './pages/coordinator/CoordinatorClientDetail'
 import TherapistDashboard from './pages/therapist/TherapistDashboard'
 import MembersPage from './pages/members/MembersPage'
 import ReleaseNotes from './pages/ReleaseNotes'
@@ -242,6 +243,7 @@ export default function App() {
 
             {/* Coordinator dashboard */}
             <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />
+            <Route path="/dashboard/clients/:clientId" element={<RequireCoordinator><CoordinatorClientDetail /></RequireCoordinator>} />
 
             {/* Therapist portal — read-only, explicitly-shared behaviour notes */}
             <Route path="/therapist" element={<RequireAuth><RequireFeature feature={FEATURES.therapyCircles}><TherapistDashboard /></RequireFeature></RequireAuth>} />
