@@ -172,7 +172,7 @@ export default function CoordinatorDashboard() {
                   </div>
                 </div>
                 {expandedClientId === client.id && (
-                  <ClientManagePanel clientId={client.id} participantName={client.full_name} />
+                  <ClientManagePanel clientId={client.id} participantName={client.full_name} orgId={profile!.org_id!} />
                 )}
               </div>
             ))}
