@@ -46,11 +46,15 @@ function roleBadgeStyle(role: string): React.CSSProperties {
   }
 }
 
-// Roles whose invite is scoped to one participant — the coordinator must say
-// which client (participant) the invitee belongs to whenever there's more
-// than one to choose from. A single-client org has nothing to pick, so no
-// picker is shown there.
-const CLIENT_SCOPED_ROLES = new Set(['family', 'recipient'])
+// Roles whose invite is scoped to a participant. 'family'/'recipient' MUST
+// name one (a family member or a recipient login belongs to exactly one
+// participant). Workers CAN optionally be assigned at invite time — they may
+// serve several participants over time, so this is just a convenient first
+// assignment; more are added later from that participant's "Assigned
+// workers" panel. A single-client org has nothing to pick, so no picker
+// shows there either way.
+const REQUIRED_CLIENT_ROLES = new Set(['family', 'recipient'])
+const OPTIONAL_CLIENT_ROLES = new Set(['support_worker', 'trusted_support_worker'])
 
 function InviteModal({
   orgId,
@@ -74,15 +78,20 @@ function InviteModal({
   const [fallbackLink, setFallbackLink] = useState<string | null>(null)
   const [err, setErr] = useState('')
 
-  const needsClientPicker = CLIENT_SCOPED_ROLES.has(role) && clients.length > 1
-  const noClients = CLIENT_SCOPED_ROLES.has(role) && clients.length === 0
+  const required = REQUIRED_CLIENT_ROLES.has(role)
+  const optional = OPTIONAL_CLIENT_ROLES.has(role)
+  const needsClientPicker = (required || optional) && clients.length > 1
+  const noClients = required && clients.length === 0
   // Single-client orgs (every family org, and a provider org with just one
   // active participant) have nothing to choose — use it without a picker.
-  const clientId = needsClientPicker ? (selectedClientId || null) : (clients[0]?.id ?? null)
+  // For an optional (worker) picker, an empty selection means "assign later".
+  const clientId = needsClientPicker
+    ? (selectedClientId || null)
+    : (clients.length === 1 ? clients[0].id : null)
 
   async function handleInvite() {
     if (!name.trim() || !email.trim()) return
-    if (CLIENT_SCOPED_ROLES.has(role) && !clientId) { setErr('Choose which participant this is for.'); return }
+    if (required && !clientId) { setErr('Choose which participant this is for.'); return }
     setSaving(true)
     setErr('')
     const { data, error } = await supabase.functions.invoke('invite-member', {
@@ -188,13 +197,21 @@ function InviteModal({
 
         {needsClientPicker && (
           <div className="field" style={{ marginBottom: '1rem' }}>
-            <label htmlFor="invite-client">Which participant is this for?</label>
+            <label htmlFor="invite-client">
+              {required ? 'Which participant is this for?' : 'Assign to a participant (optional)'}
+            </label>
             <select id="invite-client" className="input" value={selectedClientId}
               onChange={(e) => setSelectedClientId(e.target.value)}>
+              {optional && <option value="">— assign later —</option>}
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.full_name}</option>
               ))}
             </select>
+            {optional && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+                Workers can be assigned to more participants later from each participant's page.
+              </p>
+            )}
           </div>
         )}
         {noClients && (

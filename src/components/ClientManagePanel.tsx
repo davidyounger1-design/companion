@@ -11,12 +11,15 @@ type Candidate = { id: string; full_name: string; source: 'family' | 'recipient'
 export default function ClientManagePanel({
   clientId,
   participantName,
+  orgId,
 }: {
   clientId: string
   participantName: string
+  orgId: string
 }) {
   const qc = useQueryClient()
   const { has } = useFeatures()
+  const [addingWorkerId, setAddingWorkerId] = useState('')
 
   const { data: client } = useQuery({
     queryKey: ['client-manage', clientId],
@@ -51,6 +54,37 @@ export default function ClientManagePanel({
       return data
     },
     enabled: !!client?.recipient_profile_id,
+  })
+
+  // Workers assigned to THIS participant — the fix for the gap where an
+  // invited worker had no reliable way to ever get linked to a client.
+  const { data: assignedWorkers } = useQuery({
+    queryKey: ['client-workers-manage', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_workers')
+        .select('worker_id, profiles!worker_id(full_name)')
+        .eq('client_id', clientId)
+      if (error) throw error
+      return (data ?? []) as unknown as { worker_id: string; profiles: { full_name: string } | null }[]
+    },
+  })
+
+  // Every worker in the org NOT already assigned here, for the "add" picker.
+  const { data: unassignedWorkers } = useQuery({
+    queryKey: ['org-unassigned-workers', clientId, orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('org_id', orgId)
+        .in('role', ['support_worker', 'trusted_support_worker'])
+        .order('full_name')
+      if (error) throw error
+      const assignedIds = new Set((assignedWorkers ?? []).map((w) => w.worker_id))
+      return (data ?? []).filter((w) => !assignedIds.has(w.id))
+    },
+    enabled: !!orgId,
   })
 
   const { data: circle } = useQuery({
@@ -97,6 +131,29 @@ export default function ClientManagePanel({
     },
   })
 
+  const addWorker = useMutation({
+    mutationFn: async (workerId: string) => {
+      const { error } = await supabase.from('client_workers').insert({ client_id: clientId, worker_id: workerId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-workers-manage', clientId] })
+      qc.invalidateQueries({ queryKey: ['org-unassigned-workers', clientId, orgId] })
+      setAddingWorkerId('')
+    },
+  })
+
+  const removeWorker = useMutation({
+    mutationFn: async (workerId: string) => {
+      const { error } = await supabase.from('client_workers').delete().eq('client_id', clientId).eq('worker_id', workerId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-workers-manage', clientId] })
+      qc.invalidateQueries({ queryKey: ['org-unassigned-workers', clientId, orgId] })
+    },
+  })
+
   const removeFromCircle = useMutation({
     mutationFn: async (circleId: string) => {
       const { error } = await supabase.from('client_circle').update({ status: 'removed' }).eq('id', circleId)
@@ -133,6 +190,41 @@ export default function ClientManagePanel({
         </div>
         {saveDecisionMaker.isSuccess && (
           <p style={{ fontSize: '0.78rem', color: 'var(--color-primary)', marginTop: '0.4rem' }}>Saved.</p>
+        )}
+      </div>
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Assigned workers</p>
+        {!assignedWorkers?.length ? (
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
+            No workers assigned yet — {participantName} won't appear in any worker's client list until one is added.
+          </p>
+        ) : (
+          assignedWorkers.map((w) => (
+            <div key={w.worker_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ fontSize: '0.85rem' }}>{w.profiles?.full_name ?? 'Worker'}</span>
+              <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                disabled={removeWorker.isPending}
+                onClick={() => removeWorker.mutate(w.worker_id)}>
+                Remove
+              </button>
+            </div>
+          ))
+        )}
+        {!!unassignedWorkers?.length && (
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <select className="input" style={{ flex: 1 }} value={addingWorkerId}
+              onChange={(e) => setAddingWorkerId(e.target.value)}>
+              <option value="">Add a worker…</option>
+              {unassignedWorkers.map((w) => (
+                <option key={w.id} value={w.id}>{w.full_name}</option>
+              ))}
+            </select>
+            <button className="btn btn-primary" disabled={!addingWorkerId || addWorker.isPending}
+              onClick={() => addWorker.mutate(addingWorkerId)}>
+              {addWorker.isPending ? <span className="spinner" /> : 'Add'}
+            </button>
+          </div>
         )}
       </div>
 
