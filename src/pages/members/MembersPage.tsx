@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabase'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES } from '../../lib/features'
-import { checkPlan, planMeters } from '../../lib/planCheck'
 import { buildSmsLink } from '../../lib/smsLink'
 
 type OrgMember = { id: string; full_name: string; role: string; email?: string; phone?: string | null }
@@ -367,23 +366,13 @@ export default function MembersPage() {
     }
   }
 
-  // Seat quota: the plan id's suffix (…worker / …participant) says which
-  // resource the subscription's `seats` count caps; the other is unlimited.
-  // FAIL OPEN — if seats/plan can't be read, never block adding staff.
-  const { data: planInfo } = useQuery({
-    queryKey: ['plan-seats', org?.id],
-    queryFn: checkPlan,
-    enabled: isCoordinator,
-    staleTime: 60_000,
-  })
-  // Family orgs are always participant-restricted (their stored plan is the
-  // 'family' sentinel, so read the org type directly). Providers derive the
-  // axis from the plan id — the authoritative one from MAB /link if present,
-  // else org.plan (the id stored at checkout).
-  const meteredAxis: ReturnType<typeof planMeters> = isFamilyOrg
-    ? 'participants'
-    : planMeters(planInfo?.plan_id ?? org?.plan ?? null)
-  const seats = planInfo?.seats ?? null
+  // Seat quota: seats/metered_axis are synced onto org by reconcileOrgPlan at
+  // login — read directly (no extra round trip, no loading race). The DB
+  // trigger on `clients` (migration 055) is the real backstop for participant
+  // records; this is client-side-only for worker/recipient invites for now.
+  // FAIL OPEN — if seats/axis are unset, never block adding staff.
+  const meteredAxis = org?.metered_axis ?? null
+  const seats = org?.seats ?? null
   const workerCount = members.filter((m) => m.role === 'support_worker' || m.role === 'trusted_support_worker').length
   const recipientCount = members.filter((m) => m.role === 'recipient').length
   const workerCapReached = meteredAxis === 'workers' && seats != null && workerCount >= seats

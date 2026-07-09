@@ -15,6 +15,9 @@ export type ScheduleRecurrence = 'once' | 'weekly'
 export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical'
 export type IncidentCategory = 'injury' | 'behaviour' | 'medication' | 'property' | 'near_miss' | 'complaint' | 'other'
 export type IncidentStatus = 'open' | 'escalated' | 'resolved'
+export type GoalStatus = 'active' | 'achieved' | 'discontinued'
+export type MeteredAxis = 'workers' | 'participants'
+export type ProgressRating = 'regressed' | 'no_change' | 'some_progress' | 'good_progress' | 'achieved'
 
 // ─── Supabase Database schema type ───────────────────────────────────────────
 // Structured to match Supabase's generated type format so `createClient<Database>` resolves correctly.
@@ -35,6 +38,8 @@ export interface Database {
           plan: string
           billing_status: BillingStatus
           org_type: OrgType
+          seats: number | null
+          metered_axis: MeteredAxis | null
           owner_id: string | null
           created_at: string
         }
@@ -50,6 +55,8 @@ export interface Database {
           plan?: string
           billing_status?: BillingStatus
           org_type?: OrgType
+          seats?: number | null
+          metered_axis?: MeteredAxis | null
           owner_id?: string | null
           created_at?: string
         }
@@ -64,6 +71,8 @@ export interface Database {
           plan?: string
           billing_status?: BillingStatus
           org_type?: OrgType
+          seats?: number | null
+          metered_axis?: MeteredAxis | null
           owner_id?: string | null
         }
         Relationships: []
@@ -404,6 +413,63 @@ export interface Database {
         Row: { id: string; client_id: string | null; org_id: string; sender_id: string; recipient_id: string | null; body: string; created_at: string }
         Insert: { id?: string; client_id?: string | null; org_id: string; sender_id: string; recipient_id?: string | null; body: string; created_at?: string }
         Update: { body?: string }
+        Relationships: []
+      }
+      participant_goals: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          title: string
+          description: string | null
+          target_date: string | null
+          status: GoalStatus
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          title: string
+          description?: string | null
+          target_date?: string | null
+          status?: GoalStatus
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          title?: string
+          description?: string | null
+          target_date?: string | null
+          status?: GoalStatus
+        }
+        Relationships: []
+      }
+      goal_progress_records: {
+        Row: {
+          id: string
+          goal_id: string
+          client_id: string
+          org_id: string
+          author_id: string
+          occurred_at: string
+          rating: ProgressRating
+          notes: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          goal_id: string
+          client_id: string
+          org_id: string
+          author_id: string
+          occurred_at?: string
+          rating: ProgressRating
+          notes: string
+          created_at?: string
+        }
+        Update: Record<string, never>
         Relationships: []
       }
       incidents: {
