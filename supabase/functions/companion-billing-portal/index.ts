@@ -5,12 +5,23 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface LinkSub {
+  id?: string
+  status?: string
+  ownerEmail?: string
+  createdAt?: string
+}
+
 // Mints a one-time magic-login URL into the caller's MyAppBuddy billing portal,
 // where they can upgrade/downgrade/cancel and view invoices/payment methods —
-// MAB owns all the billing-sensitive logic, we just open the door. Auth mirrors
-// check-plan: authenticate the caller via their Supabase session, resolve their
-// org's stored MAB subscription id (service role, so RLS can't hide it), then
-// POST to the hub's portal endpoint with the server secret key.
+// MAB owns all the billing-sensitive logic, we just open the door.
+//
+// Subscription id is resolved LIVE from MAB by matching the caller's email
+// against /api/v1/link/subscriptions (same approach as check-plan), not from
+// organisations.myappbuddy_subscription_id — that column is only ever written
+// once at initial checkout and goes stale the moment a subscription changes
+// in MAB (e.g. an upgrade issues a new id), which silently broke this exact
+// button. Resolving live avoids depending on that mirror at all.
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
@@ -27,25 +38,26 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     )
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return json({ url: null, error: 'unauthorized' }, 401)
-
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
-    const { data: profile } = await admin
-      .from('profiles').select('org_id').eq('id', user.id).maybeSingle()
-    if (!profile?.org_id) return json({ url: null, error: 'no-org' })
-    const { data: org } = await admin
-      .from('organisations')
-      .select('myappbuddy_subscription_id')
-      .eq('id', profile.org_id)
-      .maybeSingle()
-    const subId = org?.myappbuddy_subscription_id
-    if (!subId) return json({ url: null, error: 'no-subscription' })
+    if (!user?.email) return json({ url: null, error: 'unauthorized' }, 401)
 
     const mabUrl = Deno.env.get('MAB_API_URL') ?? 'https://myappbuddy.com.au'
     const key = Deno.env.get('MAB_SECRET_KEY') || Deno.env.get('COMPANION_SERVICE_KEY') || ''
+
+    const listRes = await fetch(
+      `${mabUrl}/api/v1/link/subscriptions?app=companion&status=all`,
+      { headers: { Authorization: `Bearer ${key}` } },
+    )
+    if (!listRes.ok) return json({ url: null, error: `lookup-${listRes.status}` })
+
+    const listData = await listRes.json().catch(() => ({}))
+    const subs: LinkSub[] = Array.isArray(listData) ? listData : (listData?.subscriptions ?? [])
+    const email = user.email.toLowerCase()
+    const mine = subs.filter((s) => s.ownerEmail?.toLowerCase() === email)
+    const active = mine.filter((s) => ['active', 'trialing', 'trial'].includes(s.status ?? ''))
+    const pool = active.length ? active : mine
+    pool.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+    const subId = pool[0]?.id
+    if (!subId) return json({ url: null, error: 'no-subscription' })
 
     const res = await fetch(
       `${mabUrl}/api/v1/link/subscriptions/${encodeURIComponent(subId)}/portal`,

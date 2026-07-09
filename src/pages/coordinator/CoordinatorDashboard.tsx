@@ -8,14 +8,11 @@ import { signOut } from '../../lib/auth'
 import { useState } from 'react'
 import { SettingsIcon } from '../../components/icons'
 import ColorModePill from '../../components/ColorModePill'
-import ClientManagePanel from '../../components/ClientManagePanel'
 
 export default function CoordinatorDashboard() {
   const { profile } = useAuth()
   const { has } = useFeatures()
   const navigate = useNavigate()
-  const qc = useQueryClient()
-  const [expandedClientId, setExpandedClientId] = useState<string | null>(null)
 
   const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['clients', profile?.org_id],
@@ -224,9 +221,12 @@ export default function CoordinatorDashboard() {
           <div className="scroll-list">
             {activeClients.map((client) => (
               <div key={client.id} className="card card-sm" style={{ padding: 0, overflow: 'hidden' }}>
-                <div
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1rem', cursor: 'pointer' }}
-                  onClick={() => setExpandedClientId((id) => (id === client.id ? null : client.id))}
+                <button
+                  onClick={() => navigate(`/dashboard/clients/${client.id}`)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                    padding: '0.875rem 1rem', cursor: 'pointer', background: 'none', border: 'none', textAlign: 'left',
+                  }}
                 >
                   <div>
                     <p style={{ fontWeight: 600, margin: 0 }}>{client.full_name}</p>
@@ -247,20 +247,9 @@ export default function CoordinatorDashboard() {
                     ) : (
                       <span className="badge badge-muted">Not logged</span>
                     )}
-                    <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{expandedClientId === client.id ? '▲' : '▼'}</span>
+                    <span style={{ fontSize: '1rem', opacity: 0.5 }}>›</span>
                   </div>
-                </div>
-                {expandedClientId === client.id && (
-                  <ClientManagePanel
-                    clientId={client.id}
-                    participantName={client.full_name}
-                    orgId={profile!.org_id!}
-                    onRemoved={() => {
-                      setExpandedClientId(null)
-                      qc.invalidateQueries({ queryKey: ['clients', profile?.org_id] })
-                    }}
-                  />
-                )}
+                </button>
               </div>
             ))}
           </div>
