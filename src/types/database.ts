@@ -12,6 +12,9 @@ export type InviteStatus = 'pending' | 'accepted' | 'expired'
 export type AccessAction = 'view' | 'share' | 'revoke'
 export type ScheduleCategory = 'therapy' | 'meal' | 'activity' | 'personal_care' | 'social' | 'appointment' | 'transport' | 'other'
 export type ScheduleRecurrence = 'once' | 'weekly'
+export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical'
+export type IncidentCategory = 'injury' | 'behaviour' | 'medication' | 'property' | 'near_miss' | 'complaint' | 'other'
+export type IncidentStatus = 'open' | 'escalated' | 'resolved'
 
 // ─── Supabase Database schema type ───────────────────────────────────────────
 // Structured to match Supabase's generated type format so `createClient<Database>` resolves correctly.
@@ -403,6 +406,53 @@ export interface Database {
         Update: { body?: string }
         Relationships: []
       }
+      incidents: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          author_id: string
+          occurred_at: string
+          severity: IncidentSeverity
+          category: IncidentCategory
+          description: string
+          immediate_action: string | null
+          status: IncidentStatus
+          escalated_at: string | null
+          escalated_by: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolution_notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          author_id: string
+          occurred_at?: string
+          severity: IncidentSeverity
+          category: IncidentCategory
+          description: string
+          immediate_action?: string | null
+          status?: IncidentStatus
+          escalated_at?: string | null
+          escalated_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolution_notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          status?: IncidentStatus
+          escalated_at?: string | null
+          escalated_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolution_notes?: string | null
+        }
+        Relationships: []
+      }
       invites: {
         Row: {
           id: string
@@ -719,6 +769,7 @@ export type LogEntry     = Tables['log_entries']['Row']
 export type BehaviourNote = Tables['behaviour_notes']['Row']
 export type NoteShare    = Tables['note_shares']['Row']
 export type AccessLog    = Tables['access_log']['Row']
+export type Incident     = Tables['incidents']['Row']
 export type Invite       = Tables['invites']['Row']
 export type OrgSettings  = Tables['org_settings']['Row']
 export type Notice       = Tables['notices']['Row']

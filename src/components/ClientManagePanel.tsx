@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import BehaviourNotesSection from './BehaviourNotesSection'
+import IncidentForm from './IncidentForm'
+import IncidentsSection from './IncidentsSection'
 import { useFeatures } from '../hooks/useFeatures'
 import { FEATURES } from '../lib/features'
 
@@ -17,9 +20,11 @@ export default function ClientManagePanel({
   participantName: string
   orgId: string
 }) {
+  const { user } = useAuth()
   const qc = useQueryClient()
   const { has } = useFeatures()
   const [addingWorkerId, setAddingWorkerId] = useState('')
+  const [showIncidentForm, setShowIncidentForm] = useState(false)
 
   const { data: client } = useQuery({
     queryKey: ['client-manage', clientId],
@@ -247,6 +252,30 @@ export default function ClientManagePanel({
           ))
         )}
       </div>}
+
+      {has(FEATURES.incidentWorkflows) && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <p style={{ fontWeight: 700, fontSize: '0.85rem', margin: 0 }}>Incidents</p>
+            {!showIncidentForm && (
+              <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
+                onClick={() => setShowIncidentForm(true)}>
+                + Report incident
+              </button>
+            )}
+          </div>
+          {showIncidentForm && (
+            <IncidentForm
+              clientId={clientId}
+              orgId={orgId}
+              authorId={user!.id}
+              onSaved={() => setShowIncidentForm(false)}
+              onCancel={() => setShowIncidentForm(false)}
+            />
+          )}
+          <IncidentsSection clientId={clientId} canManage />
+        </div>
+      )}
 
       {has(FEATURES.behaviourNotes) && <BehaviourNotesSection clientId={clientId} participantName={participantName} />}
     </div>
