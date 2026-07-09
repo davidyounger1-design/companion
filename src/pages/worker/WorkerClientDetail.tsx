@@ -19,6 +19,7 @@ import BehaviourNoteForm from '../../components/BehaviourNoteForm'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
 import IncidentForm from '../../components/IncidentForm'
 import IncidentsSection from '../../components/IncidentsSection'
+import NdisRecordsSection from '../../components/NdisRecordsSection'
 import type { LogType } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -75,6 +76,7 @@ export default function WorkerClientDetail() {
   const showMood = has(FEATURES.moodTracking)
   const showBehaviourNotesFeature = has(FEATURES.behaviourNotes)
   const showIncidentWorkflows = has(FEATURES.incidentWorkflows)
+  const showNdisRecords = has(FEATURES.ndisRecords)
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -83,6 +85,7 @@ export default function WorkerClientDetail() {
   const [showBehaviourForm, setShowBehaviourForm] = useState(false)
   const [showIncidents, setShowIncidents] = useState(false)
   const [showIncidentForm, setShowIncidentForm] = useState(false)
+  const [showGoals, setShowGoals] = useState(false)
   const [selectedType, setSelectedType] = useState<LogType>('activity')
   const [showForm, setShowForm] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
@@ -322,6 +325,25 @@ export default function WorkerClientDetail() {
               />
             )}
             <IncidentsSection clientId={client.id} canManage={false} />
+          </div>
+        )}
+      </div>}
+
+      {showNdisRecords && <div className="card" style={{ marginBottom: '1.25rem', padding: '0.875rem 1rem' }}>
+        <button
+          onClick={() => setShowGoals((x) => !x)}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            width: '100%', background: 'none', border: 'none', padding: 0,
+            cursor: 'pointer', textAlign: 'left', fontSize: '0.9375rem', fontWeight: 500,
+          }}
+        >
+          🎯 Goals for {client.full_name}
+          <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showGoals ? '▲' : '▼'}</span>
+        </button>
+        {showGoals && (
+          <div style={{ marginTop: '0.875rem' }}>
+            <NdisRecordsSection clientId={client.id} orgId={client.org_id} authorId={user!.id} canManageGoals={false} />
           </div>
         )}
       </div>}

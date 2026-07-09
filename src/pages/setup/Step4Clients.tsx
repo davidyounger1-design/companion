@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { checkPlan, planMeters } from '../../lib/planCheck'
 
 export default function Step4Clients() {
   const navigate = useNavigate()
@@ -19,23 +18,23 @@ export default function Step4Clients() {
   const [orgLoading, setOrgLoading] = useState(!profile?.org_id)
 
   // Seat quota: on a participant-metered plan, cap active participant records
-  // at the subscription's seats. FAIL OPEN — if seats/plan can't be read, or
-  // the plan isn't participant-metered, never block adding a participant.
+  // at the subscription's seats. seats/metered_axis are synced onto org by
+  // reconcileOrgPlan at login — read directly from context (no extra round
+  // trip, no loading race). FAIL OPEN if unset (not participant-metered, or
+  // not yet synced). The REAL enforcement is a DB trigger (migration 055) —
+  // this is only for immediate UI feedback; see the error handling in
+  // addClient() for what happens if this client-side check is stale.
   const [activeCount, setActiveCount] = useState<number | null>(null)
-  const [seats, setSeats] = useState<number | null>(null)
-  const [meteredAxis, setMeteredAxis] = useState<ReturnType<typeof planMeters>>(null)
 
   useEffect(() => {
     if (!orgId) return
     supabase.from('clients').select('id', { count: 'exact', head: true })
       .eq('org_id', orgId).eq('active', true)
       .then(({ count }) => { if (typeof count === 'number') setActiveCount(count) })
-    checkPlan().then((info) => {
-      setSeats(info.seats)
-      setMeteredAxis(planMeters(info.plan_id ?? org?.plan ?? null))
-    }).catch(() => {})
   }, [orgId])
 
+  const seats = org?.seats ?? null
+  const meteredAxis = org?.metered_axis ?? null
   const capReached = meteredAxis === 'participants' && seats != null && activeCount != null && activeCount >= seats
 
   useEffect(() => {
@@ -77,7 +76,13 @@ export default function Step4Clients() {
     })
     setSaving(false)
     if (err) {
-      setError(err.message)
+      // The DB trigger is the real enforcement — this fires if the client-side
+      // check above was stale (e.g. org.seats hadn't synced yet this session).
+      setError(
+        err.message.includes('Participant seat limit reached')
+          ? `You've reached your plan's limit of ${seats ?? 'your plan\'s'} participant${seats === 1 ? '' : 's'}. Increase your plan quantity to add more.`
+          : err.message
+      )
     } else {
       qc.invalidateQueries({ queryKey: ['clients', orgId] })
       setAdded((prev) => [...prev, name.trim()])

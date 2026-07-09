@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import BehaviourNotesSection from './BehaviourNotesSection'
 import IncidentForm from './IncidentForm'
 import IncidentsSection from './IncidentsSection'
+import NdisRecordsSection from './NdisRecordsSection'
 import { useFeatures } from '../hooks/useFeatures'
 import { FEATURES } from '../lib/features'
 
@@ -274,6 +275,12 @@ export default function ClientManagePanel({
             />
           )}
           <IncidentsSection clientId={clientId} canManage />
+        </div>
+      )}
+
+      {has(FEATURES.ndisRecords) && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <NdisRecordsSection clientId={clientId} orgId={orgId} authorId={user!.id} canManageGoals />
         </div>
       )}
 

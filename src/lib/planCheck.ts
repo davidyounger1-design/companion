@@ -1,4 +1,7 @@
 import { supabase } from './supabase'
+import type { MeteredAxis } from '../types/database'
+
+export type { MeteredAxis }
 
 export interface PlanInfo {
   /** Display name from MAB (`planName`), for showing the plan to the user. */
@@ -45,7 +48,6 @@ export function isFamilyPlan(plan: string | null): boolean {
 // metering is implicit. Returns null when the plan is unknown OR explicitly
 // unlimited — both cases mean "no cap" to the caller (fail open). The quantity
 // comes from the subscription's seats, not from here.
-export type MeteredAxis = 'workers' | 'participants'
 export function planMeters(plan: string | null): MeteredAxis | null {
   if (!plan) return null
   if (/unlimited$/i.test(plan)) return null
