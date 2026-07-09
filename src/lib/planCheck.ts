@@ -37,15 +37,18 @@ export function isFamilyPlan(plan: string | null): boolean {
 
 // Which resource a plan's `seats` quantity meters, read straight off the plan
 // id — the same "semantics live in the id" pattern as isFamilyPlan. Rules:
+//   - a plan id ending in `unlimited` → no cap on either axis (e.g. Enterprise)
 //   - family plans (or the local 'family' sentinel) → participants
 //   - any plan id ending in `participant` → participants
 //   - every other (provider) plan → workers, the default
-// So the only suffix you ever add is `participant`; worker-metering is implicit.
-// Returns null only when the plan is unknown (→ caller fails open, no cap). The
-// quantity comes from the subscription's seats, not from here.
+// So the only suffixes you ever add are `participant` or `unlimited`; worker-
+// metering is implicit. Returns null when the plan is unknown OR explicitly
+// unlimited — both cases mean "no cap" to the caller (fail open). The quantity
+// comes from the subscription's seats, not from here.
 export type MeteredAxis = 'workers' | 'participants'
 export function planMeters(plan: string | null): MeteredAxis | null {
   if (!plan) return null
+  if (/unlimited$/i.test(plan)) return null
   if (plan === 'family' || isFamilyPlan(plan)) return 'participants'
   if (/participants?$/i.test(plan)) return 'participants'
   return 'workers'
