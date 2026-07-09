@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { checkPlan, planMeters } from '../../lib/planCheck'
 
 export default function Step4Clients() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { user, profile } = useAuth()
+  const { user, profile, org } = useAuth()
   const [name, setName] = useState('')
   const [dob, setDob] = useState('')
   const [added, setAdded] = useState<string[]>([])
@@ -16,6 +17,26 @@ export default function Step4Clients() {
 
   const [orgId, setOrgId] = useState<string | null>(profile?.org_id ?? null)
   const [orgLoading, setOrgLoading] = useState(!profile?.org_id)
+
+  // Seat quota: on a participant-metered plan, cap active participant records
+  // at the subscription's seats. FAIL OPEN — if seats/plan can't be read, or
+  // the plan isn't participant-metered, never block adding a participant.
+  const [activeCount, setActiveCount] = useState<number | null>(null)
+  const [seats, setSeats] = useState<number | null>(null)
+  const [meteredAxis, setMeteredAxis] = useState<ReturnType<typeof planMeters>>(null)
+
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('clients').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).eq('active', true)
+      .then(({ count }) => { if (typeof count === 'number') setActiveCount(count) })
+    checkPlan().then((info) => {
+      setSeats(info.seats)
+      setMeteredAxis(planMeters(info.plan_id ?? org?.plan ?? null))
+    }).catch(() => {})
+  }, [orgId])
+
+  const capReached = meteredAxis === 'participants' && seats != null && activeCount != null && activeCount >= seats
 
   useEffect(() => {
     if (orgId) { setOrgLoading(false); return }
@@ -43,6 +64,10 @@ export default function Step4Clients() {
       setError('Organisation not loaded yet — wait a moment and try again.')
       return
     }
+    if (capReached) {
+      setError(`You've reached your plan's limit of ${seats} participant${seats === 1 ? '' : 's'}. Increase your plan quantity to add more.`)
+      return
+    }
     setSaving(true)
     const { error: err } = await supabase.from('clients').insert({
       org_id: orgId,
@@ -56,6 +81,7 @@ export default function Step4Clients() {
     } else {
       qc.invalidateQueries({ queryKey: ['clients', orgId] })
       setAdded((prev) => [...prev, name.trim()])
+      setActiveCount((prev) => (prev ?? 0) + 1)
       setName('')
       setDob('')
     }
@@ -73,13 +99,18 @@ export default function Step4Clients() {
           {error}
         </div>
       )}
+      {!error && capReached && (
+        <div className="alert" style={{ marginBottom: '1rem' }}>
+          You've reached your plan's limit of {seats} participant{seats === 1 ? '' : 's'}. Increase your plan quantity to add more.
+        </div>
+      )}
 
       {orgLoading ? (
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <div className="spinner" style={{ margin: '0 auto', color: 'var(--color-primary)' }} />
           <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', marginTop: '0.75rem' }}>Loading organisation…</p>
         </div>
-      ) : orgId ? (
+      ) : orgId && !capReached ? (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <div className="field" style={{ marginBottom: '0.75rem' }}>
             <label htmlFor="clientName">Full name</label>
