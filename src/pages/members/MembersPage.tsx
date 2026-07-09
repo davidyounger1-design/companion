@@ -46,29 +46,43 @@ function roleBadgeStyle(role: string): React.CSSProperties {
   }
 }
 
+// Roles whose invite is scoped to one participant — the coordinator must say
+// which client (participant) the invitee belongs to whenever there's more
+// than one to choose from. A single-client org has nothing to pick, so no
+// picker is shown there.
+const CLIENT_SCOPED_ROLES = new Set(['family', 'recipient'])
+
 function InviteModal({
   orgId,
   allowedRoles,
-  clientId,
+  clients,
   onClose,
 }: {
   orgId: string
   allowedRoles: string[]
-  clientId: string | null
+  clients: { id: string; full_name: string }[]
   onClose: () => void
 }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState(allowedRoles[0] ?? 'support_worker')
+  const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
   const [sent, setSent] = useState(false)
   const [sentInviteUrl, setSentInviteUrl] = useState<string | null>(null)
   const [fallbackLink, setFallbackLink] = useState<string | null>(null)
   const [err, setErr] = useState('')
 
+  const needsClientPicker = CLIENT_SCOPED_ROLES.has(role) && clients.length > 1
+  const noClients = CLIENT_SCOPED_ROLES.has(role) && clients.length === 0
+  // Single-client orgs (every family org, and a provider org with just one
+  // active participant) have nothing to choose — use it without a picker.
+  const clientId = needsClientPicker ? (selectedClientId || null) : (clients[0]?.id ?? null)
+
   async function handleInvite() {
     if (!name.trim() || !email.trim()) return
+    if (CLIENT_SCOPED_ROLES.has(role) && !clientId) { setErr('Choose which participant this is for.'); return }
     setSaving(true)
     setErr('')
     const { data, error } = await supabase.functions.invoke('invite-member', {
@@ -172,10 +186,27 @@ function InviteModal({
           </div>
         )}
 
+        {needsClientPicker && (
+          <div className="field" style={{ marginBottom: '1rem' }}>
+            <label htmlFor="invite-client">Which participant is this for?</label>
+            <select id="invite-client" className="input" value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {noClients && (
+          <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+            Add a participant before inviting their {role === 'recipient' ? 'own login' : 'family'}.
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
           <button className="btn btn-primary" onClick={handleInvite}
-            disabled={saving || !name.trim() || !email.trim()} style={{ flex: 2 }}>
+            disabled={saving || !name.trim() || !email.trim() || noClients} style={{ flex: 2 }}>
             {saving ? <span className="spinner" /> : 'Send invite'}
           </button>
         </div>
@@ -227,7 +258,7 @@ export default function MembersPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('invites')
-        .select('id, name, email, phone, role, token, created_at')
+        .select('id, name, email, phone, role, token, client_id, created_at')
         .eq('org_id', profile!.org_id!)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
@@ -236,17 +267,19 @@ export default function MembersPage() {
     enabled: !!profile?.org_id && ['coordinator', 'family', 'trusted_support_worker'].includes(profile?.role ?? ''),
   })
 
-  const { data: firstClient, isLoading: firstClientLoading } = useQuery({
-    queryKey: ['first-client', profile?.org_id],
+  // Every active participant in the org — used to let the coordinator pick
+  // which one a family/recipient invite is for. A "first active client" guess
+  // silently mis-attached invites the moment an org had more than one.
+  const { data: orgClients = [], isLoading: orgClientsLoading } = useQuery({
+    queryKey: ['org-clients', profile?.org_id],
     queryFn: async () => {
       const { data } = await supabase
         .from('clients')
-        .select('id')
+        .select('id, full_name')
         .eq('org_id', profile!.org_id!)
         .eq('active', true)
-        .limit(1)
-        .maybeSingle()
-      return data
+        .order('full_name')
+      return data ?? []
     },
     enabled: !!profile?.org_id,
   })
@@ -288,12 +321,14 @@ export default function MembersPage() {
     qc.invalidateQueries({ queryKey: ['org-members'] })
   }
 
-  async function resendInvite(invite: { id: string; email: string; role: string; phone?: string | null; name?: string | null }) {
-    if (!org || !firstClient) return
+  async function resendInvite(invite: { id: string; email: string; role: string; phone?: string | null; name?: string | null; client_id?: string | null }) {
+    if (!org) return
     setResendingId(invite.id)
     try {
+      // Reuse the SAME participant the invite was originally sent for — never
+      // re-guess (that's the bug this whole flow used to have).
       await supabase.functions.invoke('invite-member', {
-        body: { name: invite.name ?? null, email: invite.email, phone: invite.phone ?? null, role: invite.role, org_id: org.id, client_id: firstClient.id },
+        body: { name: invite.name ?? null, email: invite.email, phone: invite.phone ?? null, role: invite.role, org_id: org.id, client_id: invite.client_id ?? null },
       })
       qc.invalidateQueries({ queryKey: ['pending-invites'] })
     } finally {
@@ -396,8 +431,8 @@ export default function MembersPage() {
         </div>
         {invitableRoles.length > 0 && (
           <button className="btn btn-primary" onClick={() => setShowInvite(true)}
-            disabled={firstClientLoading} style={{ fontSize: '0.875rem' }}>
-            {firstClientLoading ? <span className="spinner" /> : '+ Invite'}
+            disabled={orgClientsLoading} style={{ fontSize: '0.875rem' }}>
+            {orgClientsLoading ? <span className="spinner" /> : '+ Invite'}
           </button>
         )}
       </div>
@@ -580,7 +615,7 @@ export default function MembersPage() {
         <InviteModal
           orgId={org.id}
           allowedRoles={invitableRoles}
-          clientId={firstClient?.id ?? null}
+          clients={orgClients}
           onClose={() => {
             setShowInvite(false)
             qc.invalidateQueries({ queryKey: ['org-members'] })
