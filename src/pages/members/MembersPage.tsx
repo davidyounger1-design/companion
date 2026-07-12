@@ -655,6 +655,7 @@ function EditMemberModal({
 }) {
   const [fullName, setFullName] = useState(member.full_name)
   const [phone, setPhone] = useState(member.phone ?? '')
+  const [email, setEmail] = useState(member.email ?? '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -662,14 +663,32 @@ function EditMemberModal({
     if (!fullName.trim()) { setErr('Name is required'); return }
     setSaving(true)
     setErr('')
+
     const { data, error } = await supabase.rpc('update_member', {
       p_user_id: member.id,
       p_full_name: fullName.trim(),
       p_phone: phone.trim() || null,
     })
-    setSaving(false)
     const r = data as RpcResult | null
-    if (error || !r?.ok) { setErr(r?.error ?? error?.message ?? 'Could not save'); return }
+    if (error || !r?.ok) {
+      setSaving(false)
+      setErr(r?.error ?? error?.message ?? 'Could not save')
+      return
+    }
+
+    // Email lives on auth.users, not profiles — a separate admin-only call.
+    const trimmedEmail = email.trim().toLowerCase()
+    if (member.email && trimmedEmail !== member.email.toLowerCase()) {
+      const { data: emailData, error: emailErr } = await supabase.functions.invoke('update-member-email', {
+        body: { user_id: member.id, new_email: trimmedEmail },
+      })
+      setSaving(false)
+      if (emailErr || !emailData?.ok) { setErr(emailData?.error ?? emailErr?.message ?? 'Could not update email'); return }
+      onSaved()
+      return
+    }
+
+    setSaving(false)
     onSaved()
   }
 
@@ -696,9 +715,14 @@ function EditMemberModal({
         </div>
 
         {member.email && (
-          <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginBottom: '1rem' }}>
-            Email: {member.email} <span style={{ opacity: 0.7 }}>(can't be changed here)</span>
-          </p>
+          <div className="field" style={{ marginBottom: '1rem' }}>
+            <label htmlFor="edit-email">Email address</label>
+            <input id="edit-email" type="email" className="input" value={email}
+              onChange={(e) => setEmail(e.target.value)} />
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+              Changes their login email immediately — no confirmation needed from them.
+            </p>
+          </div>
         )}
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
