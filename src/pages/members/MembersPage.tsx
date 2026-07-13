@@ -656,11 +656,17 @@ function EditMemberModal({
   const [fullName, setFullName] = useState(member.full_name)
   const [phone, setPhone] = useState(member.phone ?? '')
   const [email, setEmail] = useState(member.email ?? '')
+  const [showPasswordField, setShowPasswordField] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
   async function handleSave() {
     if (!fullName.trim()) { setErr('Name is required'); return }
+    if (showPasswordField && newPassword.length > 0 && newPassword.length < 6) {
+      setErr('New password must be at least 6 characters')
+      return
+    }
     setSaving(true)
     setErr('')
 
@@ -682,8 +688,19 @@ function EditMemberModal({
       const { data: emailData, error: emailErr } = await supabase.functions.invoke('update-member-email', {
         body: { user_id: member.id, new_email: trimmedEmail },
       })
+      if (emailErr || !emailData?.ok) {
+        setSaving(false)
+        setErr(emailData?.error ?? emailErr?.message ?? 'Could not update email')
+        return
+      }
+    }
+
+    if (showPasswordField && newPassword) {
+      const { data: pwData, error: pwErr } = await supabase.functions.invoke('update-member-password', {
+        body: { user_id: member.id, new_password: newPassword },
+      })
       setSaving(false)
-      if (emailErr || !emailData?.ok) { setErr(emailData?.error ?? emailErr?.message ?? 'Could not update email'); return }
+      if (pwErr || !pwData?.ok) { setErr(pwData?.error ?? pwErr?.message ?? 'Could not update password'); return }
       onSaved()
       return
     }
@@ -724,6 +741,24 @@ function EditMemberModal({
             </p>
           </div>
         )}
+
+        <div style={{ marginBottom: '1rem' }}>
+          {!showPasswordField ? (
+            <button className="btn btn-ghost" style={{ fontSize: '0.85rem', padding: '0.3rem 0' }}
+              onClick={() => setShowPasswordField(true)}>
+              Set a new password…
+            </button>
+          ) : (
+            <div className="field">
+              <label htmlFor="edit-member-password">New password</label>
+              <input id="edit-member-password" type="password" className="input"
+                value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+                Takes effect immediately — no confirmation from them, and they won't be signed out of other devices.
+              </p>
+            </div>
+          )}
+        </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>

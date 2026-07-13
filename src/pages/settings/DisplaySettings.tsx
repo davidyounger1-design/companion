@@ -354,6 +354,75 @@ function TwoFactorCard() {
   )
 }
 
+function ChangePasswordCard() {
+  const { user } = useAuth()
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  async function handleSave() {
+    setError('')
+    setSaved(false)
+    if (!currentPassword) { setError('Enter your current password.'); return }
+    if (newPassword.length < 6) { setError('New password must be at least 6 characters.'); return }
+    if (newPassword !== confirmPassword) { setError('New passwords don\'t match.'); return }
+    if (!user?.email) { setError('Could not confirm your account. Try signing in again.'); return }
+
+    setSaving(true)
+    // Verifying the current password re-authenticates against it directly —
+    // there's no separate "check password" call, and this keeps the session
+    // alive rather than signing the user out to test it.
+    const { error: verifyErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword })
+    if (verifyErr) {
+      setSaving(false)
+      setError('Current password is incorrect.')
+      return
+    }
+    const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword })
+    setSaving(false)
+    if (updateErr) { setError(updateErr.message); return }
+    setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+    setSaved(true)
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Change password</p>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
+        Update the password you use to sign in.
+      </p>
+
+      {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>{error}</div>}
+      {saved && <div className="alert alert-success" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>Password updated.</div>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+        <div className="field">
+          <label htmlFor="current-password">Current password</label>
+          <input id="current-password" type="password" className="input" autoComplete="current-password"
+            value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="new-password">New password</label>
+          <input id="new-password" type="password" className="input" autoComplete="new-password"
+            value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="confirm-password">Confirm new password</label>
+          <input id="confirm-password" type="password" className="input" autoComplete="new-password"
+            value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+        </div>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}
+          style={{ alignSelf: 'flex-start', marginTop: '0.25rem' }}>
+          {saving ? <span className="spinner" /> : 'Update password'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ContactNumberCard() {
   const { user, profile, refreshProfile } = useAuth()
   const [phone, setPhone] = useState(profile?.phone ?? '')
@@ -416,6 +485,7 @@ export default function DisplaySettings() {
       </div>
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
+        <ChangePasswordCard />
         <ContactNumberCard />
         <NotificationsCard />
         <TwoFactorCard />
