@@ -6,6 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// IMPORTANT: every response — success AND expected/handled failure — uses
+// HTTP 200. supabase-js's functions.invoke() only parses the JSON body into
+// `data` when the status is 2xx; on a non-2xx it discards the body and
+// surfaces a generic "Edge Function returned a non-2xx status code"
+// instead, silently swallowing whichever `error` string was actually
+// returned (which is why MembersPage's REMOVE_ERRORS mapping never worked).
+// `ok: false` in the body IS the error signal — reserve HTTP status for
+// transport-level failures the client wouldn't otherwise handle.
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -19,7 +27,7 @@ serve(async (req) => {
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser()
     if (authErr || !caller) {
       return new Response(JSON.stringify({ ok: false, error: 'not_authenticated' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -27,14 +35,14 @@ serve(async (req) => {
       .from('profiles').select('role, org_id').eq('id', caller.id).single()
     if (callerProfile?.role !== 'coordinator' || !callerProfile.org_id) {
       return new Response(JSON.stringify({ ok: false, error: 'unauthorized' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     const { user_id } = await req.json()
     if (!user_id) {
       return new Response(JSON.stringify({ ok: false, error: 'user_id required' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -52,7 +60,7 @@ serve(async (req) => {
       .from('profiles').select('org_id, role').eq('id', user_id).maybeSingle()
     if (!targetProfile || targetProfile.org_id !== callerProfile.org_id) {
       return new Response(JSON.stringify({ ok: false, error: 'not_in_your_org' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -63,7 +71,7 @@ serve(async (req) => {
         .eq('org_id', callerProfile.org_id).eq('role', 'coordinator')
       if ((count ?? 0) <= 1) {
         return new Response(JSON.stringify({ ok: false, error: 'last_coordinator' }), {
-          status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
     }
@@ -84,7 +92,7 @@ serve(async (req) => {
     const { error: deleteErr } = await admin.auth.admin.deleteUser(user_id)
     if (deleteErr) {
       return new Response(JSON.stringify({ ok: false, error: deleteErr.message }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -93,7 +101,7 @@ serve(async (req) => {
     })
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })
