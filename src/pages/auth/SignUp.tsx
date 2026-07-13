@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase'
 const schema = z.object({
   fullName: z.string().min(2, 'Please enter your full name'),
   email: z.string().email('Please enter a valid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
 type FormData = z.infer<typeof schema>

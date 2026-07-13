@@ -7,7 +7,7 @@ import { updatePassword } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 
 const schema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
   confirm: z.string(),
 }).refine((d) => d.password === d.confirm, {
   message: 'Passwords do not match',

@@ -163,8 +163,12 @@ export default function SignIn() {
         // ignore RPC error — fall through to step 4
       }
 
-      // Step 4: no account, no subscription, no invite — block
-      setServerError('No account found for this email address. Please check your email or contact your coordinator.')
+      // Step 4: no auto-register match, no pending invite — but we genuinely
+      // can't tell "no account" from "wrong password" here. Supabase's
+      // sign-in returns the identical generic error for both (deliberately,
+      // to prevent email enumeration), so asserting "no account found" would
+      // be actively wrong for anyone who simply mistyped their password.
+      setServerError('We couldn’t sign you in with that email and password. If you already have an account, double-check your password or use "Forgot password?" below. If you’re new, check your email for an invite link or contact your coordinator.')
     }
   }
 
