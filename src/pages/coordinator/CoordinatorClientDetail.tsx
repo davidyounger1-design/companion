@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -24,7 +24,7 @@ import {
 import {
   toLocalDateStr, parseLocalDate, timeToMinutes, occursOnDateActive, getItemStatus,
 } from '../../lib/schedule'
-import { printOrEscapeToBrowser } from '../../lib/printSchedule'
+import { printSchedule } from '../../lib/printSchedule'
 import type { LogType, ScheduleItem } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -80,10 +80,7 @@ export default function CoordinatorClientDetail() {
   const { has } = useFeatures()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const [searchParams] = useSearchParams()
-  // tab/date/view/print params let an installed PWA (where window.print() is
-  // a no-op) escape to a real browser tab on the same view and auto-print there.
-  const [tab, setTab] = useState<Tab>(() => (searchParams.get('tab') as Tab) || 'activity')
+  const [tab, setTab] = useState<Tab>('activity')
 
   const { data: client, isLoading: clientLoading } = useQuery({
     queryKey: ['client', clientId],
@@ -114,7 +111,7 @@ export default function CoordinatorClientDetail() {
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
-      <header className="no-print" style={{
+      <header style={{
         background: 'var(--color-surface)',
         borderBottom: '1px solid color-mix(in srgb, var(--color-muted) 20%, transparent)',
         padding: '0.875rem 1.25rem',
@@ -131,7 +128,7 @@ export default function CoordinatorClientDetail() {
       </header>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem 1rem calc(1rem + env(safe-area-inset-bottom))' }}>
-        <div className="no-print" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <SegmentedControl
             value={tab}
             onChange={setTab}
@@ -148,11 +145,7 @@ export default function CoordinatorClientDetail() {
         )}
 
         {tab === 'schedule' && (
-          <ScheduleTab
-            clientId={client.id} orgId={profile.org_id} userId={user.id} participantName={client.full_name}
-            initialDate={searchParams.get('date')} initialView={searchParams.get('view') === 'week' ? 'week' : null}
-            autoPrint={searchParams.get('tab') === 'schedule' && searchParams.get('print') === '1'}
-          />
+          <ScheduleTab clientId={client.id} orgId={profile.org_id} userId={user.id} participantName={client.full_name} />
         )}
 
         {tab === 'manage' && (
@@ -494,21 +487,10 @@ function ActivityTab({
 // ── Schedule tab — day/week view + full CRUD, reusing the same subcomponents
 // FamilySchedule.tsx uses (coordinators already have full RLS access here). ──
 
-function ScheduleTab({
-  clientId, orgId, userId, participantName, initialDate, initialView, autoPrint,
-}: {
-  clientId: string
-  orgId: string
-  userId: string
-  participantName: string
-  /** Seeded from the URL when an installed PWA escapes to a real browser tab to print (see printOrEscapeToBrowser). */
-  initialDate: string | null
-  initialView: 'day' | 'week' | null
-  autoPrint: boolean
-}) {
+function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: string; orgId: string; userId: string; participantName: string }) {
   const qc = useQueryClient()
-  const [selectedDate, setSelectedDate] = useState(() => initialDate || toLocalDateStr(new Date()))
-  const [view, setView] = useState<'day' | 'week'>(() => initialView ?? 'day')
+  const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
+  const [view, setView] = useState<'day' | 'week'>('day')
   const [now, setNow] = useState(() => Date.now())
   const [formIntent, setFormIntent] = useState<FormIntent | null>(null)
   const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
@@ -531,12 +513,6 @@ function ScheduleTab({
     },
     enabled: !!clientId,
   })
-
-  useEffect(() => {
-    if (!autoPrint || isLoading) return
-    const t = setTimeout(() => window.print(), 300)
-    return () => clearTimeout(t)
-  }, [autoPrint, isLoading])
 
   const { data: completedIds = new Set<string>() } = useQuery({
     queryKey: ['schedule-completions', clientId, selectedDate],
@@ -643,22 +619,30 @@ function ScheduleTab({
 
   return (
     <div>
-      <p className="print-only" style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '1rem' }}>
-        {participantName}'s schedule — {view === 'day' ? (isToday ? `Today, ${dateLabel}` : dateLabel) : weekLabel}
-      </p>
-
-      <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
         <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)' }}>Today</button>
         <SegmentedControl value={view} onChange={setView} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
         <button
-          onClick={() => printOrEscapeToBrowser(`${window.location.pathname}?tab=schedule&date=${selectedDate}&view=${view}&print=1`)}
+          onClick={() => {
+            if (view === 'day') {
+              printSchedule(participantName, isToday ? `Today, ${dateLabel}` : dateLabel, [{ label: dateLabel, items: dayItems }])
+            } else {
+              const days = weekDates.map((date) => ({
+                label: parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' }),
+                items: items
+                  .filter((i) => occursOnDateActive(i, date, skips))
+                  .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
+              }))
+              printSchedule(participantName, weekLabel, days)
+            }
+          }}
           className="btn btn-ghost" title="Print or save as PDF"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
       </div>
 
       {view === 'day' ? (
-        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
           <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
@@ -673,7 +657,7 @@ function ScheduleTab({
           <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
         </div>
       ) : (
-        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
           <button className="btn btn-ghost" onClick={() => shiftWeek(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{weekLabel}</p>
@@ -722,7 +706,7 @@ function ScheduleTab({
             />
           ))}
           {dayItems.length > 0 && (
-            <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost no-print" style={{
+            <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost" style={{
               width: '100%', marginTop: '0.25rem', fontSize: '0.82rem', color: 'var(--color-primary)',
             }}>Copy this day to another date…</button>
           )}

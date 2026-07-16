@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -21,7 +21,7 @@ import {
   occursOnDateActive, getItemStatus, itemDiskFraction, normalizeUrl,
 } from '../../lib/schedule'
 import { themedPageBackground } from '../../lib/timer'
-import { printOrEscapeToBrowser } from '../../lib/printSchedule'
+import { printSchedule } from '../../lib/printSchedule'
 
 /** What the add/edit sheet is doing:
  *  - new    → create a fresh item
@@ -46,17 +46,14 @@ export default function FamilySchedule() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const qc = useQueryClient()
-  const [searchParams] = useSearchParams()
 
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const isRecipient = profile?.role === 'recipient'
   const canManage = isCoordinator || isFamily
 
-  // date/view/print params let an installed PWA (where window.print() is a
-  // no-op) escape to a real browser tab on the same view and auto-print there.
-  const [selectedDate, setSelectedDate] = useState(() => searchParams.get('date') || toLocalDateStr(new Date()))
-  const [view, setView] = useState<'day' | 'week'>(() => (searchParams.get('view') === 'week' ? 'week' : 'day'))
+  const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
+  const [view, setView] = useState<'day' | 'week'>('day')
   const [now, setNow] = useState(() => Date.now())
   const [formIntent, setFormIntent] = useState<FormIntent | null>(null)
   // A recurring item's edit/delete can apply to the whole series or just the
@@ -86,15 +83,6 @@ export default function FamilySchedule() {
     },
     enabled: !!clientId,
   })
-
-  // Auto-print: only reached via the escape-to-browser link a standalone
-  // install opens (see printOrEscapeToBrowser) — waits for content to paint
-  // before invoking the browser's real print dialog.
-  useEffect(() => {
-    if (searchParams.get('print') !== '1' || isLoading) return
-    const t = setTimeout(() => window.print(), 300)
-    return () => clearTimeout(t)
-  }, [searchParams, isLoading])
 
   const { data: completedIds = new Set<string>() } = useQuery({
     queryKey: ['schedule-completions', clientId, selectedDate],
@@ -243,7 +231,7 @@ export default function FamilySchedule() {
 
   return (
     <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
-      <div className="no-print" style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground() }}>
+      <div style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground() }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -264,18 +252,14 @@ export default function FamilySchedule() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        <p className="print-only" style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '1rem' }}>
-          {participantName}'s schedule — {view === 'day' ? (isToday ? `Today, ${dateLabel}` : dateLabel) : weekLabel}
-        </p>
-
         {canManage && clientId && (
-          <button onClick={() => setShowTimerModal(true)} className="btn btn-secondary no-print" style={{ width: '100%', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <button onClick={() => setShowTimerModal(true)} className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem', fontSize: '0.85rem' }}>
             ⏱️ Start a timer for {participantName}
           </button>
         )}
 
         {/* Today / Day / Week selector */}
-        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
           <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost" style={{
             padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)',
           }}>Today</button>
@@ -285,14 +269,26 @@ export default function FamilySchedule() {
             options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]}
           />
           <button
-            onClick={() => printOrEscapeToBrowser(`${window.location.pathname}?date=${selectedDate}&view=${view}&print=1`)}
+            onClick={() => {
+              if (view === 'day') {
+                printSchedule(participantName, isToday ? `Today, ${dateLabel}` : dateLabel, [{ label: dateLabel, items: dayItems }])
+              } else {
+                const days = weekDates.map((date) => ({
+                  label: parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' }),
+                  items: items
+                    .filter((i) => occursOnDateActive(i, date, skips))
+                    .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
+                }))
+                printSchedule(participantName, weekLabel, days)
+              }
+            }}
             className="btn btn-ghost" title="Print or save as PDF"
             style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
         </div>
 
         {/* Day / Week navigator */}
         {view === 'day' ? (
-          <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
             <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
             <div style={{ textAlign: 'center' }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
@@ -307,7 +303,7 @@ export default function FamilySchedule() {
             <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
           </div>
         ) : (
-          <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
             <button className="btn btn-ghost" onClick={() => shiftWeek(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
             <div style={{ textAlign: 'center' }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{weekLabel}</p>
@@ -356,7 +352,7 @@ export default function FamilySchedule() {
               />
             ))}
             {canManage && dayItems.length > 0 && (
-              <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost no-print" style={{
+              <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost" style={{
                 width: '100%', marginTop: '0.25rem', fontSize: '0.82rem', color: 'var(--color-primary)',
               }}>Copy this day to another date…</button>
             )}
@@ -551,7 +547,7 @@ export function ScheduleCard({
           <ScheduleItemNotes scheduleItemId={item.id} occurrenceDate={occurrenceDate} clientId={clientId} orgId={orgId} />
 
           {showTimerButton && (
-            <button onClick={onStartTimer} className="no-print" style={{
+            <button onClick={onStartTimer} style={{
               marginTop: '0.5rem', background: 'none', border: 'none', padding: 0, cursor: 'pointer',
               fontSize: '0.75rem', color: meta.color, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem',
             }}>⏱️ Start a timer for this</button>
@@ -561,7 +557,6 @@ export function ScheduleCard({
         <button
           onClick={onToggleDone}
           aria-label={done ? 'Mark as not done' : 'Mark as done'}
-          className="no-print"
           style={{
             width: 28, height: 28, borderRadius: '50%', flexShrink: 0, padding: 0, cursor: 'pointer',
             border: done ? 'none' : '2px solid color-mix(in srgb, var(--color-muted) 40%, transparent)',
@@ -574,7 +569,7 @@ export function ScheduleCard({
         ><CheckIcon size={13} /></button>
 
         {canManage && (
-          <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>
             <button onClick={onEdit} aria-label="Edit" className="icon-btn" style={{ width: 30, height: 30 }}><EditIcon size={15} /></button>
             <button onClick={onDelete} aria-label="Delete" className="icon-btn icon-btn-danger" style={{ width: 30, height: 30 }}><TrashIcon size={15} /></button>
           </div>
