@@ -7,7 +7,6 @@ export type PermissionKey =
   | 'edit_any_entry'
   | 'edit_own_entry'
   | 'add_entries'
-  | 'post_notices'
   | 'send_messages'
   | 'invite_members'
 
@@ -20,7 +19,6 @@ const COORDINATOR_PERMS: RolePerms = {
   edit_any_entry: true,
   edit_own_entry: true,
   add_entries: true,
-  post_notices: true,
   send_messages: true,
   invite_members: true,
 }
@@ -31,7 +29,6 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     edit_any_entry: true,
     edit_own_entry: true,
     add_entries: true,
-    post_notices: true,
     send_messages: true,
     invite_members: true,
   },
@@ -40,7 +37,6 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     edit_any_entry: false,
     edit_own_entry: true,
     add_entries: true,
-    post_notices: true,
     send_messages: true,
     invite_members: true,
   },
@@ -49,7 +45,6 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     edit_any_entry: false,
     edit_own_entry: true,
     add_entries: true,
-    post_notices: false,
     send_messages: true,
     invite_members: false,
   },
@@ -58,7 +53,6 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     edit_any_entry: false,
     edit_own_entry: false,
     add_entries: false,
-    post_notices: false,
     send_messages: true,
     invite_members: false,
   },
@@ -67,7 +61,6 @@ const DEFAULT_PERMS: Record<string, RolePerms> = {
     edit_any_entry: false,
     edit_own_entry: true,
     add_entries: true,
-    post_notices: false,
     send_messages: false,
     invite_members: false,
   },

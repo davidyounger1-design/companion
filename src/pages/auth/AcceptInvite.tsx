@@ -158,7 +158,7 @@ function InviteSignupForm({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!name.trim() || password.length < 8) return
+    if (!name.trim() || password.length < 6) return
     setError('')
     setSubmitting(true)
 
@@ -227,11 +227,11 @@ function InviteSignupForm({
           id="inv-password"
           type="password"
           className="input"
-          placeholder="At least 8 characters"
+          placeholder="At least 6 characters"
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          minLength={8}
+          minLength={6}
           required
         />
       </div>
@@ -243,7 +243,7 @@ function InviteSignupForm({
       <button
         type="submit"
         className="btn btn-primary btn-full"
-        disabled={submitting || !name.trim() || password.length < 8}
+        disabled={submitting || !name.trim() || password.length < 6}
         style={{ marginTop: '0.25rem', fontSize: '1rem' }}
       >
         {submitting ? <span className="spinner" /> : 'Join the journal →'}

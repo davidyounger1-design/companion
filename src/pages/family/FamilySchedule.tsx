@@ -230,7 +230,7 @@ export default function FamilySchedule() {
 
   return (
     <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
-      <div style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground() }}>
+      <div className="no-print" style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground() }}>
       <div style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -251,14 +251,18 @@ export default function FamilySchedule() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
+        <p className="print-only" style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '1rem' }}>
+          {participantName}'s schedule — {view === 'day' ? (isToday ? `Today, ${dateLabel}` : dateLabel) : weekLabel}
+        </p>
+
         {canManage && clientId && (
-          <button onClick={() => setShowTimerModal(true)} className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <button onClick={() => setShowTimerModal(true)} className="btn btn-secondary no-print" style={{ width: '100%', marginBottom: '1rem', fontSize: '0.85rem' }}>
             ⏱️ Start a timer for {participantName}
           </button>
         )}
 
         {/* Today / Day / Week selector */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
           <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost" style={{
             padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)',
           }}>Today</button>
@@ -267,11 +271,13 @@ export default function FamilySchedule() {
             onChange={setView}
             options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]}
           />
+          <button onClick={() => window.print()} className="btn btn-ghost" title="Print or save as PDF"
+            style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
         </div>
 
         {/* Day / Week navigator */}
         {view === 'day' ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
             <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
             <div style={{ textAlign: 'center' }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
@@ -286,7 +292,7 @@ export default function FamilySchedule() {
             <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
             <button className="btn btn-ghost" onClick={() => shiftWeek(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
             <div style={{ textAlign: 'center' }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{weekLabel}</p>
@@ -335,7 +341,7 @@ export default function FamilySchedule() {
               />
             ))}
             {canManage && dayItems.length > 0 && (
-              <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost" style={{
+              <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost no-print" style={{
                 width: '100%', marginTop: '0.25rem', fontSize: '0.82rem', color: 'var(--color-primary)',
               }}>Copy this day to another date…</button>
             )}
@@ -530,7 +536,7 @@ export function ScheduleCard({
           <ScheduleItemNotes scheduleItemId={item.id} occurrenceDate={occurrenceDate} clientId={clientId} orgId={orgId} />
 
           {showTimerButton && (
-            <button onClick={onStartTimer} style={{
+            <button onClick={onStartTimer} className="no-print" style={{
               marginTop: '0.5rem', background: 'none', border: 'none', padding: 0, cursor: 'pointer',
               fontSize: '0.75rem', color: meta.color, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem',
             }}>⏱️ Start a timer for this</button>
@@ -540,6 +546,7 @@ export function ScheduleCard({
         <button
           onClick={onToggleDone}
           aria-label={done ? 'Mark as not done' : 'Mark as done'}
+          className="no-print"
           style={{
             width: 28, height: 28, borderRadius: '50%', flexShrink: 0, padding: 0, cursor: 'pointer',
             border: done ? 'none' : '2px solid color-mix(in srgb, var(--color-muted) 40%, transparent)',
@@ -552,7 +559,7 @@ export function ScheduleCard({
         ><CheckIcon size={13} /></button>
 
         {canManage && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>
+          <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>
             <button onClick={onEdit} aria-label="Edit" className="icon-btn" style={{ width: 30, height: 30 }}><EditIcon size={15} /></button>
             <button onClick={onDelete} aria-label="Delete" className="icon-btn icon-btn-danger" style={{ width: 30, height: 30 }}><TrashIcon size={15} /></button>
           </div>

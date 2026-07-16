@@ -41,7 +41,7 @@ export default function ResetPassword() {
         <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Password reset</p>
         <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 400 }}>Choose a new password</h1>
         <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '1.75rem' }}>
-          Pick something strong — at least 8 characters.
+          Pick something strong — at least 6 characters.
         </p>
 
         {serverError && (
@@ -55,7 +55,7 @@ export default function ResetPassword() {
               id="password"
               type="password"
               className={`input${errors.password ? ' error' : ''}`}
-              placeholder="At least 8 characters"
+              placeholder="At least 6 characters"
               autoComplete="new-password"
               autoFocus
               {...register('password')}

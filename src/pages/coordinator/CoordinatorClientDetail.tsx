@@ -110,7 +110,7 @@ export default function CoordinatorClientDetail() {
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
-      <header style={{
+      <header className="no-print" style={{
         background: 'var(--color-surface)',
         borderBottom: '1px solid color-mix(in srgb, var(--color-muted) 20%, transparent)',
         padding: '0.875rem 1.25rem',
@@ -127,7 +127,7 @@ export default function CoordinatorClientDetail() {
       </header>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem 1rem calc(1rem + env(safe-area-inset-bottom))' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
           <SegmentedControl
             value={tab}
             onChange={setTab}
@@ -144,7 +144,7 @@ export default function CoordinatorClientDetail() {
         )}
 
         {tab === 'schedule' && (
-          <ScheduleTab clientId={client.id} orgId={profile.org_id} userId={user.id} />
+          <ScheduleTab clientId={client.id} orgId={profile.org_id} userId={user.id} participantName={client.full_name} />
         )}
 
         {tab === 'manage' && (
@@ -486,7 +486,7 @@ function ActivityTab({
 // ── Schedule tab — day/week view + full CRUD, reusing the same subcomponents
 // FamilySchedule.tsx uses (coordinators already have full RLS access here). ──
 
-function ScheduleTab({ clientId, orgId, userId }: { clientId: string; orgId: string; userId: string }) {
+function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: string; orgId: string; userId: string; participantName: string }) {
   const qc = useQueryClient()
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
   const [view, setView] = useState<'day' | 'week'>('day')
@@ -618,14 +618,20 @@ function ScheduleTab({ clientId, orgId, userId }: { clientId: string; orgId: str
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+      <p className="print-only" style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '1rem' }}>
+        {participantName}'s schedule — {view === 'day' ? (isToday ? `Today, ${dateLabel}` : dateLabel) : weekLabel}
+      </p>
+
+      <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
         <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)' }}>Today</button>
         <SegmentedControl value={view} onChange={setView} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
+        <button onClick={() => window.print()} className="btn btn-ghost" title="Print or save as PDF"
+          style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
       </div>
 
       {view === 'day' ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
           <button className="btn btn-ghost" onClick={() => shiftDay(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{isToday ? 'Today' : dateLabel}</p>
@@ -640,7 +646,7 @@ function ScheduleTab({ clientId, orgId, userId }: { clientId: string; orgId: str
           <button className="btn btn-ghost" onClick={() => shiftDay(1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>→</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
           <button className="btn btn-ghost" onClick={() => shiftWeek(-1)} style={{ padding: '0.4rem 0.75rem', fontSize: '1rem' }}>←</button>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{weekLabel}</p>
@@ -689,7 +695,7 @@ function ScheduleTab({ clientId, orgId, userId }: { clientId: string; orgId: str
             />
           ))}
           {dayItems.length > 0 && (
-            <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost" style={{
+            <button onClick={() => setCopyDayOpen(true)} className="btn btn-ghost no-print" style={{
               width: '100%', marginTop: '0.25rem', fontSize: '0.82rem', color: 'var(--color-primary)',
             }}>Copy this day to another date…</button>
           )}

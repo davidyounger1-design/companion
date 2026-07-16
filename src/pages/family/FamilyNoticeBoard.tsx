@@ -92,18 +92,20 @@ export default function FamilyNoticeBoard() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <p style={{ margin: '0 0 0.75rem', fontWeight: 600, fontSize: '0.875rem' }}>Post a notice</p>
-          <textarea className="input" rows={3} value={newBody}
-            onChange={(e) => setNewBody(e.target.value)}
-            placeholder="e.g. Sarah has a physio appointment on Friday at 10am"
-            style={{ resize: 'vertical', marginBottom: '0.75rem' }} />
-          <button className="btn btn-primary" onClick={postNotice}
-            disabled={posting || !newBody.trim() || !clientId}
-            style={{ fontSize: '0.875rem' }}>
-            {posting ? <span className="spinner" /> : 'Post notice'}
-          </button>
-        </div>
+        {isCoordinator && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <p style={{ margin: '0 0 0.75rem', fontWeight: 600, fontSize: '0.875rem' }}>Post a notice</p>
+            <textarea className="input" rows={3} value={newBody}
+              onChange={(e) => setNewBody(e.target.value)}
+              placeholder="e.g. Sarah has a physio appointment on Friday at 10am"
+              style={{ resize: 'vertical', marginBottom: '0.75rem' }} />
+            <button className="btn btn-primary" onClick={postNotice}
+              disabled={posting || !newBody.trim() || !clientId}
+              style={{ fontSize: '0.875rem' }}>
+              {posting ? <span className="spinner" /> : 'Post notice'}
+            </button>
+          </div>
+        )}
 
         {isLoading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>

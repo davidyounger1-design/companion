@@ -12,6 +12,8 @@ const ALL_CONFIGURABLE_ROLES = [
   { key: 'therapist', label: 'Therapist / allied health', icon: '🩺' },
 ]
 
+// Notices are coordinator-only and not configurable here — see migration
+// 057's INSERT policy on `notices`.
 const PERMISSION_LABELS: Record<PermissionKey, { label: string; description: string }> = {
   add_entries: {
     label: 'Add journal entries',
@@ -29,10 +31,6 @@ const PERMISSION_LABELS: Record<PermissionKey, { label: string; description: str
     label: 'Edit anyone\'s entries',
     description: 'Can edit entries logged by any team member',
   },
-  post_notices: {
-    label: 'Post notices',
-    description: 'Can pin notices on the notice board visible to all',
-  },
   send_messages: {
     label: 'Send messages',
     description: 'Can send direct messages to other members',
@@ -48,7 +46,6 @@ const PERM_KEYS: PermissionKey[] = [
   'view_all_entries',
   'edit_own_entry',
   'edit_any_entry',
-  'post_notices',
   'send_messages',
   'invite_members',
 ]

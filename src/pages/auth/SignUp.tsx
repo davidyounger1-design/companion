@@ -146,7 +146,7 @@ export default function SignUp() {
               id="password"
               type="password"
               className={`input${errors.password ? ' error' : ''}`}
-              placeholder="At least 8 characters"
+              placeholder="At least 6 characters"
               autoComplete="new-password"
               {...register('password')}
             />
