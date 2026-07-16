@@ -1,3 +1,4 @@
+import type { PDFFont, PDFPage } from 'pdf-lib'
 import { CATEGORY_META, formatTimeRange } from './schedule'
 import type { ScheduleItem } from '../types/database'
 
@@ -8,31 +9,141 @@ function escapeHtml(s: string): string {
 
 export type PrintDaySection = { label: string; items: ScheduleItem[] }
 
+/** True when running as an installed/home-screen app rather than a regular
+ * browser tab. This is the ONLY context where printing actually breaks —
+ * iOS gives a standalone app's own window.open() a second app window with
+ * no browser chrome at all (no address bar, no share button, no way out
+ * except force-quitting — confirmed by testing), so window.print() and the
+ * new-window trick both silently fail there. A normal tab, installed or
+ * not, has no such restriction. */
+function isStandaloneDisplay(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  )
+}
+
+/** Greedy word-wrap using the font's actual glyph widths — pdf-lib has no
+ * built-in text-wrapping helper (unlike jsPDF's splitTextToSize). */
+function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    if (current && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+      lines.push(current)
+      current = word
+    } else {
+      current = candidate
+    }
+  }
+  if (current) lines.push(current)
+  return lines
+}
+
+async function buildSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[]): Promise<Blob> {
+  // Lazy-loaded: pdf-lib only downloads when someone actually taps Print
+  // from an installed app, not as part of every page's initial bundle.
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+  const pdf = await PDFDocument.create()
+  const font = await pdf.embedFont(StandardFonts.Helvetica)
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold)
+
+  const pageWidth = 595.28  // A4 in points
+  const pageHeight = 841.89
+  const marginX = 42
+  const itemIndent = 100
+  const muted = rgb(0.4, 0.4, 0.4)
+  const black = rgb(0, 0, 0)
+
+  let page: PDFPage = pdf.addPage([pageWidth, pageHeight])
+  let y = pageHeight - 56
+
+  function ensureSpace(needed: number) {
+    if (y - needed < 42) {
+      page = pdf.addPage([pageWidth, pageHeight])
+      y = pageHeight - 56
+    }
+  }
+  function draw(text: string, x: number, useFont: PDFFont, size: number, color = black) {
+    page.drawText(text, { x, y, size, font: useFont, color })
+  }
+
+  draw(`${participantName}'s schedule`, marginX, fontBold, 16)
+  y -= 20
+  draw(subtitle, marginX, font, 11)
+  y -= 24
+
+  for (const day of days) {
+    ensureSpace(28)
+    draw(day.label, marginX, fontBold, 12)
+    y -= 18
+
+    if (!day.items.length) {
+      draw('Nothing scheduled.', marginX, font, 10, muted)
+      y -= 20
+      continue
+    }
+
+    for (const item of day.items) {
+      const meta = CATEGORY_META[item.category]
+      ensureSpace(34)
+      draw(formatTimeRange(item.start_time, item.end_time), marginX, fontBold, 10)
+      draw(item.title, marginX + itemIndent, fontBold, 10)
+      y -= 14
+      draw(meta.label, marginX + itemIndent, font, 9, muted)
+      y -= 14
+      if (item.description) {
+        const wrapped = wrapText(item.description, font, 9, pageWidth - marginX * 2 - itemIndent)
+        for (const line of wrapped) {
+          ensureSpace(12)
+          draw(line, marginX + itemIndent, font, 9)
+          y -= 12
+        }
+      }
+      y -= 8
+    }
+    y -= 10
+  }
+
+  const bytes = await pdf.save()
+  return new Blob([new Uint8Array(bytes)], { type: 'application/pdf' })
+}
+
 /**
- * Builds a self-contained HTML document (no dependency on the app's own
- * stylesheet, theme, or React tree) and writes it directly into a freshly
- * opened window, which auto-prints on load.
- *
- * This deliberately does NOT print the live app DOM. An installed/
- * standalone home-screen app can't reach the system print dialog at all —
- * window.print() is a silent no-op there — and window.open() of a
- * same-origin app URL tends to stay trapped inside the installed shell
- * rather than escaping to a real browser window (confirmed: it "flashed"
- * back to the app instead of opening anything).
- *
- * Opening the window FIRST with a blank/synchronous window.open('', '_blank')
- * — before building any content — still escapes an installed shell the same
- * way a plain link tap does, but avoids blob: URLs entirely: iOS Safari is
- * well known for failing to render a blob: URL opened in a new tab/window,
- * even though the popup itself opens (this is exactly what silently failed
- * the first attempt at this). document.write() into that window works
- * reliably everywhere blob: doesn't.
+ * Hands the PDF to the native Share Sheet (iOS/Android), which lists
+ * "Print" as one of the destinations for a shared PDF file — the one path
+ * that actually works from inside an installed app. Returns 'unsupported'
+ * when the platform can't share files at all (older iOS, most desktop
+ * browsers) so the caller can fall back; a user simply dismissing the
+ * share sheet counts as 'shared' — it was invoked correctly either way.
  */
-export function printSchedule(participantName: string, subtitle: string, days: PrintDaySection[]) {
-  // Open synchronously, in direct response to the click, before any other
-  // work — this is what lets it count as a user-initiated popup rather
-  // than getting blocked.
+async function shareSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[]): Promise<'shared' | 'unsupported'> {
+  const nav = navigator as Navigator & {
+    canShare?: (data: { files: File[] }) => boolean
+    share?: (data: { files: File[]; title?: string }) => Promise<void>
+  }
+  if (!nav.canShare || !nav.share) return 'unsupported'
+
+  const pdfBlob = await buildSchedulePdf(participantName, subtitle, days)
+  const file = new File([pdfBlob], `${participantName.replace(/[^a-z0-9]+/gi, '-')}-schedule.pdf`, { type: 'application/pdf' })
+  if (!nav.canShare({ files: [file] })) return 'unsupported'
+
+  try {
+    await nav.share({ files: [file], title: `${participantName}'s schedule` })
+  } catch {
+    // AbortError (dismissed) or similar — the sheet still opened correctly.
+  }
+  return 'shared'
+}
+
+/** Builds a self-contained HTML document (no dependency on the app's own
+ * stylesheet/theme) and writes it into a freshly opened window, which
+ * auto-prints on load. Reliable in any ordinary browser tab. */
+function printHtmlDocument(participantName: string, subtitle: string, days: PrintDaySection[]) {
   const win = window.open('', '_blank')
+  if (!win) return // popup blocked — exceedingly rare for a direct click-triggered open
 
   const dayBlocks = days.map((d) => {
     const itemsHtml = d.items.length
@@ -75,8 +186,18 @@ ${dayBlocks}
 </body>
 </html>`
 
-  if (!win) return // popup blocked — exceedingly rare for a direct click-triggered open
   win.document.open()
   win.document.write(html)
   win.document.close()
+}
+
+export async function printSchedule(participantName: string, subtitle: string, days: PrintDaySection[]) {
+  if (isStandaloneDisplay()) {
+    const result = await shareSchedulePdf(participantName, subtitle, days)
+    if (result === 'unsupported') {
+      alert("Printing isn't available from the installed app on this device. Open Companion in Safari or Chrome instead, then tap Print again.")
+    }
+    return
+  }
+  printHtmlDocument(participantName, subtitle, days)
 }
