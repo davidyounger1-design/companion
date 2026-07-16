@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -24,6 +24,7 @@ import {
 import {
   toLocalDateStr, parseLocalDate, timeToMinutes, occursOnDateActive, getItemStatus,
 } from '../../lib/schedule'
+import { printOrEscapeToBrowser } from '../../lib/printSchedule'
 import type { LogType, ScheduleItem } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -79,7 +80,10 @@ export default function CoordinatorClientDetail() {
   const { has } = useFeatures()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<Tab>('activity')
+  const [searchParams] = useSearchParams()
+  // tab/date/view/print params let an installed PWA (where window.print() is
+  // a no-op) escape to a real browser tab on the same view and auto-print there.
+  const [tab, setTab] = useState<Tab>(() => (searchParams.get('tab') as Tab) || 'activity')
 
   const { data: client, isLoading: clientLoading } = useQuery({
     queryKey: ['client', clientId],
@@ -144,7 +148,11 @@ export default function CoordinatorClientDetail() {
         )}
 
         {tab === 'schedule' && (
-          <ScheduleTab clientId={client.id} orgId={profile.org_id} userId={user.id} participantName={client.full_name} />
+          <ScheduleTab
+            clientId={client.id} orgId={profile.org_id} userId={user.id} participantName={client.full_name}
+            initialDate={searchParams.get('date')} initialView={searchParams.get('view') === 'week' ? 'week' : null}
+            autoPrint={searchParams.get('tab') === 'schedule' && searchParams.get('print') === '1'}
+          />
         )}
 
         {tab === 'manage' && (
@@ -486,10 +494,21 @@ function ActivityTab({
 // ── Schedule tab — day/week view + full CRUD, reusing the same subcomponents
 // FamilySchedule.tsx uses (coordinators already have full RLS access here). ──
 
-function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: string; orgId: string; userId: string; participantName: string }) {
+function ScheduleTab({
+  clientId, orgId, userId, participantName, initialDate, initialView, autoPrint,
+}: {
+  clientId: string
+  orgId: string
+  userId: string
+  participantName: string
+  /** Seeded from the URL when an installed PWA escapes to a real browser tab to print (see printOrEscapeToBrowser). */
+  initialDate: string | null
+  initialView: 'day' | 'week' | null
+  autoPrint: boolean
+}) {
   const qc = useQueryClient()
-  const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
-  const [view, setView] = useState<'day' | 'week'>('day')
+  const [selectedDate, setSelectedDate] = useState(() => initialDate || toLocalDateStr(new Date()))
+  const [view, setView] = useState<'day' | 'week'>(() => initialView ?? 'day')
   const [now, setNow] = useState(() => Date.now())
   const [formIntent, setFormIntent] = useState<FormIntent | null>(null)
   const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
@@ -512,6 +531,12 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
     },
     enabled: !!clientId,
   })
+
+  useEffect(() => {
+    if (!autoPrint || isLoading) return
+    const t = setTimeout(() => window.print(), 300)
+    return () => clearTimeout(t)
+  }, [autoPrint, isLoading])
 
   const { data: completedIds = new Set<string>() } = useQuery({
     queryKey: ['schedule-completions', clientId, selectedDate],
@@ -626,7 +651,9 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
         <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)' }}>Today</button>
         <SegmentedControl value={view} onChange={setView} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
-        <button onClick={() => window.print()} className="btn btn-ghost" title="Print or save as PDF"
+        <button
+          onClick={() => printOrEscapeToBrowser(`${window.location.pathname}?tab=schedule&date=${selectedDate}&view=${view}&print=1`)}
+          className="btn btn-ghost" title="Print or save as PDF"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
       </div>
 
