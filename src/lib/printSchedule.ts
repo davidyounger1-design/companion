@@ -45,66 +45,76 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
 async function buildSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[]): Promise<Blob> {
   // Lazy-loaded: pdf-lib only downloads when someone actually taps Print
   // from an installed app, not as part of every page's initial bundle.
-  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+  const { PDFDocument, StandardFonts, rgb, degrees } = await import('pdf-lib')
   const pdf = await PDFDocument.create()
   const font = await pdf.embedFont(StandardFonts.Helvetica)
   const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold)
 
-  const pageWidth = 595.28  // A4 in points
+  // Portrait A4 — pdf-lib's own PageSizes.A4 constant is this exact
+  // [width, height] pair (width < height = portrait). Rotation is locked
+  // explicitly too, in case a printer/driver ignores page dimensions and
+  // infers orientation from something else.
+  const pageWidth = 595.28
   const pageHeight = 841.89
-  const marginX = 42
-  const itemIndent = 100
+  const marginX = 48
+  const itemIndent = 145
   const muted = rgb(0.4, 0.4, 0.4)
   const black = rgb(0, 0, 0)
 
-  let page: PDFPage = pdf.addPage([pageWidth, pageHeight])
-  let y = pageHeight - 56
+  function newPage(): PDFPage {
+    const p = pdf.addPage([pageWidth, pageHeight])
+    p.setRotation(degrees(0))
+    return p
+  }
+
+  let page: PDFPage = newPage()
+  let y = pageHeight - 60
 
   function ensureSpace(needed: number) {
-    if (y - needed < 42) {
-      page = pdf.addPage([pageWidth, pageHeight])
-      y = pageHeight - 56
+    if (y - needed < 48) {
+      page = newPage()
+      y = pageHeight - 60
     }
   }
   function draw(text: string, x: number, useFont: PDFFont, size: number, color = black) {
     page.drawText(text, { x, y, size, font: useFont, color })
   }
 
-  draw(`${participantName}'s schedule`, marginX, fontBold, 16)
-  y -= 20
-  draw(subtitle, marginX, font, 11)
-  y -= 24
+  draw(`${participantName}'s schedule`, marginX, fontBold, 22)
+  y -= 26
+  draw(subtitle, marginX, font, 13)
+  y -= 26
 
   for (const day of days) {
-    ensureSpace(28)
-    draw(day.label, marginX, fontBold, 12)
-    y -= 18
+    ensureSpace(34)
+    draw(day.label, marginX, fontBold, 15)
+    y -= 22
 
     if (!day.items.length) {
-      draw('Nothing scheduled.', marginX, font, 10, muted)
-      y -= 20
+      draw('Nothing scheduled.', marginX, font, 12, muted)
+      y -= 22
       continue
     }
 
     for (const item of day.items) {
       const meta = CATEGORY_META[item.category]
-      ensureSpace(34)
-      draw(formatTimeRange(item.start_time, item.end_time), marginX, fontBold, 10)
-      draw(item.title, marginX + itemIndent, fontBold, 10)
-      y -= 14
-      draw(meta.label, marginX + itemIndent, font, 9, muted)
-      y -= 14
+      ensureSpace(44)
+      draw(formatTimeRange(item.start_time, item.end_time), marginX, fontBold, 12)
+      draw(item.title, marginX + itemIndent, fontBold, 12)
+      y -= 17
+      draw(meta.label, marginX + itemIndent, font, 10, muted)
+      y -= 17
       if (item.description) {
-        const wrapped = wrapText(item.description, font, 9, pageWidth - marginX * 2 - itemIndent)
+        const wrapped = wrapText(item.description, font, 11, pageWidth - marginX * 2 - itemIndent)
         for (const line of wrapped) {
-          ensureSpace(12)
-          draw(line, marginX + itemIndent, font, 9)
-          y -= 12
+          ensureSpace(15)
+          draw(line, marginX + itemIndent, font, 11)
+          y -= 15
         }
       }
-      y -= 8
+      y -= 10
     }
-    y -= 10
+    y -= 12
   }
 
   const bytes = await pdf.save()
