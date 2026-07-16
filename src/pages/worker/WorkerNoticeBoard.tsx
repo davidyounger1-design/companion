@@ -86,24 +86,26 @@ export default function WorkerNoticeBoard() {
       </div>
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '1rem' }}>
-        {/* Post a notice */}
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <p style={{ margin: '0 0 0.75rem', fontWeight: 600, fontSize: '0.875rem' }}>Post a notice</p>
-          <textarea className="input" rows={3} value={newBody}
-            onChange={(e) => setNewBody(e.target.value)}
-            placeholder="e.g. No appointments this Friday — public holiday"
-            style={{ resize: 'vertical', marginBottom: '0.75rem' }} />
-          <button className="btn btn-primary" onClick={postNotice}
-            disabled={posting || !newBody.trim() || !firstClientId}
-            style={{ fontSize: '0.875rem' }}>
-            {posting ? <span className="spinner" /> : 'Post notice'}
-          </button>
-          {!firstClientId && (
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>
-              No active client assignment found.
-            </p>
-          )}
-        </div>
+        {/* Post a notice — coordinator-only */}
+        {isCoordinator && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <p style={{ margin: '0 0 0.75rem', fontWeight: 600, fontSize: '0.875rem' }}>Post a notice</p>
+            <textarea className="input" rows={3} value={newBody}
+              onChange={(e) => setNewBody(e.target.value)}
+              placeholder="e.g. No appointments this Friday — public holiday"
+              style={{ resize: 'vertical', marginBottom: '0.75rem' }} />
+            <button className="btn btn-primary" onClick={postNotice}
+              disabled={posting || !newBody.trim() || !firstClientId}
+              style={{ fontSize: '0.875rem' }}>
+              {posting ? <span className="spinner" /> : 'Post notice'}
+            </button>
+            {!firstClientId && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>
+                No active client assignment found.
+              </p>
+            )}
+          </div>
+        )}
 
         {isLoading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>

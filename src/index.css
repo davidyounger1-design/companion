@@ -869,3 +869,28 @@ a { touch-action: manipulation; }
 @media (max-width: 480px) {
   .landing-footer-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Printing (schedule "Print / Save as PDF") ──────────────────────────
+   The browser's own print dialog already offers "Save as PDF" as a
+   destination, so window.print() covers both asks with one path — no PDF
+   library needed. .no-print hides interactive chrome (nav, buttons, the
+   FAB, day/week arrows) that means nothing on paper; .print-only shows a
+   plain title in its place. Colours are forced to light/high-contrast
+   regardless of the active theme, since dark-mode's near-black surface
+   would otherwise print as a solid ink block. */
+.print-only { display: none; }
+
+@media print {
+  :root, :root[data-theme="dark"] {
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #1a1a1a;
+    --color-ink: #1a1a1a;
+    --color-muted: #444444;
+    --color-border: #cccccc;
+  }
+  body { background: #fff; }
+  .no-print, .bottom-nav, .fab { display: none !important; }
+  .print-only { display: block !important; }
+  .card, .card-sm { box-shadow: none !important; border: 1px solid #ccc; break-inside: avoid; }
+}
