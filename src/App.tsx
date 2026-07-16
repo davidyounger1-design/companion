@@ -40,6 +40,7 @@ import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
 import WorkerNoticeBoard from './pages/worker/WorkerNoticeBoard'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
+import ChooseParticipants from './pages/ChooseParticipants'
 import CoordinatorClientDetail from './pages/coordinator/CoordinatorClientDetail'
 import TherapistDashboard from './pages/therapist/TherapistDashboard'
 import MembersPage from './pages/members/MembersPage'
@@ -204,6 +205,7 @@ export default function App() {
             <Route path="/help/:slug" element={<Help />} />
             <Route path="/feedback" element={<Navigate to="/help?tab=support" replace />} />
             <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+            <Route path="/choose-participants" element={<RequireCoordinator><ChooseParticipants /></RequireCoordinator>} />
             <Route path="/settings/permissions" element={<RequireAuth><PermissionsPage /></RequireAuth>} />
             <Route path="/settings/display" element={<RequireAuth><DisplaySettings /></RequireAuth>} />
 
