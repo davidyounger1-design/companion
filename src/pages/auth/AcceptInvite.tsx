@@ -38,7 +38,7 @@ export default function AcceptInvite() {
       .rpc('lookup_invite', { p_token: token })
       .then(({ data, error }) => {
         if (error || !data || (data as InviteDetails[]).length === 0) {
-          setLookupError('This invite link is invalid.')
+          setLookupError('This invite link is no longer valid. If you were invited more than once, only the most recent email works — check your inbox for a newer invite, or ask your coordinator to send a new one.')
           return
         }
         const inv = (data as InviteDetails[])[0]

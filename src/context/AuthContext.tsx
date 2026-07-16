@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { ensureProfile } from '../lib/auth'
 import { reconcileOrgPlan } from '../lib/reconcilePlan'
 import { roleHome } from '../lib/roleHome'
+import { isOverParticipantSeats, CHOOSE_PARTICIPANTS_PATH } from '../lib/seatOverage'
 import type { Profile, Organisation } from '../types/database'
 
 interface AuthState {
@@ -48,15 +49,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, profile, org }))
   }
 
+  // If a plan downgrade left more active participants than the org's current
+  // seat limit allows (nobody prompted at downgrade time — plan changes
+  // happen entirely in MAB's portal, outside the app), send the coordinator
+  // to the picker instead of wherever they'd otherwise land. Runs on every
+  // hydrate (not just when reconcileOrgPlan detects a fresh change) so it's
+  // self-healing even if the overage already existed from a previous session.
+  async function guardSeatOverage(profile: Profile | null, org: Organisation | null): Promise<boolean> {
+    if (profile?.role !== 'coordinator' || !org) return false
+    if (window.location.pathname === CHOOSE_PARTICIPANTS_PATH) return false
+    if (!(await isOverParticipantSeats(org))) return false
+    navigate(CHOOSE_PARTICIPANTS_PATH, { replace: true })
+    return true
+  }
+
   // Load the subscribed plan from MAB and correct the local org mirror if it
   // disagrees (plan/org_type/billing_status) — runs once per session load, in
   // the background, so there's a short delay before the display (and, for a
   // coordinator whose org type just changed, the route) catches up.
   function reconcileInBackground(profile: Profile | null, org: Organisation | null) {
     if (!org) return
-    reconcileOrgPlan(org).then((patch) => {
+    reconcileOrgPlan(org).then(async (patch) => {
       if (!patch) return
+      const mergedOrg = { ...org, ...patch }
       setState((prev) => ({ ...prev, org: prev.org ? { ...prev.org, ...patch } : prev.org }))
+      if (await guardSeatOverage(profile, mergedOrg)) return
       if (patch.org_type && profile?.role === 'coordinator') {
         navigate(roleHome(profile.role, patch.org_type), { replace: true })
       }
@@ -66,8 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        hydrateUser(session.user, session).then(({ profile, org }) => {
+        hydrateUser(session.user, session).then(async ({ profile, org }) => {
           setState((prev) => ({ ...prev, user: session.user, session, profile, org, loading: false }))
+          if (await guardSeatOverage(profile, org)) return
           reconcileInBackground(profile, org)
         })
       } else {
@@ -83,8 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
       if (session?.user) {
-        hydrateUser(session.user, session).then(({ profile, org }) => {
+        hydrateUser(session.user, session).then(async ({ profile, org }) => {
           setState((prev) => ({ ...prev, user: session.user, session, profile, org, loading: false }))
+          if (await guardSeatOverage(profile, org)) return
           reconcileInBackground(profile, org)
         })
       } else {

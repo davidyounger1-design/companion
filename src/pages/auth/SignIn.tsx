@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -21,14 +21,30 @@ export default function SignIn() {
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('token') ?? ''
   const [serverError, setServerError] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
   const [mfaCode, setMfaCode] = useState('')
   const [mfaVerifying, setMfaVerifying] = useState(false)
   const [mfaError, setMfaError] = useState('')
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+
+  // Arriving here via an invite (either "Sign in instead" or the automatic
+  // account-exists redirect from AcceptInvite) — look up the invite so we can
+  // prefill the email and explain why they've landed on the sign-in screen
+  // rather than a password-setup form.
+  useEffect(() => {
+    if (!inviteToken) return
+    supabase.rpc('lookup_invite', { p_token: inviteToken }).then(({ data }) => {
+      const inv = (data as { email?: string }[] | null)?.[0]
+      if (inv?.email) {
+        setInviteEmail(inv.email)
+        setValue('email', inv.email)
+      }
+    })
+  }, [inviteToken, setValue])
 
   async function proceedAfterSignIn() {
     const factorId = await checkMfaRequired()
@@ -225,6 +241,12 @@ export default function SignIn() {
         <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '1.75rem' }}>
           Sign in to your Companion account.
         </p>
+
+        {inviteToken && !serverError && (
+          <div className="alert" style={{ marginBottom: '1rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary-deep)' }}>
+            You already have a Companion account for {inviteEmail || 'this email address'}. Sign in with your existing password to accept the invitation.
+          </div>
+        )}
 
         {serverError && (
           <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
