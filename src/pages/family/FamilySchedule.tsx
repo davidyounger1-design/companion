@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -21,6 +21,7 @@ import {
   occursOnDateActive, getItemStatus, itemDiskFraction, normalizeUrl,
 } from '../../lib/schedule'
 import { themedPageBackground } from '../../lib/timer'
+import { printOrEscapeToBrowser } from '../../lib/printSchedule'
 
 /** What the add/edit sheet is doing:
  *  - new    → create a fresh item
@@ -45,14 +46,17 @@ export default function FamilySchedule() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const qc = useQueryClient()
+  const [searchParams] = useSearchParams()
 
   const isCoordinator = profile?.role === 'coordinator'
   const isFamily = profile?.role === 'family'
   const isRecipient = profile?.role === 'recipient'
   const canManage = isCoordinator || isFamily
 
-  const [selectedDate, setSelectedDate] = useState(() => toLocalDateStr(new Date()))
-  const [view, setView] = useState<'day' | 'week'>('day')
+  // date/view/print params let an installed PWA (where window.print() is a
+  // no-op) escape to a real browser tab on the same view and auto-print there.
+  const [selectedDate, setSelectedDate] = useState(() => searchParams.get('date') || toLocalDateStr(new Date()))
+  const [view, setView] = useState<'day' | 'week'>(() => (searchParams.get('view') === 'week' ? 'week' : 'day'))
   const [now, setNow] = useState(() => Date.now())
   const [formIntent, setFormIntent] = useState<FormIntent | null>(null)
   // A recurring item's edit/delete can apply to the whole series or just the
@@ -82,6 +86,15 @@ export default function FamilySchedule() {
     },
     enabled: !!clientId,
   })
+
+  // Auto-print: only reached via the escape-to-browser link a standalone
+  // install opens (see printOrEscapeToBrowser) — waits for content to paint
+  // before invoking the browser's real print dialog.
+  useEffect(() => {
+    if (searchParams.get('print') !== '1' || isLoading) return
+    const t = setTimeout(() => window.print(), 300)
+    return () => clearTimeout(t)
+  }, [searchParams, isLoading])
 
   const { data: completedIds = new Set<string>() } = useQuery({
     queryKey: ['schedule-completions', clientId, selectedDate],
@@ -271,7 +284,9 @@ export default function FamilySchedule() {
             onChange={setView}
             options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]}
           />
-          <button onClick={() => window.print()} className="btn btn-ghost" title="Print or save as PDF"
+          <button
+            onClick={() => printOrEscapeToBrowser(`${window.location.pathname}?date=${selectedDate}&view=${view}&print=1`)}
+            className="btn btn-ghost" title="Print or save as PDF"
             style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
         </div>
 
