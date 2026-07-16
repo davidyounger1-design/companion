@@ -42,6 +42,15 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
   return lines
 }
 
+/** Truncates with an ellipsis so a long title never runs into the category
+ * column — used to keep the time/title/category row to a single line. */
+function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text
+  let end = text.length
+  while (end > 0 && font.widthOfTextAtSize(`${text.slice(0, end)}…`, size) > maxWidth) end--
+  return `${text.slice(0, end)}…`
+}
+
 async function buildSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[]): Promise<Blob> {
   // Lazy-loaded: pdf-lib only downloads when someone actually taps Print
   // from an installed app, not as part of every page's initial bundle.
@@ -57,9 +66,20 @@ async function buildSchedulePdf(participantName: string, subtitle: string, days:
   const pageWidth = 595.28
   const pageHeight = 841.89
   const marginX = 48
-  const itemIndent = 145
   const muted = rgb(0.4, 0.4, 0.4)
   const black = rgb(0, 0, 0)
+
+  // Time | title | category on a single row (previously three stacked
+  // lines per item) roughly doubles how many items fit per page — the
+  // column widths below are sized generously for the longest realistic
+  // time-range string and a short category word, giving the title
+  // whatever's left; a title that still overflows gets truncated with
+  // an ellipsis rather than colliding with the category column.
+  const titleX = marginX + 130
+  const categoryColWidth = 85
+  const categoryX = pageWidth - marginX - categoryColWidth
+  const titleMaxWidth = categoryX - titleX - 8
+  const descriptionMaxWidth = pageWidth - marginX * 2 - 10
 
   function newPage(): PDFPage {
     const p = pdf.addPage([pageWidth, pageHeight])
@@ -83,38 +103,37 @@ async function buildSchedulePdf(participantName: string, subtitle: string, days:
   draw(`${participantName}'s schedule`, marginX, fontBold, 22)
   y -= 26
   draw(subtitle, marginX, font, 13)
-  y -= 26
+  y -= 24
 
   for (const day of days) {
-    ensureSpace(34)
+    ensureSpace(30)
     draw(day.label, marginX, fontBold, 15)
-    y -= 22
+    y -= 18
 
     if (!day.items.length) {
       draw('Nothing scheduled.', marginX, font, 12, muted)
-      y -= 22
+      y -= 20
       continue
     }
 
     for (const item of day.items) {
       const meta = CATEGORY_META[item.category]
-      ensureSpace(44)
-      draw(formatTimeRange(item.start_time, item.end_time), marginX, fontBold, 12)
-      draw(item.title, marginX + itemIndent, fontBold, 12)
-      y -= 17
-      draw(meta.label, marginX + itemIndent, font, 10, muted)
-      y -= 17
+      ensureSpace(item.description ? 34 : 18)
+      draw(formatTimeRange(item.start_time, item.end_time), marginX, fontBold, 9)
+      draw(truncateToWidth(item.title, fontBold, 11, titleMaxWidth), titleX, fontBold, 11)
+      draw(meta.label, categoryX, font, 9, muted)
+      y -= 15
       if (item.description) {
-        const wrapped = wrapText(item.description, font, 11, pageWidth - marginX * 2 - itemIndent)
+        const wrapped = wrapText(item.description, font, 10, descriptionMaxWidth)
         for (const line of wrapped) {
-          ensureSpace(15)
-          draw(line, marginX + itemIndent, font, 11)
-          y -= 15
+          ensureSpace(13)
+          draw(line, marginX + 10, font, 10)
+          y -= 13
         }
       }
-      y -= 10
+      y -= 6
     }
-    y -= 12
+    y -= 8
   }
 
   const bytes = await pdf.save()
