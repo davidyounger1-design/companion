@@ -10,21 +10,30 @@ export type PrintDaySection = { label: string; items: ScheduleItem[] }
 
 /**
  * Builds a self-contained HTML document (no dependency on the app's own
- * stylesheet, theme, or React tree) and opens it via a blob: URL, which
- * auto-prints on load.
+ * stylesheet, theme, or React tree) and writes it directly into a freshly
+ * opened window, which auto-prints on load.
  *
  * This deliberately does NOT print the live app DOM. An installed/
  * standalone home-screen app can't reach the system print dialog at all —
  * window.print() is a silent no-op there — and window.open() of a
  * same-origin app URL tends to stay trapped inside the installed shell
  * rather than escaping to a real browser window (confirmed: it "flashed"
- * back to the app instead of opening anything). A blob: URL has no origin
- * any PWA manifest can claim, so the OS always treats it as an ordinary
- * document in its own window — this works identically whether the app is
- * installed or just open in a browser tab, so callers never need to
- * special-case standalone mode.
+ * back to the app instead of opening anything).
+ *
+ * Opening the window FIRST with a blank/synchronous window.open('', '_blank')
+ * — before building any content — still escapes an installed shell the same
+ * way a plain link tap does, but avoids blob: URLs entirely: iOS Safari is
+ * well known for failing to render a blob: URL opened in a new tab/window,
+ * even though the popup itself opens (this is exactly what silently failed
+ * the first attempt at this). document.write() into that window works
+ * reliably everywhere blob: doesn't.
  */
 export function printSchedule(participantName: string, subtitle: string, days: PrintDaySection[]) {
+  // Open synchronously, in direct response to the click, before any other
+  // work — this is what lets it count as a user-initiated popup rather
+  // than getting blocked.
+  const win = window.open('', '_blank')
+
   const dayBlocks = days.map((d) => {
     const itemsHtml = d.items.length
       ? d.items.map((i) => {
@@ -66,9 +75,8 @@ ${dayBlocks}
 </body>
 </html>`
 
-  const blob = new Blob([html], { type: 'text/html' })
-  const url = URL.createObjectURL(blob)
-  const win = window.open(url, '_blank')
-  if (!win) window.location.href = url
-  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  if (!win) return // popup blocked — exceedingly rare for a direct click-triggered open
+  win.document.open()
+  win.document.write(html)
+  win.document.close()
 }
