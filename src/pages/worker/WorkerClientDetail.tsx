@@ -343,7 +343,7 @@ export default function WorkerClientDetail() {
         </button>
         {showGoals && (
           <div style={{ marginTop: '0.875rem' }}>
-            <NdisRecordsSection clientId={client.id} orgId={client.org_id} authorId={user!.id} canManageGoals={false} />
+            <NdisRecordsSection clientId={client.id} orgId={client.org_id} authorId={user!.id} canManageAny={false} />
           </div>
         )}
       </div>}

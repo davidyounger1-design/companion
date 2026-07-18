@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { GOAL_CATEGORY_LABEL } from '../lib/ndisRecords'
+import type { GoalCategory } from '../types/database'
+
+const CATEGORIES = Object.keys(GOAL_CATEGORY_LABEL) as GoalCategory[]
 
 export default function GoalForm({
   clientId,
@@ -19,6 +23,7 @@ export default function GoalForm({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [targetDate, setTargetDate] = useState('')
+  const [category, setCategory] = useState<GoalCategory | ''>('')
 
   const save = useMutation({
     mutationFn: async () => {
@@ -28,6 +33,7 @@ export default function GoalForm({
         title: title.trim(),
         description: description.trim() || null,
         target_date: targetDate || null,
+        category: category || null,
         created_by: createdBy,
       })
       if (error) throw error
@@ -64,6 +70,16 @@ export default function GoalForm({
           </label>
           <input id="goal-target" type="date" className="input" value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="goal-category">
+            Category <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>(optional)</span>
+          </label>
+          <select id="goal-category" className="input" value={category}
+            onChange={(e) => setCategory(e.target.value as GoalCategory | '')}>
+            <option value="">No category</option>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{GOAL_CATEGORY_LABEL[c]}</option>)}
+          </select>
         </div>
         {save.isError && (
           <div className="alert alert-error">

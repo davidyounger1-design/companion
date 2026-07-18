@@ -23,6 +23,7 @@ import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
 import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon } from '../../components/icons'
 import NoticeCard from '../../components/NoticeCard'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
+import NdisRecordsSection from '../../components/NdisRecordsSection'
 
 
 function formatDate(iso: string) {
@@ -634,6 +635,7 @@ export default function FamilyDashboard() {
   const [showCalendar, setShowCalendar] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
   const [showBehaviourNotes, setShowBehaviourNotes] = useState(false)
+  const [showGoals, setShowGoals] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDob, setEditDob] = useState('')
@@ -979,6 +981,32 @@ export default function FamilyDashboard() {
             {showBehaviourNotes && (
               <div style={{ marginTop: '0.875rem' }}>
                 <BehaviourNotesSection clientId={clientId} participantName={participantName} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {clientId && org && user && hasFeature(FEATURES.ndisRecords) && (
+          <div className="card" style={{ marginBottom: '1rem', padding: '0.875rem 1rem' }}>
+            <button
+              onClick={() => setShowGoals((x) => !x)}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                width: '100%', background: 'none', border: 'none', padding: 0,
+                cursor: 'pointer', textAlign: 'left', fontSize: '0.9375rem', fontWeight: 500,
+              }}
+            >
+              🎯 Goals
+              <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showGoals ? '▲' : '▼'}</span>
+            </button>
+            {showGoals && (
+              <div style={{ marginTop: '0.875rem' }}>
+                <NdisRecordsSection
+                  clientId={clientId}
+                  orgId={org.id}
+                  authorId={user.id}
+                  canManageAny={isCoordinator || isFamily}
+                />
               </div>
             )}
           </div>

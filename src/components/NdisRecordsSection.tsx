@@ -3,25 +3,28 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import GoalForm from './GoalForm'
 import GoalCard from './GoalCard'
-import type { GoalStatus } from '../types/database'
+import type { GoalCategory, GoalStatus } from '../types/database'
 
 type Goal = {
   id: string; client_id: string; org_id: string
   title: string; description: string | null; target_date: string | null
-  status: GoalStatus
+  category: GoalCategory | null; status: GoalStatus; created_by: string | null
 }
 
 export default function NdisRecordsSection({
   clientId,
   orgId,
   authorId,
-  /** Coordinators can add goals and mark them achieved/discontinued. */
-  canManageGoals,
+  /** Coordinators and family can edit or discontinue ANY goal for this
+   * participant. Everyone else (worker, recipient) can still add a goal —
+   * anyone connected can — but can only edit/discontinue one they created
+   * themselves (enforced both here in the UI and, authoritatively, by RLS). */
+  canManageAny,
 }: {
   clientId: string
   orgId: string
   authorId: string
-  canManageGoals: boolean
+  canManageAny: boolean
 }) {
   const [showGoalForm, setShowGoalForm] = useState(false)
 
@@ -30,7 +33,7 @@ export default function NdisRecordsSection({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('participant_goals')
-        .select('id, client_id, org_id, title, description, target_date, status')
+        .select('id, client_id, org_id, title, description, target_date, category, status, created_by')
         .eq('client_id', clientId)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -43,7 +46,7 @@ export default function NdisRecordsSection({
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <h2 style={{ fontSize: '1rem', fontFamily: 'var(--font-ui)', fontWeight: 700, margin: 0 }}>Goals & progress</h2>
-        {canManageGoals && !showGoalForm && (
+        {!showGoalForm && (
           <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
             onClick={() => setShowGoalForm(true)}>
             + Add goal
@@ -67,7 +70,7 @@ export default function NdisRecordsSection({
       ) : (
         <div className="scroll-list">
           {goals.map((goal) => (
-            <GoalCard key={goal.id} goal={goal} authorId={authorId} canManage={canManageGoals} />
+            <GoalCard key={goal.id} goal={goal} authorId={authorId} canManageAny={canManageAny} />
           ))}
         </div>
       )}

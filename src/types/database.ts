@@ -16,6 +16,11 @@ export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical'
 export type IncidentCategory = 'injury' | 'behaviour' | 'medication' | 'property' | 'near_miss' | 'complaint' | 'other'
 export type IncidentStatus = 'open' | 'escalated' | 'resolved'
 export type GoalStatus = 'active' | 'achieved' | 'discontinued'
+// NDIS-aligned life-domain categories a goal can sit under — optional, for
+// grouping/filtering; not tied to a specific plan's funded support categories.
+export type GoalCategory =
+  | 'daily_living' | 'health_wellbeing' | 'social_community'
+  | 'relationships' | 'home' | 'employment' | 'education' | 'choice_control'
 export type MeteredAxis = 'workers' | 'participants'
 export type ProgressRating = 'regressed' | 'no_change' | 'some_progress' | 'good_progress' | 'achieved'
 
@@ -423,6 +428,7 @@ export interface Database {
           title: string
           description: string | null
           target_date: string | null
+          category: GoalCategory | null
           status: GoalStatus
           created_by: string | null
           created_at: string
@@ -434,6 +440,7 @@ export interface Database {
           title: string
           description?: string | null
           target_date?: string | null
+          category?: GoalCategory | null
           status?: GoalStatus
           created_by?: string | null
           created_at?: string
@@ -442,6 +449,7 @@ export interface Database {
           title?: string
           description?: string | null
           target_date?: string | null
+          category?: GoalCategory | null
           status?: GoalStatus
         }
         Relationships: []
