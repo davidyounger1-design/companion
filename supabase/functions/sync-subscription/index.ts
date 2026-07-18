@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { db: { schema: 'companion' } }
     )
 
     // Map MyAppBuddy subscription status to Companion billing_status

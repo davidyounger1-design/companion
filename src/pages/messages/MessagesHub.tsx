@@ -83,7 +83,7 @@ export default function MessagesHub() {
   useEffect(() => {
     if (!profile?.org_id) return
     const ch = supabase.channel('hub-msgs')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `org_id=eq.${profile.org_id}` }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'companion', table: 'messages', filter: `org_id=eq.${profile.org_id}` }, () => {
         qc.invalidateQueries({ queryKey: ['msg-last'] })
         qc.invalidateQueries({ queryKey: ['msg-unread-map'] })
       })

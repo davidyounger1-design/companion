@@ -11,10 +11,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient<Database>(
+export const supabase = createClient<Database, 'companion'>(
   supabaseUrl ?? 'https://placeholder.supabase.co',
   supabaseAnonKey ?? 'placeholder',
   {
+    db: {
+      schema: 'companion',
+    },
     auth: {
       persistSession: true,
       autoRefreshToken: true,

@@ -45,11 +45,11 @@ Deno.serve(async (req) => {
     const mabUrl      = Deno.env.get('MAB_API_URL') ?? 'https://myappbuddy.com.au'
     const mabKey      = Deno.env.get('MAB_SECRET_KEY') || Deno.env.get('COMPANION_SERVICE_KEY') || ''
 
-    const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
+    const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } }, db: { schema: 'companion' } })
     const { data: { user } } = await userClient.auth.getUser()
     if (!user) return json({ ok: false, error: 'Unauthorized' }, 401)
 
-    const admin = createClient(supabaseUrl, serviceKey)
+    const admin = createClient(supabaseUrl, serviceKey, { db: { schema: 'companion' } })
     const { data: caller } = await admin.from('profiles').select('role').eq('id', user.id).single()
     if (caller?.role !== 'coordinator') return json({ ok: false, error: 'Forbidden' }, 403)
 

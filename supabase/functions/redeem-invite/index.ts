@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     const { token, password, name } = await req.json()
     if (!token || !password || !name) return json({ ok: false, error: 'Missing required fields' }, 400)
 
-    const admin = createClient(supabaseUrl, serviceKey)
+    const admin = createClient(supabaseUrl, serviceKey, { db: { schema: 'companion' } })
 
     // Validate the invite
     const { data: invite, error: inviteErr } = await admin

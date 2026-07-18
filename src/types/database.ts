@@ -28,7 +28,7 @@ export type ProgressRating = 'regressed' | 'no_change' | 'some_progress' | 'good
 // Structured to match Supabase's generated type format so `createClient<Database>` resolves correctly.
 
 export interface Database {
-  public: {
+  companion: {
     Tables: {
       organisations: {
         Row: {
@@ -832,7 +832,7 @@ export interface Database {
 
 // ─── Convenience row type aliases ─────────────────────────────────────────────
 
-type Tables = Database['public']['Tables']
+type Tables = Database['companion']['Tables']
 export type Organisation = Tables['organisations']['Row']
 export type Profile      = Tables['profiles']['Row']
 export type Client       = Tables['clients']['Row']
