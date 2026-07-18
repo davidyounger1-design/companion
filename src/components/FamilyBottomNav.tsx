@@ -23,7 +23,7 @@ export default function FamilyBottomNav() {
   const isRecipient = profile?.role === 'recipient'
   const { has } = useFeatures()
   const showMessages = !isRecipient && has(FEATURES.messaging)
-  const showGoals = has(FEATURES.ndisRecords)
+  const showGoals = has(FEATURES.goals)
 
   // Same shared map MessagesHub renders per-contact, summed for a single
   // badge — so the two can never disagree the way two independently
@@ -37,7 +37,7 @@ export default function FamilyBottomNav() {
     { label: 'Journal',  icon: <JournalIcon />,  path: '/family' },
     { label: 'Schedule', icon: <ScheduleIcon />, path: '/family/schedule' },
     { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
-    // Goals & progress is a plan entitlement (ndis_records).
+    // Goals & progress is its own plan entitlement (goals).
     ...(showGoals ? [{ label: 'Goals', icon: <GoalsIcon />, path: '/family/goals' }] : []),
     // The visual timer is a recipient-only tool.
     ...(isRecipient ? [{ label: 'Timer', icon: <TimerIcon />, path: '/family/timer' }] : []),

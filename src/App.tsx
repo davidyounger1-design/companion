@@ -241,7 +241,7 @@ export default function App() {
               <Route path="participant" element={<EditParticipant />} />
               <Route path="notices" element={<FamilyNoticeBoard />} />
               <Route path="schedule" element={<FamilySchedule />} />
-              <Route path="goals" element={<RequireFeature feature={FEATURES.ndisRecords}><FamilyGoals /></RequireFeature>} />
+              <Route path="goals" element={<RequireFeature feature={FEATURES.goals}><FamilyGoals /></RequireFeature>} />
               <Route path="timer" element={<RequireRecipient><FamilyTimer /></RequireRecipient>} />
             </Route>
 

@@ -299,7 +299,7 @@ export default function ClientManagePanel({
         </div>
       )}
 
-      {has(FEATURES.ndisRecords) && (
+      {has(FEATURES.goals) && (
         <div style={{ marginBottom: '1.5rem' }}>
           <NdisRecordsSection clientId={clientId} orgId={orgId} authorId={user!.id} canManageAny />
         </div>

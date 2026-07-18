@@ -31,7 +31,7 @@ export const FEATURES = {
   moodTracking: 'mood_tracking',
   messaging: 'messaging',
   incidentWorkflows: 'incident_workflows',
-  ndisRecords: 'ndis_records',
+  goals: 'goals',
 } as const
 
 /**
