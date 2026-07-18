@@ -144,14 +144,17 @@ begin
     foreach tname in array table_names loop
       fixed_def := regexp_replace(fixed_def, '\mpublic\.' || tname || '\M', 'companion.' || tname, 'g');
     end loop;
-    -- Safety net: every convention seen in this codebase schema-qualifies
-    -- table references explicitly (e.g. "public.profiles"), which the
-    -- substitution above already handles — but if any function relies on
-    -- an unqualified name resolved via its own "search_path = public"
-    -- clause instead, put `companion` ahead of `public` in that search
-    -- path too, so a reference this sweep didn't textually catch still
-    -- resolves correctly rather than failing at the function's next call.
-    fixed_def := regexp_replace(fixed_def, 'search_path\s*=\s*public\M', 'search_path = companion, public', 'g');
+    -- Safety net: not every function schema-qualifies its table references
+    -- the way the migration-history convention suggested — e.g.
+    -- client_ids_for_recipient() (026_recipient_role.sql), referenced by
+    -- RLS policies across ~10 later migrations, has a bare "from clients"
+    -- resolved purely via its own search_path. Confirmed live: Postgres's
+    -- canonical rendering of that clause (via pg_get_functiondef) is
+    -- `SET search_path TO 'public'` — quoted, with TO, not "= public" — so
+    -- put `companion` ahead of `public` there too, covering this and any
+    -- other function with the same pattern this sweep didn't textually
+    -- catch by table name alone.
+    fixed_def := regexp_replace(fixed_def, 'search_path\s+(TO|=)\s+''public''', 'search_path \1 ''companion'', ''public''', 'g');
     execute fixed_def;
   end loop;
 end $$;
