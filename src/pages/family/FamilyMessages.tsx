@@ -71,7 +71,7 @@ export default function FamilyMessages() {
     const channel = supabase
       .channel('family-msgs')
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
+        event: 'INSERT', schema: 'companion', table: 'messages',
         filter: `org_id=eq.${profile.org_id}`,
       }, () => {
         qc.invalidateQueries({ queryKey: ['family-messages', clientId] })

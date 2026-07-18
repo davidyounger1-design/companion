@@ -127,7 +127,7 @@ export default function MessageThread() {
     if (!profile?.org_id) return
     const ch = supabase.channel(`thread-${userId}`)
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
+        event: 'INSERT', schema: 'companion', table: 'messages',
         filter: `org_id=eq.${profile.org_id}`,
       }, () => {
         qc.invalidateQueries({ queryKey: ['thread-msgs'] })

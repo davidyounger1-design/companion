@@ -27,7 +27,7 @@ serve(async (req) => {
     const callerClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } },
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } }, db: { schema: 'companion' } },
     )
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser()
     if (authErr || !caller) return json({ ok: false, error: 'not_authenticated' })
@@ -46,6 +46,7 @@ serve(async (req) => {
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { db: { schema: 'companion' } },
     )
 
     // AUTHORIZATION: target must be a member of the caller's own org — without

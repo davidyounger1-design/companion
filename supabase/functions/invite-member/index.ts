@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
     // Verify the calling user's JWT
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
+      db: { schema: 'companion' },
     })
     const { data: { user } } = await userClient.auth.getUser()
     if (!user) return json({ ok: false, error: 'Unauthorized' }, 401)
@@ -40,7 +41,7 @@ Deno.serve(async (req) => {
     const { email, role, org_id, client_id, phone, name } = await req.json()
     if (!email || !role || !org_id) return json({ ok: false, error: 'Missing required fields' }, 400)
 
-    const admin = createClient(supabaseUrl, serviceKey)
+    const admin = createClient(supabaseUrl, serviceKey, { db: { schema: 'companion' } })
 
     // Confirm the caller has permission in this org
     const { data: caller } = await admin

@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
+      { global: { headers: { Authorization: authHeader } }, db: { schema: 'companion' } },
     )
     const { data: { user } } = await supabase.auth.getUser()
     if (!user?.email) return json({ features: [], plan: null, status: null })
@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { db: { schema: 'companion' } },
     )
     const { data: profile } = await admin
       .from('profiles').select('org_id').eq('id', user.id).maybeSingle()

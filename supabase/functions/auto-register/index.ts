@@ -34,7 +34,8 @@ Deno.serve(async (req) => {
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { db: { schema: 'companion' } },
     )
 
     // Check if a Supabase auth account already exists for this email

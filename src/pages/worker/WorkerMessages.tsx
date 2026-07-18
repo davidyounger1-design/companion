@@ -87,7 +87,7 @@ export default function WorkerMessages() {
     const channel = supabase
       .channel('worker-msgs')
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
+        event: 'INSERT', schema: 'companion', table: 'messages',
         filter: `org_id=eq.${profile.org_id}`,
       }, () => {
         qc.invalidateQueries({ queryKey: ['worker-messages', user.id] })

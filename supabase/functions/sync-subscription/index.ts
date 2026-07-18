@@ -1,5 +1,24 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { registerAppRef } from '../_shared/mabLink.ts'
+
+// Inlined from _shared/mabLink.ts so this function deploys as a single file
+// (the dashboard editor doesn't bundle ../_shared).
+async function registerAppRef(subscriptionId: string, email: string): Promise<boolean> {
+  const secretKey = Deno.env.get('MAB_SECRET_KEY') || Deno.env.get('COMPANION_SERVICE_KEY')
+  if (!secretKey || !subscriptionId || !email) return false
+  try {
+    const res = await fetch(
+      `https://myappbuddy.com.au/api/v1/link/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: email }),
+      },
+    )
+    return res.ok
+  } catch {
+    return false
+  }
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -52,7 +71,8 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { db: { schema: 'companion' } }
     )
 
     // Map MyAppBuddy subscription status to Companion billing_status

@@ -801,7 +801,7 @@ export default function FamilyDashboard() {
       .channel(`journal-${clientId}`)
       .on('postgres_changes', {
         event: '*',
-        schema: 'public',
+        schema: 'companion',
         table: 'log_entries',
         filter: `client_id=eq.${clientId}`,
       }, () => {
@@ -809,7 +809,7 @@ export default function FamilyDashboard() {
       })
       .on('postgres_changes', {
         event: '*',
-        schema: 'public',
+        schema: 'companion',
         table: 'notices',
         filter: `client_id=eq.${clientId}`,
       }, () => {
