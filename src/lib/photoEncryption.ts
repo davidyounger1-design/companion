@@ -48,7 +48,7 @@ export function mimeFromPath(path: string): string {
  * decode) so the caller can fall back to uploading the full photo only;
  * never blocks saving the entry over a preview nicety.
  */
-export async function createImageThumbnail(file: File, maxDim = 480, quality = 0.6): Promise<Blob | null> {
+export async function createImageThumbnail(file: File | Blob, maxDim = 480, quality = 0.6): Promise<Blob | null> {
   try {
     const bitmap = await createImageBitmap(file)
     const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
@@ -83,8 +83,27 @@ export async function encryptFile(file: File | Blob, keyHex: string): Promise<Bl
 }
 
 /**
- * Decrypt a downloaded buffer to a blob: URL.
+ * Decrypt a downloaded buffer to a plain Blob.
  * Handles legacy unencrypted files transparently (no magic bytes → serve as-is).
+ */
+export async function decryptToBlob(
+  data: ArrayBuffer,
+  keyHex: string,
+  mimeType: string,
+): Promise<Blob> {
+  const bytes = new Uint8Array(data)
+  if (!isEncrypted(bytes)) {
+    return new Blob([data], { type: mimeType })
+  }
+  const key = await importKey(keyHex)
+  const iv = bytes.slice(MAGIC.length, HEADER_LEN)
+  const cipher = bytes.slice(HEADER_LEN)
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher)
+  return new Blob([plain], { type: mimeType })
+}
+
+/**
+ * Decrypt a downloaded buffer to a blob: URL.
  * Caller is responsible for calling URL.revokeObjectURL when done.
  */
 export async function decryptToObjectURL(
@@ -92,13 +111,6 @@ export async function decryptToObjectURL(
   keyHex: string,
   mimeType: string,
 ): Promise<string> {
-  const bytes = new Uint8Array(data)
-  if (!isEncrypted(bytes)) {
-    return URL.createObjectURL(new Blob([data], { type: mimeType }))
-  }
-  const key = await importKey(keyHex)
-  const iv = bytes.slice(MAGIC.length, HEADER_LEN)
-  const cipher = bytes.slice(HEADER_LEN)
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher)
-  return URL.createObjectURL(new Blob([plain], { type: mimeType }))
+  const blob = await decryptToBlob(data, keyHex, mimeType)
+  return URL.createObjectURL(blob)
 }
