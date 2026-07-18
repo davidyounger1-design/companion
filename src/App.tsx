@@ -32,6 +32,7 @@ import AddEntry from './pages/family/AddEntry'
 import EditParticipant from './pages/family/EditParticipant'
 import FamilyNoticeBoard from './pages/family/FamilyNoticeBoard'
 import FamilySchedule from './pages/family/FamilySchedule'
+import FamilyGoals from './pages/family/FamilyGoals'
 import FamilyTimer from './pages/family/FamilyTimer'
 import MessagesHub from './pages/messages/MessagesHub'
 import MessageThread from './pages/messages/MessageThread'
@@ -240,6 +241,7 @@ export default function App() {
               <Route path="participant" element={<EditParticipant />} />
               <Route path="notices" element={<FamilyNoticeBoard />} />
               <Route path="schedule" element={<FamilySchedule />} />
+              <Route path="goals" element={<RequireFeature feature={FEATURES.ndisRecords}><FamilyGoals /></RequireFeature>} />
               <Route path="timer" element={<RequireRecipient><FamilyTimer /></RequireRecipient>} />
             </Route>
 
