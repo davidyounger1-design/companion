@@ -716,7 +716,7 @@ export default function FamilyDashboard() {
         .limit(5)
       return data ?? []
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !isRecipient,
   })
 
   const authorIds = [...new Set(entries.map((e) => e.author_id))]

@@ -2,6 +2,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useClientId } from '../../hooks/useClientId'
 import NdisRecordsSection from '../../components/NdisRecordsSection'
 import { MobileFooter } from '../../components/SiteFooter'
+import FamilyBottomNav from '../../components/FamilyBottomNav'
 
 export default function FamilyGoals() {
   const { user, profile, org } = useAuth()
@@ -11,8 +12,11 @@ export default function FamilyGoals() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
-        <div className="spinner" style={{ width: 28, height: 28, color: 'var(--color-primary)' }} />
+      <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+          <div className="spinner" style={{ width: 28, height: 28, color: 'var(--color-primary)' }} />
+        </div>
+        <FamilyBottomNav />
       </div>
     )
   }
@@ -36,6 +40,7 @@ export default function FamilyGoals() {
 
         <MobileFooter />
       </div>
+      <FamilyBottomNav />
     </div>
   )
 }
