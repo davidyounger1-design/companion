@@ -76,7 +76,7 @@ export default function WorkerClientDetail() {
   const showMood = has(FEATURES.moodTracking)
   const showBehaviourNotesFeature = has(FEATURES.behaviourNotes)
   const showIncidentWorkflows = has(FEATURES.incidentWorkflows)
-  const showNdisRecords = has(FEATURES.ndisRecords)
+  const showNdisRecords = has(FEATURES.goals)
   const navigate = useNavigate()
   const qc = useQueryClient()
 

@@ -7,6 +7,6 @@
   { "key": "recipient_login", "name": "Care-recipient login" },
   { "key": "mood_tracking", "name": "Mood check-ins" },
   { "key": "incident_workflows", "name": "Incident workflows & flags" },
-  { "key": "ndis_records", "name": "NDIS-ready goals & progress records" },
+  { "key": "goals", "name": "Goals & progress tracking" },
   { "key": "retention_30", "name": "30-day journal retention" }
 ]
