@@ -36,7 +36,9 @@ export default function FamilyBottomNav() {
   const items: NavEntry[] = [
     { label: 'Journal',  icon: <JournalIcon />,  path: '/family' },
     { label: 'Schedule', icon: <ScheduleIcon />, path: '/family/schedule' },
-    { label: 'Notices',  icon: <NoticesIcon />,  path: '/family/notices' },
+    // Notices are posted by the care team about the recipient — not meant
+    // for the recipient themselves to see.
+    ...(isRecipient ? [] : [{ label: 'Notices', icon: <NoticesIcon />, path: '/family/notices' }]),
     // Goals & progress is its own plan entitlement (goals).
     ...(showGoals ? [{ label: 'Goals', icon: <GoalsIcon />, path: '/family/goals' }] : []),
     // The visual timer is a recipient-only tool.
