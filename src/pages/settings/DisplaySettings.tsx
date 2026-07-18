@@ -13,114 +13,6 @@ import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { isStandalone } from '../../lib/pwa'
 import { APP_VERSION } from '../../lib/version'
-import { createImageThumbnail, decryptToBlob, encryptFile, mimeFromPath } from '../../lib/photoEncryption'
-
-function isVideoPath(path: string) {
-  return /\.(mp4|mov|webm|m4v|avi|ogv)(\?|$)/i.test(path)
-}
-
-type BackfillState = 'idle' | 'running' | 'done' | 'error'
-
-/** One-off maintenance action: journal photos uploaded before thumbnails
- * existed have no small preview, so the journal feed falls back to loading
- * their full photo inline (the old, slow-on-a-bad-connection behaviour).
- * Generates and uploads a thumbnail for every such entry in the
- * coordinator's org. Safe to re-run — only touches entries still missing
- * one, so it can be interrupted or re-run later for anything added since. */
-function PhotoThumbnailBackfillCard() {
-  const { profile } = useAuth()
-  const [state, setState] = useState<BackfillState>('idle')
-  const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [skipped, setSkipped] = useState(0)
-  const [error, setError] = useState('')
-
-  if (profile?.role !== 'coordinator') return null
-
-  async function run() {
-    setState('running')
-    setError('')
-    setSkipped(0)
-    setProgress({ done: 0, total: 0 })
-    try {
-      const { data: keyHex, error: keyErr } = await (supabase.rpc as any)('get_or_create_photo_key') // eslint-disable-line @typescript-eslint/no-explicit-any
-      if (keyErr || !keyHex) throw keyErr ?? new Error('Could not get encryption key')
-
-      const { data: rows, error: rowsErr } = await supabase
-        .from('log_entries')
-        .select('id, photo_path')
-        .eq('org_id', profile!.org_id!)
-        .not('photo_path', 'is', null)
-        .is('photo_thumb_path', null)
-      if (rowsErr) throw rowsErr
-
-      const candidates = (rows ?? []).filter(
-        (r): r is { id: string; photo_path: string } => !!r.photo_path && !isVideoPath(r.photo_path),
-      )
-      setProgress({ done: 0, total: candidates.length })
-
-      let skippedCount = 0
-      for (const row of candidates) {
-        try {
-          const { data: signed } = await supabase.storage.from('journal-photos').createSignedUrl(row.photo_path, 300)
-          if (!signed?.signedUrl) { skippedCount++; continue }
-          const res = await fetch(signed.signedUrl)
-          const buf = await res.arrayBuffer()
-          const plainBlob = await decryptToBlob(buf, keyHex, mimeFromPath(row.photo_path))
-          const thumbBlob = await createImageThumbnail(plainBlob)
-          if (!thumbBlob) { skippedCount++; continue }
-
-          const thumbPath = row.photo_path.replace(/\.[^./]+$/, '') + '-thumb.jpg'
-          const encryptedThumb = await encryptFile(thumbBlob, keyHex)
-          const { error: upErr } = await supabase.storage
-            .from('journal-photos')
-            .upload(thumbPath, encryptedThumb, { upsert: true, contentType: 'image/jpeg' })
-          if (upErr) { skippedCount++; continue }
-
-          const { data: fnData, error: fnErr } = await supabase.functions.invoke('backfill-photo-thumb', {
-            body: { entry_id: row.id, thumb_path: thumbPath },
-          })
-          if (fnErr || !fnData?.ok) skippedCount++
-        } catch {
-          skippedCount++
-        } finally {
-          setProgress((p) => ({ ...p, done: p.done + 1 }))
-        }
-      }
-      setSkipped(skippedCount)
-      setState('done')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not backfill thumbnails.')
-      setState('error')
-    }
-  }
-
-  return (
-    <div className="card" style={{ marginBottom: '1rem' }}>
-      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>Photo thumbnails</p>
-      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
-        Journal photos added before thumbnails existed still load full-size in the feed. Generate small previews
-        for those older photos so they load faster on a slow connection too.
-      </p>
-      {state === 'running' && (
-        <p style={{ margin: '0 0 0.75rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
-          Processing {progress.done} of {progress.total}…
-        </p>
-      )}
-      {state === 'done' && (
-        <p style={{ margin: '0 0 0.75rem', fontSize: '0.82rem', color: 'var(--color-muted)' }}>
-          Done — {progress.total - skipped} of {progress.total} updated
-          {skipped > 0 ? ` (${skipped} skipped — already up to date or couldn't be processed)` : ''}.
-        </p>
-      )}
-      {state === 'error' && (
-        <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>{error}</div>
-      )}
-      <button className="btn btn-primary" onClick={run} disabled={state === 'running'}>
-        {state === 'running' ? <span className="spinner" /> : 'Generate missing thumbnails'}
-      </button>
-    </div>
-  )
-}
 
 function InstallCard() {
   const { canInstall, isIOS, hasPrompt, install } = useInstallPrompt()
@@ -656,7 +548,6 @@ export default function DisplaySettings() {
           )}
         </div>
 
-        <PhotoThumbnailBackfillCard />
         <InstallCard />
         <UpdatesCard />
         <LinksCard />
