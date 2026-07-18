@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import ProgressRecordForm from './ProgressRecordForm'
-import { GOAL_STATUS_LABEL, GOAL_STATUS_COLOR, RATING_LABEL, RATING_EMOJI, formatGoalDate, formatProgressDate } from '../lib/ndisRecords'
-import type { ProgressRating, GoalStatus } from '../types/database'
+import { GOAL_STATUS_LABEL, GOAL_STATUS_COLOR, GOAL_CATEGORY_LABEL, GOAL_CATEGORY_EMOJI, RATING_LABEL, RATING_EMOJI, formatGoalDate, formatProgressDate } from '../lib/ndisRecords'
+import type { ProgressRating, GoalStatus, GoalCategory } from '../types/database'
 
 type Goal = {
   id: string; client_id: string; org_id: string
   title: string; description: string | null; target_date: string | null
-  status: GoalStatus
+  category: GoalCategory | null; status: GoalStatus; created_by: string | null
 }
 
 type ProgressRecordRow = {
@@ -22,12 +22,16 @@ type ProgressRecordRow = {
 export default function GoalCard({
   goal,
   authorId,
-  canManage,
+  canManageAny,
 }: {
   goal: Goal
   authorId: string
-  canManage: boolean
+  /** True for coordinators/family — can edit or discontinue any goal for
+   * this participant. Everyone else (worker, recipient) can only act on a
+   * goal they created themselves. */
+  canManageAny: boolean
 }) {
+  const canManage = canManageAny || goal.created_by === authorId
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const [showProgressForm, setShowProgressForm] = useState(false)
@@ -64,6 +68,11 @@ export default function GoalCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
             <p style={{ margin: 0, fontWeight: 600 }}>{goal.title}</p>
             <span className="badge" style={{ background: st.bg, color: st.fg, fontSize: '0.65rem' }}>{GOAL_STATUS_LABEL[goal.status]}</span>
+            {goal.category && (
+              <span className="badge" style={{ fontSize: '0.65rem' }}>
+                {GOAL_CATEGORY_EMOJI[goal.category]} {GOAL_CATEGORY_LABEL[goal.category]}
+              </span>
+            )}
           </div>
           {goal.description && (
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: 'var(--color-muted)' }}>{goal.description}</p>

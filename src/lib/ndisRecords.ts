@@ -1,4 +1,20 @@
-import type { GoalStatus, ProgressRating } from '../types/database'
+import type { GoalCategory, GoalStatus, ProgressRating } from '../types/database'
+
+export const GOAL_CATEGORY_LABEL: Record<GoalCategory, string> = {
+  daily_living:     'Daily living',
+  health_wellbeing: 'Health & wellbeing',
+  social_community: 'Social & community',
+  relationships:    'Relationships',
+  home:             'Home',
+  employment:       'Employment',
+  education:        'Education & learning',
+  choice_control:   'Choice & control',
+}
+
+export const GOAL_CATEGORY_EMOJI: Record<GoalCategory, string> = {
+  daily_living: '🧺', health_wellbeing: '💪', social_community: '🤝',
+  relationships: '❤️', home: '🏠', employment: '💼', education: '📚', choice_control: '🗳️',
+}
 
 export const GOAL_STATUS_LABEL: Record<GoalStatus, string> = {
   active: 'Active', achieved: 'Achieved', discontinued: 'Discontinued',
