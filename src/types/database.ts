@@ -298,6 +298,7 @@ export interface Database {
           label: string
           occurred_at: string
           photo_path: string | null
+          photo_thumb_path: string | null
           mood_score: number | null
           ai_source: string | null
           ai_reason: string | null
@@ -312,6 +313,7 @@ export interface Database {
           label: string
           occurred_at?: string
           photo_path?: string | null
+          photo_thumb_path?: string | null
           mood_score?: number | null
           ai_source?: string | null
           ai_reason?: string | null

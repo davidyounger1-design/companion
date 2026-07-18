@@ -41,8 +41,36 @@ export function mimeFromPath(path: string): string {
   return map[ext] ?? 'application/octet-stream'
 }
 
-/** Encrypt a file for storage. Returns an opaque encrypted blob. */
-export async function encryptFile(file: File, keyHex: string): Promise<Blob> {
+/**
+ * Downscales an image to a small JPEG for a fast inline preview — the full
+ * original only downloads when a viewer taps to open it. Returns null if
+ * thumbnailing fails for any reason (e.g. an image format the browser can't
+ * decode) so the caller can fall back to uploading the full photo only;
+ * never blocks saving the entry over a preview nicety.
+ */
+export async function createImageThumbnail(file: File, maxDim = 480, quality = 0.6): Promise<Blob | null> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+    const w = Math.max(1, Math.round(bitmap.width * scale))
+    const h = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(bitmap, 0, 0, w, h)
+    bitmap.close()
+    return await new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality)
+    })
+  } catch {
+    return null
+  }
+}
+
+/** Encrypt a file (or a generated blob, e.g. a thumbnail) for storage. Returns an opaque encrypted blob. */
+export async function encryptFile(file: File | Blob, keyHex: string): Promise<Blob> {
   const buf = await file.arrayBuffer()
   const key = await importKey(keyHex)
   const iv = crypto.getRandomValues(new Uint8Array(IV_LEN))

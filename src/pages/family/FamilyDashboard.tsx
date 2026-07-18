@@ -78,64 +78,114 @@ function isVideoPath(path: string) {
   return /\.(mp4|mov|webm|m4v|avi|ogv)(\?|$)/i.test(path)
 }
 
-function MediaEntry({ path, canShare, shareText }: { path: string; canShare: boolean; shareText?: string }) {
-  const [objectUrl, setObjectUrl] = useState<string | null>(null)
-  const objectUrlRef = useRef<string | null>(null)
+/**
+ * Renders the thumbnail (if this entry has one — images only, generated at
+ * upload time) for a fast inline preview on a slow connection; the full
+ * photo is only fetched and decrypted once someone actually taps to open
+ * it, rather than every entry downloading its full-size image just to
+ * appear in the feed. Entries without a thumbnail (videos, or older
+ * entries from before thumbnails existed) fall back to the old behaviour —
+ * the full asset loads inline and the lightbox reuses it directly.
+ */
+function MediaEntry({
+  path, thumbPath, canShare, shareText,
+}: {
+  path: string
+  thumbPath?: string | null
+  canShare: boolean
+  shareText?: string
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const previewUrlRef = useRef<string | null>(null)
+  const [fullUrl, setFullUrl] = useState<string | null>(null)
+  const fullUrlRef = useRef<string | null>(null)
   const [lightbox, setLightbox] = useState(false)
   const { data: keyHex } = usePhotoKey()
   const isVid = isVideoPath(path)
+  const hasSeparateThumb = !isVid && !!thumbPath
+  const previewPath = hasSeparateThumb ? thumbPath! : path
 
-  const { data: signedUrl } = useQuery({
-    queryKey: ['media-url', path],
+  const { data: signedPreviewUrl } = useQuery({
+    queryKey: ['media-url', previewPath],
     queryFn: async () => {
-      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(path, 900)
+      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(previewPath, 900)
       return data?.signedUrl ?? null
     },
     staleTime: 840_000,
   })
 
   useEffect(() => {
-    if (!signedUrl || !keyHex) return
+    if (!signedPreviewUrl || !keyHex) return
     let active = true
     ;(async () => {
       try {
-        const res = await fetch(signedUrl)
+        const res = await fetch(signedPreviewUrl)
         const buf = await res.arrayBuffer()
         if (!active) return
-        const url = await decryptToObjectURL(buf, keyHex, mimeFromPath(path))
+        const url = await decryptToObjectURL(buf, keyHex, mimeFromPath(previewPath))
         if (!active) { URL.revokeObjectURL(url); return }
-        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
-        objectUrlRef.current = url
-        setObjectUrl(url)
+        if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+        previewUrlRef.current = url
+        setPreviewUrl(url)
       } catch (err) {
         if (active) console.warn('Photo decrypt error:', err)
       }
     })()
     return () => { active = false }
-  }, [signedUrl, keyHex, path])
+  }, [signedPreviewUrl, keyHex, previewPath])
 
   useEffect(() => {
     return () => {
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+      if (fullUrlRef.current) URL.revokeObjectURL(fullUrlRef.current)
     }
   }, [])
 
-  if (!objectUrl) return (
+  async function openLightbox() {
+    setLightbox(true)
+    if (!hasSeparateThumb || fullUrlRef.current || !keyHex) return
+    try {
+      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(path, 900)
+      if (!data?.signedUrl) return
+      const res = await fetch(data.signedUrl)
+      const buf = await res.arrayBuffer()
+      const url = await decryptToObjectURL(buf, keyHex, mimeFromPath(path))
+      fullUrlRef.current = url
+      setFullUrl(url)
+    } catch (err) {
+      console.warn('Full photo decrypt error:', err)
+    }
+  }
+
+  if (!previewUrl) return (
     <div style={{ width: '100%', height: 160, borderRadius: 8, marginTop: '0.75rem',
       background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
       <span className="spinner" style={{ width: 24, height: 24 }} />
     </div>
   )
 
+  const lightboxSrc = hasSeparateThumb ? fullUrl : previewUrl
+
   return (
     <>
       {isVid ? (
-        <video src={objectUrl} controls style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, display: 'block' }} />
+        <video src={previewUrl} controls style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, display: 'block' }} />
       ) : (
-        <img src={objectUrl} alt="" onClick={() => setLightbox(true)}
+        <img src={previewUrl} alt="" onClick={openLightbox}
           style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }} />
       )}
-      {lightbox && <Lightbox src={objectUrl} video={isVid} canShare={canShare} shareText={shareText} onClose={() => setLightbox(false)} />}
+      {lightbox && (
+        lightboxSrc ? (
+          <Lightbox src={lightboxSrc} video={isVid} canShare={canShare} shareText={shareText} onClose={() => setLightbox(false)} />
+        ) : (
+          <div onClick={() => setLightbox(false)} style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out',
+          }}>
+            <span className="spinner" style={{ width: 32, height: 32, color: '#fff' }} />
+          </div>
+        )
+      )}
     </>
   )
 }
@@ -198,7 +248,7 @@ function EntryCard({
           )}
         </div>
       </div>
-      {entry.photo_path && <MediaEntry path={entry.photo_path} canShare={canShare} shareText={shareText} />}
+      {entry.photo_path && <MediaEntry path={entry.photo_path} thumbPath={entry.photo_thumb_path} canShare={canShare} shareText={shareText} />}
       {expiryDays !== undefined && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.3rem' }}>
           <ExpiryChip daysLeft={expiryDays} />

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import MoodSlider from '../../components/MoodSlider'
-import { encryptFile, mimeFromPath } from '../../lib/photoEncryption'
+import { createImageThumbnail, encryptFile, mimeFromPath } from '../../lib/photoEncryption'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES } from '../../lib/features'
 
@@ -86,6 +86,7 @@ export default function AddEntry() {
     setError('')
     try {
       let photoPath: string | null = null
+      let photoThumbPath: string | null = null
       if (media) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: keyHex, error: keyErr } = await (supabase.rpc as any)('get_or_create_photo_key')
@@ -99,6 +100,22 @@ export default function AddEntry() {
           .from('journal-photos')
           .upload(photoPath, encryptedBlob, { upsert: false, contentType: mimeType })
         if (uploadErr) throw uploadErr
+
+        // Small preview so the journal feed loads fast on a slow connection —
+        // the full photo only downloads when someone taps to open it. Best
+        // effort: images only, and any failure just leaves the entry without
+        // a thumbnail rather than blocking the save.
+        if (!isVideo(media)) {
+          const thumbBlob = await createImageThumbnail(media)
+          if (thumbBlob) {
+            photoThumbPath = `${profile.org_id}/${clientId}/${user.id}/${uuid}-thumb.jpg`
+            const encryptedThumb = await encryptFile(thumbBlob, keyHex)
+            const { error: thumbErr } = await supabase.storage
+              .from('journal-photos')
+              .upload(photoThumbPath, encryptedThumb, { upsert: false, contentType: 'image/jpeg' })
+            if (thumbErr) photoThumbPath = null
+          }
+        }
       }
 
       const { error: insertErr } = await supabase.from('log_entries').insert({
@@ -109,6 +126,7 @@ export default function AddEntry() {
         label: label.trim() || (media && isVideo(media) ? '🎥' : '📷'),
         occurred_at: new Date().toISOString(),
         photo_path: photoPath,
+        photo_thumb_path: photoThumbPath,
         mood_score: moodScore,
       })
       if (insertErr) throw insertErr
