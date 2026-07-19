@@ -696,6 +696,33 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      day_notes: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          note_date: string
+          body: string
+          created_by: string
+          updated_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          note_date: string
+          body: string
+          created_by: string
+          updated_at?: string
+          created_at?: string
+        }
+        Update: {
+          body?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       active_timers: {
         Row: {
           id: string
@@ -849,6 +876,7 @@ export type Incident     = Tables['incidents']['Row']
 export type Invite       = Tables['invites']['Row']
 export type OrgSettings  = Tables['org_settings']['Row']
 export type Notice       = Tables['notices']['Row']
+export type DayNote      = Tables['day_notes']['Row']
 export type Message      = Tables['messages']['Row']
 export type ClientFeedback = Tables['client_feedback']['Row']
 export type RecipientMood = Tables['recipient_moods']['Row']
