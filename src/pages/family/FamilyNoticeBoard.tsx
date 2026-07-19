@@ -19,11 +19,14 @@ function formatDate(iso: string) {
 
 export default function FamilyNoticeBoard() {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, org } = useAuth()
   const qc = useQueryClient()
   const [newBody, setNewBody] = useState('')
   const [posting, setPosting] = useState(false)
   const isCoordinator = profile?.role === 'coordinator'
+  const isFamily = profile?.role === 'family'
+  const isFamilyOrg = org?.org_type === 'family'
+  const canPost = isCoordinator || (isFamily && isFamilyOrg)
 
   const { data: clientId } = useQuery({
     queryKey: ['family-client-id', user?.id],
@@ -77,6 +80,11 @@ export default function FamilyNoticeBoard() {
     qc.invalidateQueries({ queryKey: ['client-notices', clientId ?? profile?.org_id] })
   }
 
+  async function updateNotice(id: string, body: string) {
+    await supabase.from('notices').update({ body }).eq('id', id)
+    qc.invalidateQueries({ queryKey: ['client-notices', clientId ?? profile?.org_id] })
+  }
+
   return (
     <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{
@@ -92,7 +100,7 @@ export default function FamilyNoticeBoard() {
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        {isCoordinator && (
+        {canPost && (
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <p style={{ margin: '0 0 0.75rem', fontWeight: 600, fontSize: '0.875rem' }}>Post a notice</p>
             <textarea className="input" rows={3} value={newBody}
@@ -128,6 +136,8 @@ export default function FamilyNoticeBoard() {
             dateLabel={formatDate(n.created_at)}
             canDelete={n.author_id === user?.id || isCoordinator}
             onDelete={() => deleteNotice(n.id)}
+            canEdit={n.author_id === user?.id || isCoordinator}
+            onEdit={(body) => updateNotice(n.id, body)}
           />
         ))}
         <MobileFooter />

@@ -930,6 +930,11 @@ export default function FamilyDashboard() {
     qc.invalidateQueries({ queryKey: ['client-notices', clientId] })
   }
 
+  async function updateNotice(id: string, body: string) {
+    await supabase.from('notices').update({ body }).eq('id', id)
+    qc.invalidateQueries({ queryKey: ['client-notices', clientId] })
+  }
+
   return (
     <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
 
@@ -987,6 +992,8 @@ export default function FamilyDashboard() {
             dateLabel={formatDate(n.created_at)}
             canDelete={n.author_id === user?.id || isCoordinator}
             onDelete={() => deleteNotice(n.id)}
+            canEdit={n.author_id === user?.id || isCoordinator}
+            onEdit={(body) => updateNotice(n.id, body)}
           />
         ))}
 
