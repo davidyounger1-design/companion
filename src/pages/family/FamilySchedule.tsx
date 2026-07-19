@@ -13,8 +13,8 @@ import MiniDisk from '../../components/MiniDisk'
 import TimeField from '../../components/TimeField'
 import SegmentedControl from '../../components/SegmentedControl'
 import UpNextHero from '../../components/UpNextHero'
-import { ScheduleIcon, BackIcon, EditIcon, TrashIcon, PlusIcon, CheckIcon, CATEGORY_ICONS } from '../../components/icons'
-import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence } from '../../types/database'
+import { ScheduleIcon, BackIcon, EditIcon, TrashIcon, PlusIcon, CheckIcon, NoteIcon, CATEGORY_ICONS } from '../../components/icons'
+import type { ScheduleCategory, ScheduleItem, ScheduleRecurrence, DayNote } from '../../types/database'
 import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
@@ -61,6 +61,8 @@ export default function FamilySchedule() {
   const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
   const [copyDayOpen, setCopyDayOpen] = useState(false)
   const [showTimerModal, setShowTimerModal] = useState(false)
+  const [dayNoteFormOpen, setDayNoteFormOpen] = useState(false)
+  const [savingDayNote, setSavingDayNote] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000)
@@ -98,10 +100,55 @@ export default function FamilySchedule() {
     enabled: !!clientId,
   })
 
+  const { data: dayNote = null } = useQuery({
+    queryKey: ['day-note', clientId, selectedDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('day_notes')
+        .select('*')
+        .eq('client_id', clientId!)
+        .eq('note_date', selectedDate)
+        .maybeSingle()
+      if (error) throw error
+      return data as DayNote | null
+    },
+    enabled: !!clientId,
+  })
+
   function invalidateAll() {
     qc.invalidateQueries({ queryKey: ['schedule-items', clientId] })
     qc.invalidateQueries({ queryKey: ['schedule-completions', clientId] })
     qc.invalidateQueries({ queryKey: ['schedule-skips', clientId] })
+  }
+
+  async function saveDayNote(body: string) {
+    if (!clientId || !profile?.org_id || !user) return
+    setSavingDayNote(true)
+    try {
+      if (dayNote) {
+        await supabase.from('day_notes').update({ body, updated_at: new Date().toISOString() }).eq('id', dayNote.id)
+      } else {
+        await supabase.from('day_notes').insert({
+          client_id: clientId, org_id: profile.org_id, note_date: selectedDate, body, created_by: user.id,
+        })
+      }
+      qc.invalidateQueries({ queryKey: ['day-note', clientId, selectedDate] })
+      setDayNoteFormOpen(false)
+    } finally {
+      setSavingDayNote(false)
+    }
+  }
+
+  async function deleteDayNote() {
+    if (!dayNote) return
+    setSavingDayNote(true)
+    try {
+      await supabase.from('day_notes').delete().eq('id', dayNote.id)
+      qc.invalidateQueries({ queryKey: ['day-note', clientId, selectedDate] })
+      setDayNoteFormOpen(false)
+    } finally {
+      setSavingDayNote(false)
+    }
   }
 
   async function toggleComplete(item: ScheduleItem) {
@@ -318,6 +365,15 @@ export default function FamilySchedule() {
           </div>
         )}
 
+        {view === 'day' && (
+          <DayNoteBanner
+            note={dayNote}
+            canManage={canManage}
+            onEdit={() => setDayNoteFormOpen(true)}
+            onAdd={() => setDayNoteFormOpen(true)}
+          />
+        )}
+
         {isLoading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
             <div className="spinner" style={{ color: 'var(--color-primary)' }} />
@@ -420,8 +476,118 @@ export default function FamilySchedule() {
         />
       )}
 
+      {dayNoteFormOpen && (
+        <DayNoteForm
+          initialBody={dayNote?.body ?? ''}
+          dateLabel={isToday ? 'today' : dateLabel}
+          saving={savingDayNote}
+          onClose={() => setDayNoteFormOpen(false)}
+          onSave={saveDayNote}
+          onDelete={dayNote ? deleteDayNote : undefined}
+        />
+      )}
+
       <FamilyBottomNav />
     </div>
+  )
+}
+
+/** An optional, once-off note pinned to a single day — deliberately styled
+ * to stand out from the schedule items below it (full-tint background, not
+ * just a thin accent bar) since most days won't have one and the ones that
+ * do are usually the ones that matter most (a change of plan, a visitor,
+ * a reminder). */
+function DayNoteBanner({
+  note, canManage, onEdit, onAdd,
+}: {
+  note: DayNote | null
+  canManage: boolean
+  onEdit: () => void
+  onAdd: () => void
+}) {
+  if (!note) {
+    if (!canManage) return null
+    return (
+      <button onClick={onAdd} className="btn btn-ghost" style={{
+        width: '100%', marginBottom: '1rem', fontSize: '0.82rem', color: 'var(--color-muted)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+      }}>
+        <NoteIcon size={14} /> Add a note for this day
+      </button>
+    )
+  }
+
+  return (
+    <div className="card" style={{
+      marginBottom: '1rem', position: 'relative', padding: '0.9rem 1rem 0.9rem 1.1rem', overflow: 'hidden',
+      background: 'color-mix(in srgb, var(--color-terracotta) 16%, var(--color-surface))',
+      border: '1.5px solid color-mix(in srgb, var(--color-terracotta) 50%, transparent)',
+      boxShadow: 'var(--shadow-sm)',
+    }}>
+      <span aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: 'var(--color-terracotta)' }} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+        <span className="avatar avatar-sm" style={{ background: 'var(--color-terracotta)', marginTop: 1 }}><NoteIcon size={15} /></span>
+        <div style={{ flex: 1, minWidth: 0, paddingRight: canManage ? '1.75rem' : 0 }}>
+          <p style={{ margin: '0 0 0.25rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#8a4a30' }}>
+            Note for this day
+          </p>
+          <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{note.body}</p>
+        </div>
+      </div>
+      {canManage && (
+        <button onClick={onEdit} aria-label="Edit note" className="icon-btn" style={{
+          position: 'absolute', top: 8, right: 8, width: 30, height: 30,
+        }}><EditIcon size={15} /></button>
+      )}
+    </div>
+  )
+}
+
+/** Add/edit sheet for a day note. Delete is offered only when editing an existing note. */
+function DayNoteForm({
+  initialBody, dateLabel, saving, onClose, onSave, onDelete,
+}: {
+  initialBody: string
+  dateLabel: string
+  saving: boolean
+  onClose: () => void
+  onSave: (body: string) => void | Promise<void>
+  onDelete?: () => void | Promise<void>
+}) {
+  const [body, setBody] = useState(initialBody)
+  const keyboardInset = useKeyboardInset()
+
+  return (
+    <>
+      <div onClick={onClose} className="sheet-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.4)' }} />
+      <div className="sheet-panel" style={{
+        position: 'fixed', bottom: keyboardInset, left: 0, right: 0, zIndex: 100,
+        background: 'var(--color-surface)', borderRadius: '20px 20px 0 0',
+        boxShadow: 'var(--shadow-lg)', maxWidth: 480, margin: '0 auto',
+        padding: '1rem 1.25rem calc(1rem + env(safe-area-inset-bottom))',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        </div>
+        <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '1.05rem' }}>Note for {dateLabel}</p>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+          Shows prominently at the top of this one day only — e.g. "Grandma's visiting today" or "Pupil-free day, no school".
+        </p>
+        <textarea className="input" rows={3} value={body} onChange={(e) => setBody(e.target.value)}
+          placeholder="e.g. No school today — pupil free day" style={{ resize: 'vertical', marginBottom: '0.75rem' }} autoFocus />
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {onDelete && (
+            <button onClick={onDelete} disabled={saving} aria-label="Delete note" className="icon-btn icon-btn-danger" style={{ width: 44, flexShrink: 0 }}>
+              <TrashIcon size={16} />
+            </button>
+          )}
+          <button className="btn btn-ghost" onClick={onClose} disabled={saving} style={{ flex: 1 }}>Cancel</button>
+          <button className="btn btn-primary" onClick={() => onSave(body.trim())} disabled={saving || !body.trim()} style={{ flex: 2 }}>
+            {saving ? <span className="spinner" /> : 'Save'}
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 
