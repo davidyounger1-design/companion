@@ -72,6 +72,17 @@ export default function FamilySchedule() {
   const { clientId, participantName, recipientProfileId } = useClientId()
   const skips = useScheduleSkips(clientId)
 
+  // Sunday–Saturday week containing selectedDate, matching the days_of_week (0=Sun..6=Sat) convention.
+  const weekDates = useMemo(() => {
+    const sunday = parseLocalDate(selectedDate)
+    sunday.setDate(sunday.getDate() - sunday.getDay())
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(sunday)
+      d.setDate(sunday.getDate() + i)
+      return toLocalDateStr(d)
+    })
+  }, [selectedDate])
+
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['schedule-items', clientId],
     queryFn: async () => {
@@ -100,20 +111,25 @@ export default function FamilySchedule() {
     enabled: !!clientId,
   })
 
-  const { data: dayNote = null } = useQuery({
-    queryKey: ['day-note', clientId, selectedDate],
+  // Fetched across the whole visible week (not just selectedDate) so the
+  // week print-out can include each day's note alongside its items.
+  const { data: dayNotesByDate = {} } = useQuery({
+    queryKey: ['day-notes', clientId, weekDates[0], weekDates[6]],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('day_notes')
         .select('*')
         .eq('client_id', clientId!)
-        .eq('note_date', selectedDate)
-        .maybeSingle()
+        .gte('note_date', weekDates[0])
+        .lte('note_date', weekDates[6])
       if (error) throw error
-      return data as DayNote | null
+      const map: Record<string, DayNote> = {}
+      for (const n of (data ?? []) as DayNote[]) map[n.note_date] = n
+      return map
     },
     enabled: !!clientId,
   })
+  const dayNote = dayNotesByDate[selectedDate] ?? null
 
   function invalidateAll() {
     qc.invalidateQueries({ queryKey: ['schedule-items', clientId] })
@@ -132,7 +148,7 @@ export default function FamilySchedule() {
           client_id: clientId, org_id: profile.org_id, note_date: selectedDate, body, created_by: user.id,
         })
       }
-      qc.invalidateQueries({ queryKey: ['day-note', clientId, selectedDate] })
+      qc.invalidateQueries({ queryKey: ['day-notes', clientId] })
       setDayNoteFormOpen(false)
     } finally {
       setSavingDayNote(false)
@@ -144,7 +160,7 @@ export default function FamilySchedule() {
     setSavingDayNote(true)
     try {
       await supabase.from('day_notes').delete().eq('id', dayNote.id)
-      qc.invalidateQueries({ queryKey: ['day-note', clientId, selectedDate] })
+      qc.invalidateQueries({ queryKey: ['day-notes', clientId] })
       setDayNoteFormOpen(false)
     } finally {
       setSavingDayNote(false)
@@ -263,17 +279,6 @@ export default function FamilySchedule() {
     weekday: 'long', day: 'numeric', month: 'long',
   })
 
-  // Sunday–Saturday week containing selectedDate, matching the days_of_week (0=Sun..6=Sat) convention.
-  const weekDates = useMemo(() => {
-    const sunday = parseLocalDate(selectedDate)
-    sunday.setDate(sunday.getDate() - sunday.getDay())
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(sunday)
-      d.setDate(sunday.getDate() + i)
-      return toLocalDateStr(d)
-    })
-  }, [selectedDate])
-
   const weekLabel = `${parseLocalDate(weekDates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(weekDates[6]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
 
   return (
@@ -318,13 +323,14 @@ export default function FamilySchedule() {
           <button
             onClick={() => {
               if (view === 'day') {
-                printSchedule(participantName, isToday ? `Today, ${dateLabel}` : dateLabel, [{ label: dateLabel, items: dayItems }])
+                printSchedule(participantName, isToday ? `Today, ${dateLabel}` : dateLabel, [{ label: dateLabel, items: dayItems, note: dayNote?.body }])
               } else {
                 const days = weekDates.map((date) => ({
                   label: parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' }),
                   items: items
                     .filter((i) => occursOnDateActive(i, date, skips))
                     .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
+                  note: dayNotesByDate[date]?.body,
                 }))
                 printSchedule(participantName, weekLabel, days)
               }

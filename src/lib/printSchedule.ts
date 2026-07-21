@@ -7,7 +7,7 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => map[c])
 }
 
-export type PrintDaySection = { label: string; items: ScheduleItem[] }
+export type PrintDaySection = { label: string; items: ScheduleItem[]; note?: string | null }
 
 /** True when running as an installed/home-screen app rather than a regular
  * browser tab. This is the ONLY context where printing actually breaks —
@@ -110,6 +110,25 @@ async function buildSchedulePdf(participantName: string, subtitle: string, days:
     draw(day.label, marginX, fontBold, 15)
     y -= 18
 
+    if (day.note) {
+      const noteLines = wrapText(day.note, fontBold, 11, pageWidth - marginX * 2 - 24)
+      const boxHeight = 16 + (1 + noteLines.length) * 14
+      ensureSpace(boxHeight + 12)
+      const boxTop = y + 10
+      page.drawRectangle({
+        x: marginX, y: boxTop - boxHeight, width: pageWidth - marginX * 2, height: boxHeight,
+        color: rgb(0.96, 0.88, 0.8), borderColor: rgb(0.75, 0.48, 0.35), borderWidth: 1,
+      })
+      y -= 4
+      draw('NOTE FOR THIS DAY', marginX + 12, fontBold, 8, rgb(0.54, 0.29, 0.19))
+      y -= 14
+      for (const line of noteLines) {
+        draw(line, marginX + 12, fontBold, 11, black)
+        y -= 14
+      }
+      y -= 12
+    }
+
     if (!day.items.length) {
       draw('Nothing scheduled.', marginX, font, 12, muted)
       y -= 20
@@ -186,7 +205,10 @@ function printHtmlDocument(participantName: string, subtitle: string, days: Prin
           </div>`
         }).join('')
       : '<p class="empty">Nothing scheduled.</p>'
-    return `<div class="day-heading">${escapeHtml(d.label)}</div>${itemsHtml}`
+    const noteHtml = d.note
+      ? `<div class="day-note"><div class="day-note-label">Note for this day</div>${escapeHtml(d.note)}</div>`
+      : ''
+    return `<div class="day-heading">${escapeHtml(d.label)}</div>${noteHtml}${itemsHtml}`
   }).join('')
 
   const html = `<!doctype html>
@@ -205,6 +227,8 @@ function printHtmlDocument(participantName: string, subtitle: string, days: Prin
   .item .category { font-size: 0.8rem; color: #666; }
   .item .desc { font-size: 0.9rem; margin-top: 0.4rem; }
   .empty { color: #666; font-size: 0.9rem; }
+  .day-note { background: #f7ddc4; border: 1.5px solid #c07a5b; border-radius: 8px; padding: 0.65rem 0.9rem; margin-bottom: 0.7rem; font-weight: 700; font-size: 0.95rem; break-inside: avoid; }
+  .day-note-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8a4a30; margin-bottom: 0.2rem; }
   @media print { body { margin: 0.5in; } }
 </style>
 </head>
