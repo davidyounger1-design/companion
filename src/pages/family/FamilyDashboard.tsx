@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
+import { useModalOpen } from '../../context/ModalActivityContext'
 import { supabase } from '../../lib/supabase'
 import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
@@ -270,6 +271,7 @@ function EditEntryModal({
   onDelete: (id: string) => Promise<void>
   onClose: () => void
 }) {
+  useModalOpen()
   const [editLabel, setEditLabel] = useState(entry.label === '📷' || entry.label === '🎥' ? '' : entry.label)
   const [editType, setEditType] = useState<LogType>((LOG_TYPES.find(t => t.type === entry.type)?.type ?? 'note') as LogType)
   const [editMood, setEditMood] = useState(entry.mood_score ?? 50)
@@ -472,6 +474,7 @@ function EntryFilterSheet({
   onOpenCalendar: () => void
   onClose: () => void
 }) {
+  useModalOpen()
   const [showRange, setShowRange] = useState(mode === 'range')
   const [from, setFrom] = useState(rangeFrom)
   const [to, setTo] = useState(rangeTo)
@@ -531,6 +534,7 @@ function CalendarSheet({
   onSelect: (date: string | null) => void
   onClose: () => void
 }) {
+  useModalOpen()
   const today = new Date()
   const [viewYear, setViewYear] = useState(
     selectedDate ? +selectedDate.slice(0, 4) : today.getFullYear()

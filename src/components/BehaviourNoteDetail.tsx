@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useModalOpen } from '../context/ModalActivityContext'
 import { useFeatures } from '../hooks/useFeatures'
 import { FEATURES } from '../lib/features'
 import type { BehaviourNote } from '../types/database'
@@ -27,6 +28,7 @@ export default function BehaviourNoteDetail({
   logViewAsTherapist: boolean
   onClose: () => void
 }) {
+  useModalOpen()
   const { user } = useAuth()
   const { has } = useFeatures()
   const qc = useQueryClient()
