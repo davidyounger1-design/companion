@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
+import { useModalOpen } from '../../context/ModalActivityContext'
 import { supabase } from '../../lib/supabase'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useFeatures } from '../../hooks/useFeatures'
@@ -66,6 +67,7 @@ function InviteModal({
   clients: { id: string; full_name: string }[]
   onClose: () => void
 }) {
+  useModalOpen()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -653,6 +655,7 @@ function EditMemberModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  useModalOpen()
   const [fullName, setFullName] = useState(member.full_name)
   const [phone, setPhone] = useState(member.phone ?? '')
   const [email, setEmail] = useState(member.email ?? '')

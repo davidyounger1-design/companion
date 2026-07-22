@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useAnyModalOpen } from '../context/ModalActivityContext'
 import { useClientId } from '../hooks/useClientId'
 import { useScheduleSkips } from '../hooks/useScheduleSkips'
 import { CATEGORY_META, toLocalDateStr, timeToMinutes, formatTimeRange, formatCountdown, findCurrentAndNext } from '../lib/schedule'
@@ -27,6 +28,7 @@ export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: b
   const { clientId } = useClientId()
   const skips = useScheduleSkips(clientId)
   const [now, setNow] = useState(() => Date.now())
+  const anyModalOpen = useAnyModalOpen()
 
   const isRecipient = profile?.role === 'recipient'
 
@@ -64,16 +66,20 @@ export default function ScheduleStatusBar({ timerOnly = false }: { timerOnly?: b
   // screen, not wait for them to notice a banner — Sarah, the person this
   // was built for, can't reliably read status text and act on it unprompted.
   // Fires once per timer id (tracked in sessionStorage) so navigating away
-  // afterwards doesn't keep getting yanked back every 8s poll.
+  // afterwards doesn't keep getting yanked back every 8s poll. Deferred
+  // entirely while a popup modal is open (not just marked-seen-but-skipped)
+  // so this background poll can never close whatever the recipient's
+  // mid-way through filling in — it picks the redirect back up the moment
+  // the modal closes instead.
   useEffect(() => {
-    if (!activeTimer) return
+    if (!activeTimer || anyModalOpen) return
     const stillRunning = new Date(activeTimer.ends_at).getTime() - Date.now() > 0
     if (!stillRunning) return
     const seenKey = 'companion.autoShownTimerId'
     if (sessionStorage.getItem(seenKey) === activeTimer.id) return
     sessionStorage.setItem(seenKey, activeTimer.id)
     if (location.pathname !== '/family/timer') navigate('/family/timer')
-  }, [activeTimer?.id, activeTimer?.ends_at, location.pathname, navigate])
+  }, [activeTimer?.id, activeTimer?.ends_at, location.pathname, navigate, anyModalOpen])
 
   if (!isRecipient || !clientId) return null
 

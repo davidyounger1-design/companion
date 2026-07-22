@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
+import { useModalOpen } from '../../context/ModalActivityContext'
 import { supabase } from '../../lib/supabase'
 import { useClientId } from '../../hooks/useClientId'
 import { useKeyboardInset } from '../../hooks/useKeyboardInset'
@@ -560,6 +561,7 @@ function DayNoteForm({
   onSave: (body: string) => void | Promise<void>
   onDelete?: () => void | Promise<void>
 }) {
+  useModalOpen()
   const [body, setBody] = useState(initialBody)
   const keyboardInset = useKeyboardInset()
 
@@ -762,6 +764,7 @@ export function ScheduleItemForm({
   onClose: () => void
   onSaved: () => void
 }) {
+  useModalOpen()
   // For edit/detach we seed from the existing item; for new, blanks.
   const seed = intent.mode === 'new' ? null : intent.item
   const isDetach = intent.mode === 'detach'
@@ -971,6 +974,7 @@ function RemoteTimerModal({
   onClose: () => void
   onStart: (label: string, minutes: number, notify: boolean) => Promise<void>
 }) {
+  useModalOpen()
   const [label, setLabel] = useState('Timer')
   const [minutes, setMinutes] = useState(10)
   const [notify, setNotify] = useState(false)
@@ -1058,6 +1062,7 @@ export function ScopeChooser({
   onDeleteSeries: () => void
   onDeleteThisDay: () => void
 }) {
+  useModalOpen()
   const dayLabel = parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
   const keyboardInset = useKeyboardInset()
 
@@ -1109,6 +1114,7 @@ export function CopyDayModal({
   onClose: () => void
   onCopy: (toDate: string) => Promise<void>
 }) {
+  useModalOpen()
   // Default the target to the same day next week — the most common "repeat".
   const defaultTarget = useMemo(() => {
     const d = parseLocalDate(fromDate)

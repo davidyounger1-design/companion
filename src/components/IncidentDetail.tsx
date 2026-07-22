@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useModalOpen } from '../context/ModalActivityContext'
 import { SEVERITY_LABEL, SEVERITY_COLOR, STATUS_LABEL, STATUS_COLOR, CATEGORY_LABEL, formatIncidentDate } from '../lib/incidents'
 import type { Incident } from '../types/database'
 
@@ -14,6 +15,7 @@ export default function IncidentDetail({
   canManage: boolean
   onClose: () => void
 }) {
+  useModalOpen()
   const { user } = useAuth()
   const qc = useQueryClient()
   const [resolutionNotes, setResolutionNotes] = useState(incident.resolution_notes ?? '')

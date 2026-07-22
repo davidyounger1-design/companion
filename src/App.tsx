@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ModalActivityProvider } from './context/ModalActivityContext'
 import { useFeatures } from './hooks/useFeatures'
 import { FEATURES } from './lib/features'
 import { getStoredFontScale, applyFontScale } from './lib/fontScale'
@@ -191,6 +192,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+        <ModalActivityProvider>
           <ColorModeGate />
           <Routes>
             {/* Public */}
@@ -270,6 +272,7 @@ export default function App() {
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+        </ModalActivityProvider>
         </AuthProvider>
       </BrowserRouter>
       <SiteFooter />
