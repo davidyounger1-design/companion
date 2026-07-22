@@ -204,7 +204,7 @@ export default function App() {
             <Route path="/release-notes" element={<ReleaseNotes />} />
             <Route path="/help" element={<Help />} />
             <Route path="/help/:slug" element={<Help />} />
-            <Route path="/feedback" element={<Navigate to="/help?tab=support" replace />} />
+            <Route path="/feedback" element={<Navigate to="/help?tab=ideas" replace />} />
             <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
             <Route path="/choose-participants" element={<RequireCoordinator><ChooseParticipants /></RequireCoordinator>} />
             <Route path="/settings/permissions" element={<RequireAuth><PermissionsPage /></RequireAuth>} />
