@@ -21,6 +21,16 @@ const ROLE_LABEL: Record<string, string> = {
   recipient:      'Care Recipient',
 }
 
+// Friendly text for accept_invite's error codes — the RPC returns short
+// machine codes (see 041_therapist_invite_and_decision_maker.sql), not
+// human-readable messages, so anything not special-cased below needs a
+// translation here rather than being shown to the user verbatim.
+const ACCEPT_ERROR_MESSAGES: Record<string, string> = {
+  invalid_or_used: 'This invite has already been used or is no longer valid.',
+  expired: 'This invite link has expired. Ask your coordinator to send a new one.',
+  not_authenticated: 'Please sign in again to accept this invitation.',
+}
+
 export default function AcceptInvite() {
   const [params] = useSearchParams()
   const token = params.get('token') ?? ''
@@ -31,6 +41,11 @@ export default function AcceptInvite() {
   const [lookupError, setLookupError] = useState('')
   const [accepting, setAccepting]   = useState(false)
   const [done, setDone]             = useState(false)
+  // Set when accept_invite rejects because the signed-in session is a
+  // different account than the invite was sent to — we sign that session
+  // out so the normal (unauthenticated) accept flow takes over below, and
+  // use this to explain why they were bounced.
+  const [wrongAccountEmail, setWrongAccountEmail] = useState('')
 
   useEffect(() => {
     if (!token) { setLookupError('No invite token in this link.'); return }
@@ -66,12 +81,23 @@ export default function AcceptInvite() {
   async function handleAccept() {
     setAccepting(true)
     const { data, error } = await supabase.rpc('accept_invite', { p_token: token })
-    setAccepting(false)
     const result = data as { error?: string; role?: string } | null
     if (error || result?.error) {
-      setLookupError(result?.error ?? error?.message ?? 'Something went wrong.')
+      const code = result?.error
+      if (code === 'invite_not_for_this_account') {
+        // Signed in as the wrong account for this invite — sign out and let
+        // the unauthenticated flow below take over, which offers either
+        // "set a password" (new account) or "sign in" (existing account),
+        // whichever this invite's email actually needs.
+        setWrongAccountEmail(user?.email ?? '')
+        await supabase.auth.signOut()
+        return
+      }
+      setAccepting(false)
+      setLookupError((code && ACCEPT_ERROR_MESSAGES[code]) ?? code ?? error?.message ?? 'Something went wrong.')
       return
     }
+    setAccepting(false)
     setDone(true)
     setTimeout(() => goToDashboard(result?.role ?? 'family'), 1500)
   }
@@ -117,11 +143,18 @@ export default function AcceptInvite() {
       </div>
 
       {!user ? (
-        <InviteSignupForm
-          token={token}
-          invite={invite!}
-          onDone={(role) => { setDone(true); setTimeout(() => goToDashboard(role), 1500) }}
-        />
+        <>
+          {wrongAccountEmail && (
+            <div className="alert" style={{ marginBottom: '1rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary-deep)' }}>
+              You were signed in as {wrongAccountEmail}, but this invite is for {invite!.email}. Signed you out — continue below to accept it.
+            </div>
+          )}
+          <InviteSignupForm
+            token={token}
+            invite={invite!}
+            onDone={(role) => { setDone(true); setTimeout(() => goToDashboard(role), 1500) }}
+          />
+        </>
       ) : (
         <>
           <button
