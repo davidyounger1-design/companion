@@ -41,8 +41,10 @@ export default function FamilyBottomNav() {
     ...(isRecipient ? [] : [{ label: 'Notices', icon: <NoticesIcon />, path: '/family/notices' }]),
     // Goals & progress is its own plan entitlement (goals).
     ...(showGoals ? [{ label: 'Goals', icon: <GoalsIcon />, path: '/family/goals' }] : []),
-    // The visual timer is a recipient-only tool.
-    ...(isRecipient ? [{ label: 'Timer', icon: <TimerIcon />, path: '/family/timer' }] : []),
+    // The visual timer — recipient, family, or coordinator can start one for
+    // whichever participant they're scoped to (support workers use their own
+    // inline Timer card on the worker client-detail page instead).
+    { label: 'Timer', icon: <TimerIcon />, path: '/family/timer' },
     // Recipients don't have a messaging inbox; and messaging is a plan feature.
     ...(showMessages ? [{ label: 'Messages', icon: <MessagesIcon />, path: '/messages', badge: unread, badgeLabel: 'unread messages' }] : []),
     // When a ticket is awaiting the user's reply, send Help straight to the
