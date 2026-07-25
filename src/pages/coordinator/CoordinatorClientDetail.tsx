@@ -219,6 +219,7 @@ function ActivityTab({
   authorId: string
   showMood: boolean
 }) {
+  const { profile } = useAuth()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [selectedType, setSelectedType] = useState<LogType>('activity')
@@ -469,6 +470,7 @@ function ActivityTab({
             const typeInfo = LOG_TYPES.find((t) => t.type === log.type)
             const isEditing = editingId === log.id
             const isOwn = log.author_id === authorId
+            const canEdit = isOwn || profile?.role === 'coordinator'
 
             if (isEditing) {
               return (
@@ -515,8 +517,8 @@ function ActivityTab({
 
             return (
               <div key={log.id} className="card card-sm" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '1.25rem', flexShrink: 0, cursor: isOwn ? 'pointer' : 'default' }}
-                  onClick={() => isOwn && startEdit(log)}>{typeInfo?.icon ?? '📝'}</span>
+                <span style={{ fontSize: '1.25rem', flexShrink: 0, cursor: canEdit ? 'pointer' : 'default' }}
+                  onClick={() => canEdit && startEdit(log)}>{typeInfo?.icon ?? '📝'}</span>
                 <div style={{ flex: 1, minWidth: 0, cursor: isOwn ? 'pointer' : 'default' }} onClick={() => isOwn && startEdit(log)}>
                   <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
@@ -531,7 +533,7 @@ function ActivityTab({
                   <EntryComments entryId={log.id} clientId={log.client_id} orgId={log.org_id} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>
-                  {isOwn && <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2 }}>✏️</span>}
+                  {canEdit && <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2 }}>✏️</span>}
                   <button aria-label="Delete entry" className="icon-btn icon-btn-danger" style={{ width: 26, height: 26 }}
                     onClick={() => deleteLog.mutate(log.id)}>✕</button>
                 </div>

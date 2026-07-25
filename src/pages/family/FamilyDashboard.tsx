@@ -96,15 +96,17 @@ function isVideoPath(path: string) {
  * the multi-photo migration. Handles client-side AES decryption for each photo.
  */
 function MediaEntry({
-  entryId, legacyPath, legacyThumbPath, canShare, shareText,
+  entryId, legacyPath, legacyThumbPath, canShare, shareText, canDeletePhotos,
 }: {
   entryId: string
   legacyPath?: string | null
   legacyThumbPath?: string | null
   canShare: boolean
   shareText?: string
+  canDeletePhotos?: boolean
 }) {
   const { data: keyHex } = usePhotoKey()
+  const qc = useQueryClient()
   const [lightbox, setLightbox] = useState<{ srcs: string[]; index: number } | null>(null)
 
   // Fetch all photos for this entry
@@ -116,14 +118,24 @@ function MediaEntry({
         .select('*')
         .eq('entry_id', entryId)
         .order('sort_order', { ascending: true })
-      if (data && data.length > 0) return data as Array<{ photo_path: string; photo_thumb_path: string | null }>
-      // Fallback to legacy single photo
-      if (legacyPath) return [{ photo_path: legacyPath, photo_thumb_path: legacyThumbPath ?? null }]
+      if (data && data.length > 0) return data as Array<{ id: string; photo_path: string; photo_thumb_path: string | null }>
+      // Fallback to legacy single photo (no id — can't delete individually)
+      if (legacyPath) return [{ id: 'legacy', photo_path: legacyPath, photo_thumb_path: legacyThumbPath ?? null }]
       return []
     },
     staleTime: 3_500_000,
     enabled: !!entryId,
   })
+
+  async function deletePhoto(photoId: string, photoPath: string, thumbPath: string | null) {
+    if (photoId === 'legacy') return // can't delete legacy single-photo
+    await supabase.from('log_entry_photos').delete().eq('id', photoId)
+    // Best-effort storage cleanup
+    supabase.storage.from('journal-photos').remove([photoPath]).catch(() => {})
+    if (thumbPath) supabase.storage.from('journal-photos').remove([thumbPath]).catch(() => {})
+    qc.invalidateQueries({ queryKey: ['entry-photos', entryId] })
+    qc.invalidateQueries({ queryKey: ['entry-photo-signed', entryId] })
+  }
 
   // Fetch signed URLs for all photos
   const { data: signedUrls } = useQuery({
@@ -204,6 +216,15 @@ function MediaEntry({
               ) : (
                 <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               )}
+              {canDeletePhotos && photos?.[i]?.id && photos[i].id !== 'legacy' && (
+                <button onClick={(e) => { e.stopPropagation(); deletePhoto(photos[i].id, photos[i].photo_path, photos[i].photo_thumb_path) }}
+                  style={{
+                    position: 'absolute', top: 3, right: 3,
+                    background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
+                    borderRadius: '50%', width: 22, height: 22, cursor: 'pointer',
+                    fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>✕</button>
+              )}
               {i === maxVisible - 1 && more > 0 && (
                 <div style={{
                   position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
@@ -280,7 +301,7 @@ function EntryCard({
           )}
         </div>
       </div>
-      <MediaEntry entryId={entry.id} legacyPath={entry.photo_path} legacyThumbPath={entry.photo_thumb_path} canShare={canShare} shareText={shareText} />
+      <MediaEntry entryId={entry.id} legacyPath={entry.photo_path} legacyThumbPath={entry.photo_thumb_path} canShare={canShare} shareText={shareText} canDeletePhotos={canEdit} />
       {expiryDays !== undefined && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.3rem' }}>
           <ExpiryChip daysLeft={expiryDays} />
