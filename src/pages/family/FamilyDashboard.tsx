@@ -20,7 +20,7 @@ import { FEATURES, retentionDaysFromFeatures } from '../../lib/features'
 import { syncFamilySubscription } from '../../lib/familyPlan'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { usePhotoKey } from '../../hooks/usePhotoKey'
-import { decryptToObjectURL, mimeFromPath } from '../../lib/photoEncryption'
+import { decryptToObjectURL, encryptFile, createImageThumbnail, mimeFromPath } from '../../lib/photoEncryption'
 import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon } from '../../components/icons'
 import NoticeCard from '../../components/NoticeCard'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
@@ -88,104 +88,133 @@ function isVideoPath(path: string) {
  * entries from before thumbnails existed) fall back to the old behaviour —
  * the full asset loads inline and the lightbox reuses it directly.
  */
+/**
+ * Displays photos for a journal entry, querying log_entry_photos (multi-photo)
+ * and falling back to the legacy photo_path column for entries created before
+ * the multi-photo migration. Handles client-side AES decryption for each photo.
+ */
 function MediaEntry({
-  path, thumbPath, canShare, shareText,
+  entryId, legacyPath, legacyThumbPath, canShare, shareText,
 }: {
-  path: string
-  thumbPath?: string | null
+  entryId: string
+  legacyPath?: string | null
+  legacyThumbPath?: string | null
   canShare: boolean
   shareText?: string
 }) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const previewUrlRef = useRef<string | null>(null)
-  const [fullUrl, setFullUrl] = useState<string | null>(null)
-  const fullUrlRef = useRef<string | null>(null)
-  const [lightbox, setLightbox] = useState(false)
   const { data: keyHex } = usePhotoKey()
-  const isVid = isVideoPath(path)
-  const hasSeparateThumb = !isVid && !!thumbPath
-  const previewPath = hasSeparateThumb ? thumbPath! : path
+  const [lightbox, setLightbox] = useState<{ srcs: string[]; index: number } | null>(null)
 
-  const { data: signedPreviewUrl } = useQuery({
-    queryKey: ['media-url', previewPath],
+  // Fetch all photos for this entry
+  const { data: photos } = useQuery({
+    queryKey: ['entry-photos', entryId],
     queryFn: async () => {
-      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(previewPath, 900)
-      return data?.signedUrl ?? null
+      const { data } = await supabase
+        .from('log_entry_photos')
+        .select('*')
+        .eq('entry_id', entryId)
+        .order('sort_order', { ascending: true })
+      if (data && data.length > 0) return data as Array<{ photo_path: string; photo_thumb_path: string | null }>
+      // Fallback to legacy single photo
+      if (legacyPath) return [{ photo_path: legacyPath, photo_thumb_path: legacyThumbPath ?? null }]
+      return []
     },
-    staleTime: 840_000,
+    staleTime: 3_500_000,
+    enabled: !!entryId,
   })
 
-  useEffect(() => {
-    if (!signedPreviewUrl || !keyHex) return
-    let active = true
-    ;(async () => {
-      try {
-        const res = await fetch(signedPreviewUrl)
-        const buf = await res.arrayBuffer()
-        if (!active) return
-        const url = await decryptToObjectURL(buf, keyHex, mimeFromPath(previewPath))
-        if (!active) { URL.revokeObjectURL(url); return }
-        if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
-        previewUrlRef.current = url
-        setPreviewUrl(url)
-      } catch (err) {
-        if (active) console.warn('Photo decrypt error:', err)
-      }
-    })()
-    return () => { active = false }
-  }, [signedPreviewUrl, keyHex, previewPath])
+  // Fetch signed URLs for all photos
+  const { data: signedUrls } = useQuery({
+    queryKey: ['entry-photo-signed', entryId, photos],
+    queryFn: async () => {
+      if (!photos?.length) return []
+      const results = await Promise.all(
+        photos.map((p) => {
+          const previewPath = p.photo_thumb_path || p.photo_path
+          return supabase.storage.from('journal-photos').createSignedUrl(previewPath, 900)
+            .then(({ data }) => data?.signedUrl ?? null)
+        }),
+      )
+      return results.filter(Boolean) as string[]
+    },
+    staleTime: 840_000,
+    enabled: !!photos?.length,
+  })
 
+  // Decrypt each signed thumbnail URL (images only — videos stay as signed URLs)
+  const [decryptedUrls, setDecryptedUrls] = useState<(string | null)[]>([])
+  useEffect(() => {
+    if (!signedUrls?.length || !keyHex) return
+    let active = true
+    Promise.all(signedUrls.map(async (url, i) => {
+      if (!url) return null
+      const p = photos?.[i]
+      if (p && isVideoPath(p.photo_path)) return url // videos don't need decrypt
+      try {
+        const res = await fetch(url)
+        const buf = await res.arrayBuffer()
+        if (!active) return null
+        return await decryptToObjectURL(buf, keyHex, mimeFromPath(p?.photo_path ?? ''))
+      } catch { return url } // fallback — show encrypted URL directly
+    })).then((urls) => {
+      if (active) setDecryptedUrls(urls)
+    })
+    return () => { active = false }
+  }, [signedUrls, keyHex, photos])
+
+  // Cleanup object URLs
   useEffect(() => {
     return () => {
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
-      if (fullUrlRef.current) URL.revokeObjectURL(fullUrlRef.current)
+      decryptedUrls.forEach((u) => { if (u?.startsWith('blob:')) URL.revokeObjectURL(u) })
     }
-  }, [])
+  }, [decryptedUrls])
 
-  async function openLightbox() {
-    setLightbox(true)
-    if (!hasSeparateThumb || fullUrlRef.current || !keyHex) return
-    try {
-      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(path, 900)
-      if (!data?.signedUrl) return
-      const res = await fetch(data.signedUrl)
-      const buf = await res.arrayBuffer()
-      const url = await decryptToObjectURL(buf, keyHex, mimeFromPath(path))
-      fullUrlRef.current = url
-      setFullUrl(url)
-    } catch (err) {
-      console.warn('Full photo decrypt error:', err)
-    }
+  const displayUrls = decryptedUrls.length ? decryptedUrls : signedUrls ?? []
+  const validUrls = displayUrls.filter(Boolean) as string[]
+  if (!validUrls.length) {
+    if (!photos?.length) return null
+    return (
+      <div style={{ width: '100%', height: 120, borderRadius: 8, marginTop: '0.75rem',
+        background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+        <span className="spinner" style={{ width: 24, height: 24 }} />
+      </div>
+    )
   }
 
-  if (!previewUrl) return (
-    <div style={{ width: '100%', height: 160, borderRadius: 8, marginTop: '0.75rem',
-      background: 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-      <span className="spinner" style={{ width: 24, height: 24 }} />
-    </div>
-  )
-
-  const lightboxSrc = hasSeparateThumb ? fullUrl : previewUrl
+  const maxVisible = 4
+  const visible = validUrls.slice(0, maxVisible)
+  const more = validUrls.length - maxVisible
 
   return (
     <>
-      {isVid ? (
-        <video src={previewUrl} controls style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, display: 'block' }} />
-      ) : (
-        <img src={previewUrl} alt="" onClick={openLightbox}
-          style={{ width: '100%', borderRadius: 8, marginTop: '0.75rem', maxHeight: 320, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }} />
-      )}
+      <div style={{
+        display: 'grid', gridTemplateColumns: `repeat(${Math.min(visible.length, 2)}, 1fr)`,
+        gap: '0.35rem', marginTop: '0.75rem',
+      }}>
+        {visible.map((url, i) => {
+          const p = photos?.[i]
+          const isVid = p ? isVideoPath(p.photo_path) : false
+          return (
+            <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', cursor: 'zoom-in', background: 'var(--color-border)' }}
+              onClick={() => setLightbox({ srcs: validUrls, index: i })}>
+              {isVid ? (
+                <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              )}
+              {i === maxVisible - 1 && more > 0 && (
+                <div style={{
+                  position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: '0.9rem', fontWeight: 700,
+                }}>+{more}</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
       {lightbox && (
-        lightboxSrc ? (
-          <Lightbox src={lightboxSrc} video={isVid} canShare={canShare} shareText={shareText} onClose={() => setLightbox(false)} />
-        ) : (
-          <div onClick={() => setLightbox(false)} style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out',
-          }}>
-            <span className="spinner" style={{ width: 32, height: 32, color: '#fff' }} />
-          </div>
-        )
+        <Lightbox srcs={lightbox.srcs} initialIndex={lightbox.index} canShare={canShare} shareText={shareText} onClose={() => setLightbox(null)} />
       )}
     </>
   )
@@ -249,7 +278,7 @@ function EntryCard({
           )}
         </div>
       </div>
-      {entry.photo_path && <MediaEntry path={entry.photo_path} thumbPath={entry.photo_thumb_path} canShare={canShare} shareText={shareText} />}
+      <MediaEntry entryId={entry.id} legacyPath={entry.photo_path} legacyThumbPath={entry.photo_thumb_path} canShare={canShare} shareText={shareText} />
       {expiryDays !== undefined && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.3rem' }}>
           <ExpiryChip daysLeft={expiryDays} />
@@ -272,6 +301,9 @@ function EditEntryModal({
   onClose: () => void
 }) {
   useModalOpen()
+  const { user, profile } = useAuth()
+  const qc = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [editLabel, setEditLabel] = useState(entry.label === '📷' || entry.label === '🎥' ? '' : entry.label)
   const [editType, setEditType] = useState<LogType>((LOG_TYPES.find(t => t.type === entry.type)?.type ?? 'note') as LogType)
   const [editMood, setEditMood] = useState(entry.mood_score ?? 50)
@@ -279,10 +311,83 @@ function EditEntryModal({
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState('')
+  const [newFiles, setNewFiles] = useState<File[]>([])
+  const [newPreviews, setNewPreviews] = useState<string[]>([])
+
+  function addFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setNewFiles((prev) => [...prev, ...files])
+    setNewPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))])
+  }
+
+  function removeNewFile(index: number) {
+    setNewFiles((prev) => prev.filter((_, i) => i !== index))
+    setNewPreviews((prev) => {
+      const url = prev[index]
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
 
   async function handleSave() {
     setSaving(true)
-    try { await onSave(entry.id, editLabel, editType, editMood) }
+    setError('')
+    try {
+      await onSave(entry.id, editLabel, editType, editMood)
+
+      // Upload any newly added photos
+      if (newFiles.length > 0 && profile?.org_id) {
+        const { data: keyData, error: keyErr } = await (supabase.rpc as any)('get_or_create_photo_key')
+        const keyHex: string | null = keyErr ? null : keyData
+        let sortOrder = 0
+        // Get current max sort_order
+        const { data: existing } = await supabase
+          .from('log_entry_photos')
+          .select('sort_order')
+          .eq('entry_id', entry.id)
+          .order('sort_order', { ascending: false })
+          .limit(1)
+        if (existing?.length) sortOrder = existing[0].sort_order + 1
+
+        for (let i = 0; i < newFiles.length; i++) {
+          const file = newFiles[i]
+          const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+          const fileUuid = crypto.randomUUID()
+          const photoPath = `${profile.org_id}/${entry.client_id}/${user!.id}/${fileUuid}.${ext}`
+          const mimeType = file.type || mimeFromPath(file.name)
+
+          if (keyHex != null) {
+            const encryptedBlob = await encryptFile(file, keyHex)
+            await supabase.storage.from('journal-photos').upload(photoPath, encryptedBlob, { upsert: false, contentType: mimeType })
+            // Thumbnail (best effort)
+            let thumbPath: string | null = null
+            if (!file.type.startsWith('video/')) {
+              const thumb = await createImageThumbnail(file)
+              if (thumb) {
+                thumbPath = `${profile.org_id}/${entry.client_id}/${user!.id}/${fileUuid}-thumb.jpg`
+                const encThumb = await encryptFile(thumb, keyHex)
+                await supabase.storage.from('journal-photos').upload(thumbPath, encThumb, { upsert: false, contentType: 'image/jpeg' }).catch(() => { thumbPath = null })
+              }
+            }
+            await supabase.from('log_entry_photos').insert({
+              entry_id: entry.id,
+              photo_path: photoPath,
+              photo_thumb_path: thumbPath,
+              sort_order: sortOrder + i,
+            })
+          } else {
+            await supabase.storage.from('journal-photos').upload(photoPath, file, { upsert: false })
+            await supabase.from('log_entry_photos').insert({
+              entry_id: entry.id,
+              photo_path: photoPath,
+              sort_order: sortOrder + i,
+            })
+          }
+        }
+        qc.invalidateQueries({ queryKey: ['entry-photos', entry.id] })
+      }
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Could not save.'); setSaving(false) }
   }
 
@@ -328,6 +433,34 @@ function EditEntryModal({
         </div>
         )}
 
+        {/* Add photos to existing entry */}
+        <input ref={fileRef} type="file" accept="image/*,video/*" multiple
+          style={{ display: 'none' }} onChange={addFiles} />
+        {newPreviews.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: '0.4rem', marginBottom: '0.75rem' }}>
+            {newPreviews.map((url, i) => (
+              <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 6, overflow: 'hidden', background: 'var(--color-border)' }}>
+                {newFiles[i]?.type.startsWith('video/') ? (
+                  <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+                <button type="button" onClick={() => removeNewFile(i)} style={{
+                  position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.55)', color: '#fff',
+                  border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: '0.65rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()}
+          style={{ width: '100%', border: '2px dashed var(--color-border)', borderRadius: 8, padding: '0.5rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+            color: 'var(--color-muted)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+          <span style={{ fontSize: '1rem' }}>📷</span> Add more photos
+        </button>
+
         {error && <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>{error}</div>}
 
         {confirmDelete ? (
@@ -348,7 +481,7 @@ function EditEntryModal({
             )}
             <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
             <button className="btn btn-primary" onClick={handleSave}
-              disabled={saving || (!editLabel.trim() && !entry.photo_path)} style={{ flex: 2 }}>
+              disabled={saving || !editLabel.trim()} style={{ flex: 2 }}>
               {saving ? <span className="spinner" /> : 'Save changes'}
             </button>
           </div>
