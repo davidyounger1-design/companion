@@ -18,7 +18,11 @@ export default function AppFooter({ inline = false }: { inline?: boolean }) {
         style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--color-primary)', textDecoration: 'none' }}>
         MyAppBuddy
       </a>
-      <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>Companion v{APP_VERSION}</span>
+      <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>
+        Companion v{APP_VERSION}
+        {' · '}
+        <a href="/release-notes" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>What's new</a>
+      </span>
       <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>© {year} MyAppBuddy</span>
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.15rem' }}>
         <a href="https://myappbuddy.com.au/privacy" target="_blank" rel="noopener noreferrer"

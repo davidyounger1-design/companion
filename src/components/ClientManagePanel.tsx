@@ -6,7 +6,9 @@ import BehaviourNotesSection from './BehaviourNotesSection'
 import IncidentForm from './IncidentForm'
 import IncidentsSection from './IncidentsSection'
 import NdisRecordsSection from './NdisRecordsSection'
+import MedicationList from './MedicationList'
 import { useFeatures } from '../hooks/useFeatures'
+import { useOrgFeatureFlags } from '../hooks/useOrgFeatureFlags'
 import { FEATURES } from '../lib/features'
 
 type Kind = 'self' | 'guardian' | 'nominee'
@@ -27,6 +29,8 @@ export default function ClientManagePanel({
   const { user } = useAuth()
   const qc = useQueryClient()
   const { has } = useFeatures()
+  const { isEnabled: orgEnabled } = useOrgFeatureFlags()
+  const showMedicationTracking = has(FEATURES.medicationTracking) && orgEnabled('medication_tracking')
   const [addingWorkerId, setAddingWorkerId] = useState('')
   const [showIncidentForm, setShowIncidentForm] = useState(false)
   const [dangerMode, setDangerMode] = useState<'deactivate' | 'delete' | null>(null)
@@ -296,6 +300,13 @@ export default function ClientManagePanel({
             />
           )}
           <IncidentsSection clientId={clientId} canManage />
+        </div>
+      )}
+
+      {showMedicationTracking && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Medications</p>
+          <MedicationList clientId={clientId} orgId={orgId} canManage />
         </div>
       )}
 

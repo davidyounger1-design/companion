@@ -8,5 +8,6 @@
   { "key": "mood_tracking", "name": "Mood check-ins" },
   { "key": "incident_workflows", "name": "Incident workflows & flags" },
   { "key": "goals", "name": "Goals & progress tracking" },
-  { "key": "retention_30", "name": "30-day journal retention" }
+  { "key": "retention_30", "name": "30-day journal retention" },
+  { "key": "medication_tracking", "name": "Medication tracking" }
 ]

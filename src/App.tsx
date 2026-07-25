@@ -94,14 +94,8 @@ function BlockRecipient({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// The visual timer is a recipient-only tool — send anyone else back to the journal.
-function RequireRecipient({ children }: { children: React.ReactNode }) {
-  const { user, loading, profile } = useAuth()
-  if (loading) return <FullPageSpinner />
-  if (!user) return <Navigate to="/sign-in" replace />
-  if (profile?.role !== 'recipient') return <Navigate to="/family" replace />
-  return <>{children}</>
-}
+// The visual timer — recipient, family, or coordinator can start it for any
+// participant they have access to.
 
 // Workers have their own portal and their own client-scoped tools (log entries,
 // notices, feedback) — the family journal, and the schedule/timer within it,
@@ -244,7 +238,7 @@ export default function App() {
               <Route path="notices" element={<BlockRecipient><FamilyNoticeBoard /></BlockRecipient>} />
               <Route path="schedule" element={<FamilySchedule />} />
               <Route path="goals" element={<RequireFeature feature={FEATURES.goals}><FamilyGoals /></RequireFeature>} />
-              <Route path="timer" element={<RequireRecipient><FamilyTimer /></RequireRecipient>} />
+              <Route path="timer" element={<FamilyTimer />} />
             </Route>
 
             {/* Coordinator dashboard */}
