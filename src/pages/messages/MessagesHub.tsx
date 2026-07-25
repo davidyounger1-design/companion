@@ -29,6 +29,15 @@ export default function MessagesHub() {
   const qc = useQueryClient()
   const isFamily = profile?.role === 'family' || profile?.role === 'coordinator'
 
+  // Mark all messages as seen when the hub is opened — prevents old messages
+  // from briefly showing as unread after a deploy / app reload.
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem(`msg_last_seen_${user.id}`, new Date().toISOString())
+      qc.invalidateQueries({ queryKey: ['msg-unread-map'] })
+    }
+  }, [user, qc])
+
   // All org members except self
   const { data: members = [] } = useQuery({
     queryKey: ['msg-contacts', profile?.org_id],

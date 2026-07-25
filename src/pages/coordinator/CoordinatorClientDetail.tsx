@@ -47,27 +47,69 @@ function isVideoPath(path: string) {
   return /\.(mp4|mov|webm|m4v|avi|ogv)(\?|$)/i.test(path)
 }
 
-function MediaCell({ path }: { path: string }) {
-  const [lightbox, setLightbox] = useState<string | null>(null)
-  const { data: url } = useQuery({
-    queryKey: ['media-url', path],
+function MediaCell({ entryId, legacyPath }: { entryId: string; legacyPath?: string | null }) {
+  const [lightbox, setLightbox] = useState<{ srcs: string[]; index: number } | null>(null)
+  const { data: photos } = useQuery({
+    queryKey: ['entry-photos', entryId],
     queryFn: async () => {
-      const { data } = await supabase.storage.from('journal-photos').createSignedUrl(path, 3600)
-      return data?.signedUrl ?? null
+      const { data } = await supabase
+        .from('log_entry_photos')
+        .select('*')
+        .eq('entry_id', entryId)
+        .order('sort_order', { ascending: true })
+      if (data && data.length > 0) return data as Array<{ photo_path: string; photo_thumb_path: string | null }>
+      if (legacyPath) return [{ photo_path: legacyPath, photo_thumb_path: null }]
+      return []
     },
     staleTime: 3_500_000,
+    enabled: !!entryId,
   })
-  if (!url) return null
-  const video = isVideoPath(path)
+  const { data: signedUrls } = useQuery({
+    queryKey: ['entry-photo-urls', entryId, photos],
+    queryFn: async () => {
+      if (!photos?.length) return []
+      const results = await Promise.all(
+        photos.map((p) =>
+          supabase.storage.from('journal-photos').createSignedUrl(p.photo_path, 3600)
+            .then(({ data }) => data?.signedUrl ?? null)
+        ),
+      )
+      return results.filter(Boolean) as string[]
+    },
+    staleTime: 3_500_000,
+    enabled: !!photos?.length,
+  })
+  if (!photos?.length || !signedUrls?.length) return null
+  const maxVisible = 4
+  const visible = signedUrls.slice(0, maxVisible)
+  const more = signedUrls.length - maxVisible
   return (
     <>
-      {video ? (
-        <video src={url} controls style={{ width: '100%', borderRadius: 6, marginTop: '0.5rem', maxHeight: 220, display: 'block' }} />
-      ) : (
-        <img src={url} alt="" onClick={() => setLightbox(url)}
-          style={{ width: '100%', borderRadius: 6, marginTop: '0.5rem', maxHeight: 220, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }} />
+      <div style={{
+        display: 'grid', gridTemplateColumns: `repeat(${Math.min(visible.length, 2)}, 1fr)`,
+        gap: '0.35rem', marginTop: '0.5rem',
+      }}>
+        {visible.map((url, i) => (
+          <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 6, overflow: 'hidden', cursor: 'zoom-in', background: 'var(--color-border)' }}
+            onClick={() => setLightbox({ srcs: signedUrls, index: i })}>
+            {isVideoPath(photos[i]?.photo_path ?? '') ? (
+              <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            )}
+            {i === maxVisible - 1 && more > 0 && (
+              <div style={{
+                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontSize: '0.9rem', fontWeight: 700,
+              }}>+{more}</div>
+            )}
+          </div>
+        ))}
+      </div>
+      {lightbox && (
+        <Lightbox srcs={lightbox.srcs} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />
       )}
-      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </>
   )
 }
@@ -187,8 +229,8 @@ function ActivityTab({
   const [editLabel, setEditLabel] = useState('')
   const [editMood, setEditMood] = useState(50)
 
-  const [media, setMedia] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [media, setMedia] = useState<File[]>([])
+  const [preview, setPreview] = useState<string[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { register, handleSubmit, reset } = useForm<FormData>({ resolver: zodResolver(schema) })
@@ -223,22 +265,24 @@ function ActivityTab({
   })
 
   function pickMedia(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setMedia(file)
-    setPreview(URL.createObjectURL(file))
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setMedia((prev) => [...prev, ...files])
+    setPreview((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))])
   }
-  function removeMedia() {
-    setMedia(null)
-    if (preview) URL.revokeObjectURL(preview)
-    setPreview(null)
-    if (fileRef.current) fileRef.current.value = ''
+  function removeMedia(index: number) {
+    setMedia((prev) => prev.filter((_, i) => i !== index))
+    setPreview((prev) => {
+      const url = prev[index]
+      if (url) URL.revokeObjectURL(url)
+      return prev.filter((_, i) => i !== index)
+    })
   }
   function resetForm() {
     setShowForm(false)
-    setMedia(null)
-    if (preview) URL.revokeObjectURL(preview)
-    setPreview(null)
+    preview.forEach((url) => URL.revokeObjectURL(url))
+    setMedia([])
+    setPreview([])
     if (fileRef.current) fileRef.current.value = ''
     setNewMood(50)
     reset()
@@ -252,28 +296,37 @@ function ActivityTab({
   function cancelEdit() { setEditingId(null) }
 
   const addLog = useMutation({
-    mutationFn: async ({ label, mediaFile }: { label: string; mediaFile: File | null }) => {
-      let photoPath: string | null = null
-      if (mediaFile) {
-        const ext = fileExt(mediaFile)
-        const uuid = crypto.randomUUID()
-        photoPath = `${orgId}/${clientId}/${authorId}/${uuid}.${ext}`
+    mutationFn: async ({ label, mediaFiles }: { label: string; mediaFiles: File[] }) => {
+      let firstPhotoPath: string | null = null
+      const photoRows: Array<{ entry_id: string; photo_path: string; photo_thumb_path: string | null; sort_order: number }> = []
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const file = mediaFiles[i]
+        const ext = fileExt(file)
+        const fileUuid = crypto.randomUUID()
+        const photoPath = `${orgId}/${clientId}/${authorId}/${fileUuid}.${ext}`
+        if (i === 0) firstPhotoPath = photoPath
         const { error: uploadErr } = await supabase.storage
           .from('journal-photos')
-          .upload(photoPath, mediaFile, { upsert: false })
+          .upload(photoPath, file, { upsert: false })
         if (uploadErr) throw uploadErr
+        photoRows.push({ entry_id: '', photo_path: photoPath, photo_thumb_path: null, sort_order: i })
       }
-      const { error } = await supabase.from('log_entries').insert({
+      const { data: entryData, error } = await supabase.from('log_entries').insert({
         client_id: clientId,
         org_id: orgId,
         author_id: authorId,
         type: selectedType,
-        label: label.trim() || (mediaFile && isVideoFile(mediaFile) ? '🎥' : mediaFile ? '📷' : '📝'),
+        label: label.trim() || (mediaFiles.length > 0 && isVideoFile(mediaFiles[0]) ? '🎥' : mediaFiles.length > 0 ? '📷' : '📝'),
         occurred_at: new Date().toISOString(),
-        photo_path: photoPath,
+        photo_path: firstPhotoPath,
         mood_score: newMood,
-      })
+      }).select('id').single()
       if (error) throw error
+      if (photoRows.length > 0 && entryData) {
+        const rows = photoRows.map((r) => ({ ...r, entry_id: entryData.id }))
+        const { error: photosErr } = await supabase.from('log_entry_photos').insert(rows)
+        if (photosErr) throw photosErr
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['coordinator-journal', clientId] })
@@ -325,8 +378,8 @@ function ActivityTab({
             ))}
           </div>
           <form onSubmit={handleSubmit((d) => {
-            if (!d.label.trim() && !media) return
-            addLog.mutate({ label: d.label, mediaFile: media })
+            if (!d.label.trim() && !media.length) return
+            addLog.mutate({ label: d.label, mediaFiles: media })
           })} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="field">
               <label htmlFor="label">
@@ -349,31 +402,38 @@ function ActivityTab({
 
             {showMood && <MoodSlider value={newMood} onChange={setNewMood} />}
 
-            <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={pickMedia} />
-            {preview ? (
-              <div style={{ position: 'relative' }}>
-                {media && isVideoFile(media) ? (
-                  <video src={preview} controls style={{ width: '100%', borderRadius: 8, maxHeight: 260, display: 'block' }} />
-                ) : (
-                  <img src={preview} alt="Preview" style={{ width: '100%', borderRadius: 8, maxHeight: 260, objectFit: 'cover', display: 'block' }} />
-                )}
-                <button type="button" onClick={removeMedia} style={{
-                  position: 'absolute', top: 8, right: 8,
-                  background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
-                  borderRadius: '50%', width: 28, height: 28, cursor: 'pointer',
-                  fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>✕</button>
+            <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={pickMedia} />
+            {preview.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem' }}>
+                {preview.map((url, i) => {
+                  const file = media[i]
+                  const isVid = file ? isVideoFile(file) : false
+                  return (
+                    <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--color-border)' }}>
+                      {isVid ? (
+                        <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      )}
+                      <button type="button" onClick={() => removeMedia(i)} style={{
+                        position: 'absolute', top: 2, right: 2,
+                        background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
+                        borderRadius: '50%', width: 22, height: 22, cursor: 'pointer',
+                        fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>✕</button>
+                    </div>
+                  )
+                })}
               </div>
-            ) : (
-              <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} style={{
-                width: '100%', border: '2px dashed var(--color-border)', borderRadius: 8,
-                padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem',
-              }}>
-                <span style={{ fontSize: '1.1rem' }}>📷</span>
-                Add a photo or video (optional)
-              </button>
             )}
+            <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()} style={{
+              width: '100%', border: '2px dashed var(--color-border)', borderRadius: 8,
+              padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem',
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>📷</span>
+              Add a photo or video (optional)
+            </button>
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button type="button" className="btn btn-ghost" onClick={resetForm} style={{ flex: 1 }}>Cancel</button>
@@ -466,7 +526,7 @@ function ActivityTab({
                     {log.ai_source && log.ai_reason && <> · <AiBadge reason={log.ai_reason} /></>}
                   </p>
                   {showMood && <MoodBar score={log.mood_score} />}
-                  {log.photo_path && <MediaCell path={log.photo_path} />}
+                  {<MediaCell entryId={log.id} legacyPath={log.photo_path} />}
                   <EntryReactions entryId={log.id} />
                   <EntryComments entryId={log.id} clientId={log.client_id} orgId={log.org_id} />
                 </div>

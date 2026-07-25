@@ -6,6 +6,9 @@ import { checkPlan } from '../lib/planCheck'
 import { supabase } from '../lib/supabase'
 import { MabEmbed } from '../components/MabEmbed'
 import { WidgetBoundary } from '../components/WidgetBoundary'
+import { useFeatures } from '../hooks/useFeatures'
+import { useOrgFeatureFlags } from '../hooks/useOrgFeatureFlags'
+import { FEATURES } from '../lib/features'
 import type { BillingStatus } from '../types/database'
 
 // MyAppBuddy has no "current subscription" embed — its pricing-table deliberately
@@ -41,6 +44,19 @@ export default function Account() {
   // profiles table — MAB has no seat licensing for Companion). Not a "used of N"
   // cap; there is no seat limit.
   const [memberCount, setMemberCount] = useState<number | null>(null)
+  const { has } = useFeatures()
+  const { isEnabled, setFlag } = useOrgFeatureFlags()
+  const [savingFlag, setSavingFlag] = useState(false)
+  const showMedicationToggle = has(FEATURES.medicationTracking)
+  const medicationTrackingEnabled = isEnabled('medication_tracking')
+
+  async function toggleMedicationTracking(on: boolean) {
+    setSavingFlag(true)
+    try {
+      await setFlag.mutateAsync({ key: 'medication_tracking', value: on })
+    } catch { /* ignore — setFlag handles error display */ }
+    setSavingFlag(false)
+  }
 
   useEffect(() => {
     supabase.functions.invoke('mab-embed-key')
@@ -167,6 +183,37 @@ export default function Account() {
               ...(live.planId ? { 'current-plan': live.planId } : {}),
             }} />
           </WidgetBoundary>
+        )}
+
+        {/* Org-level feature toggles */}
+        {showMedicationToggle && (
+          <div className="card card-sm" style={{ marginTop: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <div>
+                <p style={{ fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>💊 Medication tracking</p>
+                <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', margin: '0.2rem 0 0' }}>
+                  Track medications and log administrations for all participants.
+                </p>
+              </div>
+              <button
+                onClick={() => toggleMedicationTracking(!medicationTrackingEnabled)}
+                disabled={savingFlag}
+                style={{
+                  flexShrink: 0, width: 44, height: 24, borderRadius: 12, border: 'none',
+                  cursor: 'pointer', position: 'relative', transition: 'background 0.2s',
+                  background: medicationTrackingEnabled ? 'var(--color-primary)' : 'var(--color-border)',
+                }}
+                aria-label={`${medicationTrackingEnabled ? 'Disable' : 'Enable'} medication tracking`}
+              >
+                <span style={{
+                  position: 'absolute', top: 2, left: medicationTrackingEnabled ? 22 : 2,
+                  width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  display: 'block',
+                }} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
