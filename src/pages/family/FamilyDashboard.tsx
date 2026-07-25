@@ -24,6 +24,8 @@ import { decryptToObjectURL, encryptFile, createImageThumbnail, mimeFromPath } f
 import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, NoteIcon, CameraIcon, PlusIcon } from '../../components/icons'
 import NoticeCard from '../../components/NoticeCard'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
+import MedicationList from '../../components/MedicationList'
+import { useOrgFeatureFlags } from '../../hooks/useOrgFeatureFlags'
 
 
 function formatDate(iso: string) {
@@ -800,6 +802,9 @@ export default function FamilyDashboard() {
   // include mood_tracking. Free family (no mood entitlement) → hidden.
   const { features, has: hasFeature } = useFeatures()
   const showMood = hasFeature(FEATURES.moodTracking)
+  const { isEnabled: orgFeatureEnabled } = useOrgFeatureFlags()
+  const showMedicationTracking = hasFeature(FEATURES.medicationTracking) && orgFeatureEnabled('medication_tracking')
+  const [showMedications, setShowMedications] = useState(false)
   // Retention is a plan entitlement (`retention_<n>` from MAB), not tied to the
   // family plan. null = keep entries forever. FAIL SAFE: while features load or
   // on any error this is null, so nothing is ever purged on uncertainty.
@@ -1152,6 +1157,27 @@ export default function FamilyDashboard() {
             {showFeedback && (
               <div style={{ marginTop: '0.875rem' }}>
                 <ClientFeedback clientId={clientId} orgId={org.id} participantName={participantName} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isRecipient && clientId && org && showMedicationTracking && (
+          <div className="card" style={{ marginBottom: '1rem', padding: '0.875rem 1rem' }}>
+            <button
+              onClick={() => setShowMedications((x) => !x)}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                width: '100%', background: 'none', border: 'none', padding: 0,
+                cursor: 'pointer', textAlign: 'left', fontSize: '0.9375rem', fontWeight: 500,
+              }}
+            >
+              💊 Medications for {participantName}
+              <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showMedications ? '▲' : '▼'}</span>
+            </button>
+            {showMedications && (
+              <div style={{ marginTop: '0.875rem' }}>
+                <MedicationList clientId={clientId} orgId={org.id} canManage={isCoordinator || isFamily} />
               </div>
             )}
           </div>
