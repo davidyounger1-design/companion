@@ -191,7 +191,7 @@ function MediaEntry({
     <>
       <div style={{
         display: 'grid', gridTemplateColumns: `repeat(${Math.min(visible.length, 2)}, 1fr)`,
-        gap: '0.35rem', marginTop: '0.75rem',
+        gap: '0.35rem', marginTop: '0.75rem', maxWidth: 320,
       }}>
         {visible.map((url, i) => {
           const p = photos?.[i]
