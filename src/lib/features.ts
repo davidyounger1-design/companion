@@ -32,6 +32,7 @@ export const FEATURES = {
   messaging: 'messaging',
   incidentWorkflows: 'incident_workflows',
   goals: 'goals',
+  medicationTracking: 'medication_tracking',
 } as const
 
 /**

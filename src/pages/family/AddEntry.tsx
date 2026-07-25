@@ -35,8 +35,8 @@ export default function AddEntry() {
 
   const [type, setType] = useState<EntryType>('activity')
   const [label, setLabel] = useState('')
-  const [media, setMedia] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [media, setMedia] = useState<File[]>([])
+  const [preview, setPreview] = useState<string[]>([])
   const [moodScore, setMoodScore] = useState(50)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -66,70 +66,89 @@ export default function AddEntry() {
   const clientId = clientRow?.client_id
 
   function pickMedia(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setMedia(file)
-    setPreview(URL.createObjectURL(file))
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setMedia((prev) => [...prev, ...files])
+    setPreview((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))])
   }
 
-  function removeMedia() {
-    setMedia(null)
-    if (preview) URL.revokeObjectURL(preview)
-    setPreview(null)
-    if (fileRef.current) fileRef.current.value = ''
+  function removeMedia(index: number) {
+    setMedia((prev) => prev.filter((_, i) => i !== index))
+    setPreview((prev) => {
+      const url = prev[index]
+      if (url) URL.revokeObjectURL(url)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   async function handleSave() {
     if (!clientId || !profile?.org_id || !user) return
-    if (!label.trim() && !media) return
+    if (!label.trim() && !media.length) return
     setSaving(true)
     setError('')
     try {
-      let photoPath: string | null = null
-      let photoThumbPath: string | null = null
-      if (media) {
+      let firstPhotoPath: string | null = null
+      let firstThumbPath: string | null = null
+      const photoRows: Array<{ entry_id: string; photo_path: string; photo_thumb_path: string | null; sort_order: number }> = []
+
+      if (media.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: keyHex, error: keyErr } = await (supabase.rpc as any)('get_or_create_photo_key')
         if (keyErr || !keyHex) throw keyErr ?? new Error('Could not get encryption key')
-        const ext = fileExt(media)
-        const uuid = crypto.randomUUID()
-        photoPath = `${profile.org_id}/${clientId}/${user.id}/${uuid}.${ext}`
-        const mimeType = media.type || mimeFromPath(media.name)
-        const encryptedBlob = await encryptFile(media, keyHex)
-        const { error: uploadErr } = await supabase.storage
-          .from('journal-photos')
-          .upload(photoPath, encryptedBlob, { upsert: false, contentType: mimeType })
-        if (uploadErr) throw uploadErr
 
-        // Small preview so the journal feed loads fast on a slow connection —
-        // the full photo only downloads when someone taps to open it. Best
-        // effort: images only, and any failure just leaves the entry without
-        // a thumbnail rather than blocking the save.
-        if (!isVideo(media)) {
-          const thumbBlob = await createImageThumbnail(media)
-          if (thumbBlob) {
-            photoThumbPath = `${profile.org_id}/${clientId}/${user.id}/${uuid}-thumb.jpg`
-            const encryptedThumb = await encryptFile(thumbBlob, keyHex)
-            const { error: thumbErr } = await supabase.storage
-              .from('journal-photos')
-              .upload(photoThumbPath, encryptedThumb, { upsert: false, contentType: 'image/jpeg' })
-            if (thumbErr) photoThumbPath = null
+        for (let i = 0; i < media.length; i++) {
+          const file = media[i]
+          const ext = fileExt(file)
+          const photoUuid = crypto.randomUUID()
+          const photoPath = `${profile.org_id}/${clientId}/${user.id}/${photoUuid}.${ext}`
+          const mimeType = file.type || mimeFromPath(file.name)
+          const encryptedBlob = await encryptFile(file, keyHex)
+          const { error: uploadErr } = await supabase.storage
+            .from('journal-photos')
+            .upload(photoPath, encryptedBlob, { upsert: false, contentType: mimeType })
+          if (uploadErr) throw uploadErr
+
+          if (i === 0) firstPhotoPath = photoPath
+
+          // Thumbnail (best effort, images only)
+          let photoThumbPath: string | null = null
+          if (!isVideo(file)) {
+            const thumbBlob = await createImageThumbnail(file)
+            if (thumbBlob) {
+              photoThumbPath = `${profile.org_id}/${clientId}/${user.id}/${photoUuid}-thumb.jpg`
+              const encryptedThumb = await encryptFile(thumbBlob, keyHex)
+              const { error: thumbErr } = await supabase.storage
+                .from('journal-photos')
+                .upload(photoThumbPath, encryptedThumb, { upsert: false, contentType: 'image/jpeg' })
+              if (thumbErr) photoThumbPath = null
+            }
           }
+          if (i === 0) firstThumbPath = photoThumbPath
+
+          photoRows.push({ entry_id: '', photo_path: photoPath, photo_thumb_path: photoThumbPath, sort_order: i })
         }
       }
 
-      const { error: insertErr } = await supabase.from('log_entries').insert({
+      // Insert the log_entry (still set legacy columns for backward compat)
+      const { data: entryData, error: insertErr } = await supabase.from('log_entries').insert({
         client_id: clientId,
         org_id: profile.org_id,
         author_id: user.id,
         type,
-        label: label.trim() || (media && isVideo(media) ? '🎥' : '📷'),
+        label: label.trim() || (media.length > 0 && isVideo(media[0]) ? '🎥' : media.length > 0 ? '📷' : '📝'),
         occurred_at: new Date().toISOString(),
-        photo_path: photoPath,
-        photo_thumb_path: photoThumbPath,
+        photo_path: firstPhotoPath,
+        photo_thumb_path: firstThumbPath,
         mood_score: moodScore,
-      })
+      }).select('id').single()
       if (insertErr) throw insertErr
+
+      // Insert log_entry_photos rows
+      if (photoRows.length > 0 && entryData) {
+        const rows = photoRows.map((r) => ({ ...r, entry_id: entryData.id }))
+        const { error: photosErr } = await supabase.from('log_entry_photos').insert(rows)
+        if (photosErr) throw photosErr
+      }
 
       qc.invalidateQueries({ queryKey: ['family-journal', clientId] })
       navigate('/family')
@@ -141,8 +160,7 @@ export default function AddEntry() {
   }
 
   const activeType = TYPES.find((t) => t.key === type)!
-  const isVideoFile = media ? isVideo(media) : false
-  const canSave = (label.trim().length > 0 || !!media) && !!clientId
+  const canSave = (label.trim().length > 0 || media.length > 0) && !!clientId
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)', display: 'flex', flexDirection: 'column' }}>
@@ -199,35 +217,42 @@ export default function AddEntry() {
         {showMood && <MoodSlider value={moodScore} onChange={setMoodScore} />}
 
         {/* Media picker */}
-        <input ref={fileRef} type="file" accept="image/*,video/*"
+        <input ref={fileRef} type="file" accept="image/*,video/*" multiple
           style={{ display: 'none' }} onChange={pickMedia} />
 
-        {preview ? (
-          <div style={{ position: 'relative', marginBottom: '1rem' }}>
-            {isVideoFile ? (
-              <video src={preview} controls
-                style={{ width: '100%', borderRadius: 8, maxHeight: 300, display: 'block' }} />
-            ) : (
-              <img src={preview} alt="Preview"
-                style={{ width: '100%', borderRadius: 8, maxHeight: 300, objectFit: 'cover', display: 'block' }} />
-            )}
-            <button onClick={removeMedia} style={{
-              position: 'absolute', top: 8, right: 8,
-              background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
-              borderRadius: '50%', width: 28, height: 28, cursor: 'pointer',
-              fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>✕</button>
+        {/* Media preview grid */}
+        {preview.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
+            {preview.map((url, i) => {
+              const file = media[i]
+              const isVid = file ? isVideo(file) : false
+              return (
+                <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--color-border)' }}>
+                  {isVid ? (
+                    <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  )}
+                  <button onClick={() => removeMedia(i)} style={{
+                    position: 'absolute', top: 2, right: 2,
+                    background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
+                    borderRadius: '50%', width: 22, height: 22, cursor: 'pointer',
+                    fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>✕</button>
+                </div>
+              )
+            })}
           </div>
-        ) : (
-          <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} style={{
-            width: '100%', border: '2px dashed var(--color-border)', borderRadius: 8,
-            padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1rem',
-          }}>
-            <span style={{ fontSize: '1.25rem' }}>📷</span>
-            Add a photo or video (optional)
-          </button>
         )}
+
+        <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} style={{
+          width: '100%', border: '2px dashed var(--color-border)', borderRadius: 8,
+          padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1rem',
+        }}>
+          <span style={{ fontSize: '1.25rem' }}>📷</span>
+          Add a photo or video (optional)
+        </button>
       </div>
     </div>
   )

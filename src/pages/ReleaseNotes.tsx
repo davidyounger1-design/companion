@@ -3,6 +3,18 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.119',
+    date: '25 July 2026',
+    title: 'Medication tracking, multi-photo entries, and anyone can start a timer',
+    changes: [
+      { type: 'new', text: 'Medication tracking — coordinators can record medications per participant with name, dosage, frequency, route, instructions, and prescriber. Team members can log each administration (taken, refused, or deferred). The coordinator can toggle this on or off per organisation from the Subscription page.' },
+      { type: 'new', text: 'Multiple photos per journal entry — you can now attach several photos or videos to a single journal entry instead of just one. Existing single-photo entries still display as before.' },
+      { type: 'change', text: 'Anyone can now start a timer for a recipient — family members, coordinators, and support workers can set a countdown timer from the worker detail page or the family timer page, not just the recipient themself.' },
+      { type: 'fix', text: 'Opening the Messages list now marks all conversations as read, so previously-read messages no longer briefly flash as unread after an app update or reload.' },
+      { type: 'new', text: 'A "What\'s new" link now appears next to the version number in the footer, pointing to these release notes.' },
+    ],
+  },
+  {
     version: '0.5.57',
     date: '6 July 2026',
     title: 'Install & updates in Settings, and PWA opens straight in',

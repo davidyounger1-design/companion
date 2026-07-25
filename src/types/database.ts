@@ -23,6 +23,8 @@ export type GoalCategory =
   | 'relationships' | 'home' | 'employment' | 'education' | 'choice_control'
 export type MeteredAxis = 'workers' | 'participants'
 export type ProgressRating = 'regressed' | 'no_change' | 'some_progress' | 'good_progress' | 'achieved'
+export type MedicationRoute = 'oral' | 'topical' | 'inhaled' | 'injected' | 'ophthalmic' | 'otic' | 'nasal' | 'sublingual' | 'transdermal' | 'other'
+export type MedicationLogStatus = 'taken' | 'refused' | 'deferred' | 'missed'
 
 // ─── Supabase Database schema type ───────────────────────────────────────────
 // Structured to match Supabase's generated type format so `createClient<Database>` resolves correctly.
@@ -768,6 +770,95 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      medications: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          name: string
+          dosage: string | null
+          frequency: string
+          instructions: string | null
+          route: MedicationRoute | null
+          prescriber: string | null
+          active: boolean
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          name: string
+          dosage?: string | null
+          frequency: string
+          instructions?: string | null
+          route?: MedicationRoute | null
+          prescriber?: string | null
+          active?: boolean
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          name?: string
+          dosage?: string | null
+          frequency?: string
+          instructions?: string | null
+          route?: MedicationRoute | null
+          prescriber?: string | null
+          active?: boolean
+        }
+        Relationships: []
+      }
+      medication_logs: {
+        Row: {
+          id: string
+          medication_id: string
+          client_id: string
+          org_id: string
+          administered_by: string
+          administered_at: string
+          status: MedicationLogStatus
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          medication_id: string
+          client_id: string
+          org_id: string
+          administered_by: string
+          administered_at?: string
+          status?: MedicationLogStatus
+          note?: string | null
+          created_at?: string
+        }
+        Update: {
+          status?: MedicationLogStatus
+          note?: string | null
+        }
+        Relationships: []
+      }
+      log_entry_photos: {
+        Row: {
+          id: string
+          entry_id: string
+          photo_path: string
+          photo_thumb_path: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          entry_id: string
+          photo_path: string
+          photo_thumb_path?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
       org_settings: {
         Row: {
           id: string
@@ -889,3 +980,6 @@ export type ScheduleItemCompletion = Tables['schedule_item_completions']['Row']
 export type ScheduleItemSkip = Tables['schedule_item_skips']['Row']
 export type TimerAlert = Tables['timer_alerts']['Row']
 export type ActiveTimer = Tables['active_timers']['Row']
+export type Medication = Tables['medications']['Row']
+export type MedicationLog = Tables['medication_logs']['Row']
+export type LogEntryPhoto = Tables['log_entry_photos']['Row']
