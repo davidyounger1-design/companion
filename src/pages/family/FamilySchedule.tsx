@@ -20,9 +20,11 @@ import {
   CATEGORY_META, CATEGORY_OPTIONS, WEEKDAY_LABELS, WEEKDAY_LABELS_LONG,
   toLocalDateStr, parseLocalDate, timeToMinutes, formatTimeRange, formatTimeOfDay,
   occursOnDateActive, getItemStatus, itemDiskFraction, normalizeUrl,
+  weekDatesContaining, next7DatesFrom,
 } from '../../lib/schedule'
 import { themedPageBackground } from '../../lib/timer'
 import { printSchedule } from '../../lib/printSchedule'
+import PrintScheduleModal, { type PrintRange } from '../../components/PrintScheduleModal'
 
 /** What the add/edit sheet is doing:
  *  - new    → create a fresh item
@@ -61,6 +63,7 @@ export default function FamilySchedule() {
   // day being viewed — this holds the pending choice until the user picks.
   const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
   const [copyDayOpen, setCopyDayOpen] = useState(false)
+  const [printModalOpen, setPrintModalOpen] = useState(false)
   const [showTimerModal, setShowTimerModal] = useState(false)
   const [dayNoteFormOpen, setDayNoteFormOpen] = useState(false)
   const [savingDayNote, setSavingDayNote] = useState(false)
@@ -73,16 +76,7 @@ export default function FamilySchedule() {
   const { clientId, participantName, recipientProfileId } = useClientId()
   const skips = useScheduleSkips(clientId)
 
-  // Sunday–Saturday week containing selectedDate, matching the days_of_week (0=Sun..6=Sat) convention.
-  const weekDates = useMemo(() => {
-    const sunday = parseLocalDate(selectedDate)
-    sunday.setDate(sunday.getDate() - sunday.getDay())
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(sunday)
-      d.setDate(sunday.getDate() + i)
-      return toLocalDateStr(d)
-    })
-  }, [selectedDate])
+  const weekDates = useMemo(() => weekDatesContaining(selectedDate), [selectedDate])
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['schedule-items', clientId],
@@ -282,6 +276,35 @@ export default function FamilySchedule() {
 
   const weekLabel = `${parseLocalDate(weekDates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(weekDates[6]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
 
+  // Always anchored on today, independent of whichever day/week is currently
+  // being browsed on screen — "this week" and "next 7 days" both mean
+  // relative to now, not relative to selectedDate.
+  async function handlePrintConfirm(range: PrintRange, showTime: boolean) {
+    const dates = range === 'today' ? [todayStr] : range === 'week' ? weekDatesContaining(todayStr) : next7DatesFrom(todayStr)
+
+    const notesByDate: Record<string, DayNote> = {}
+    if (clientId) {
+      const { data } = await supabase
+        .from('day_notes').select('*')
+        .eq('client_id', clientId).gte('note_date', dates[0]).lte('note_date', dates[dates.length - 1])
+      for (const n of (data ?? []) as DayNote[]) notesByDate[n.note_date] = n
+    }
+
+    const days = dates.map((date) => ({
+      label: parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' }),
+      items: items
+        .filter((i) => occursOnDateActive(i, date, skips))
+        .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
+      note: notesByDate[date]?.body,
+    }))
+
+    const subtitle = range === 'today'
+      ? `Today, ${parseLocalDate(todayStr).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}`
+      : `${range === 'next7' ? 'Next 7 days: ' : ''}${parseLocalDate(dates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(dates[dates.length - 1]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
+
+    await printSchedule(participantName, subtitle, days, showTime)
+  }
+
   return (
     <div style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}>
       <div style={{ position: 'sticky', top: 'var(--family-header-h, 0px)', zIndex: 10, background: themedPageBackground() }}>
@@ -322,20 +345,7 @@ export default function FamilySchedule() {
             options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]}
           />
           <button
-            onClick={() => {
-              if (view === 'day') {
-                printSchedule(participantName, isToday ? `Today, ${dateLabel}` : dateLabel, [{ label: dateLabel, items: dayItems, note: dayNote?.body }])
-              } else {
-                const days = weekDates.map((date) => ({
-                  label: parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' }),
-                  items: items
-                    .filter((i) => occursOnDateActive(i, date, skips))
-                    .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
-                  note: dayNotesByDate[date]?.body,
-                }))
-                printSchedule(participantName, weekLabel, days)
-              }
-            }}
+            onClick={() => setPrintModalOpen(true)}
             className="btn btn-ghost" title="Print or save as PDF"
             style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
         </div>
@@ -471,6 +481,13 @@ export default function FamilySchedule() {
           fromDate={selectedDate}
           onClose={() => setCopyDayOpen(false)}
           onCopy={async (toDate) => { await copyDayTo(selectedDate, toDate); setCopyDayOpen(false) }}
+        />
+      )}
+
+      {printModalOpen && (
+        <PrintScheduleModal
+          onClose={() => setPrintModalOpen(false)}
+          onPrint={handlePrintConfirm}
         />
       )}
 

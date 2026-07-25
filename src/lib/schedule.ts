@@ -40,6 +40,27 @@ export function timeToMinutes(t: string) {
   return h * 60 + m
 }
 
+/** Sunday–Saturday week containing dateStr, matching the days_of_week (0=Sun..6=Sat) convention. */
+export function weekDatesContaining(dateStr: string): string[] {
+  const sunday = parseLocalDate(dateStr)
+  sunday.setDate(sunday.getDate() - sunday.getDay())
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(sunday)
+    d.setDate(sunday.getDate() + i)
+    return toLocalDateStr(d)
+  })
+}
+
+/** dateStr and the following 6 days, e.g. today through a week from today. */
+export function next7DatesFrom(dateStr: string): string[] {
+  const start = parseLocalDate(dateStr)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    return toLocalDateStr(d)
+  })
+}
+
 export function formatTimeOfDay(t: string) {
   const [h, m] = t.split(':').map(Number)
   const d = new Date(2000, 0, 1, h, m)
