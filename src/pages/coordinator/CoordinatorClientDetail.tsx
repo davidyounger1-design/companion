@@ -23,8 +23,10 @@ import {
 } from '../family/FamilySchedule'
 import {
   toLocalDateStr, parseLocalDate, timeToMinutes, occursOnDateActive, getItemStatus,
+  weekDatesContaining, next7DatesFrom,
 } from '../../lib/schedule'
 import { printSchedule } from '../../lib/printSchedule'
+import PrintScheduleModal, { type PrintRange } from '../../components/PrintScheduleModal'
 import type { LogType, ScheduleItem } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -557,6 +559,7 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
   const [formIntent, setFormIntent] = useState<FormIntent | null>(null)
   const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
   const [copyDayOpen, setCopyDayOpen] = useState(false)
+  const [printModalOpen, setPrintModalOpen] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000)
@@ -667,17 +670,28 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
 
   const dateLabel = parseLocalDate(selectedDate).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  const weekDates = useMemo(() => {
-    const sunday = parseLocalDate(selectedDate)
-    sunday.setDate(sunday.getDate() - sunday.getDay())
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(sunday)
-      d.setDate(sunday.getDate() + i)
-      return toLocalDateStr(d)
-    })
-  }, [selectedDate])
+  const weekDates = useMemo(() => weekDatesContaining(selectedDate), [selectedDate])
 
   const weekLabel = `${parseLocalDate(weekDates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(weekDates[6]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
+
+  // Always anchored on today, independent of whichever day/week is currently
+  // being browsed on screen.
+  function handlePrintConfirm(range: PrintRange, showTime: boolean) {
+    const dates = range === 'today' ? [todayStr] : range === 'week' ? weekDatesContaining(todayStr) : next7DatesFrom(todayStr)
+
+    const days = dates.map((date) => ({
+      label: parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' }),
+      items: items
+        .filter((i) => occursOnDateActive(i, date, skips))
+        .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
+    }))
+
+    const subtitle = range === 'today'
+      ? `Today, ${parseLocalDate(todayStr).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}`
+      : `${range === 'next7' ? 'Next 7 days: ' : ''}${parseLocalDate(dates[0]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${parseLocalDate(dates[dates.length - 1]).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
+
+    return printSchedule(participantName, subtitle, days, showTime)
+  }
 
   return (
     <div>
@@ -686,22 +700,17 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)' }}>Today</button>
         <SegmentedControl value={view} onChange={setView} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
         <button
-          onClick={() => {
-            if (view === 'day') {
-              printSchedule(participantName, isToday ? `Today, ${dateLabel}` : dateLabel, [{ label: dateLabel, items: dayItems }])
-            } else {
-              const days = weekDates.map((date) => ({
-                label: parseLocalDate(date).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'short' }),
-                items: items
-                  .filter((i) => occursOnDateActive(i, date, skips))
-                  .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)),
-              }))
-              printSchedule(participantName, weekLabel, days)
-            }
-          }}
+          onClick={() => setPrintModalOpen(true)}
           className="btn btn-ghost" title="Print or save as PDF"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
       </div>
+
+      {printModalOpen && (
+        <PrintScheduleModal
+          onClose={() => setPrintModalOpen(false)}
+          onPrint={handlePrintConfirm}
+        />
+      )}
 
       {view === 'day' ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>

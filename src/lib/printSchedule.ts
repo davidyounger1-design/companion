@@ -51,7 +51,7 @@ function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: nu
   return `${text.slice(0, end)}…`
 }
 
-async function buildSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[]): Promise<Blob> {
+async function buildSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[], showTime: boolean): Promise<Blob> {
   // Lazy-loaded: pdf-lib only downloads when someone actually taps Print
   // from an installed app, not as part of every page's initial bundle.
   const { PDFDocument, StandardFonts, rgb, degrees } = await import('pdf-lib')
@@ -75,7 +75,7 @@ async function buildSchedulePdf(participantName: string, subtitle: string, days:
   // time-range string and a short category word, giving the title
   // whatever's left; a title that still overflows gets truncated with
   // an ellipsis rather than colliding with the category column.
-  const titleX = marginX + 130
+  const titleX = showTime ? marginX + 130 : marginX
   const categoryColWidth = 85
   const categoryX = pageWidth - marginX - categoryColWidth
   const titleMaxWidth = categoryX - titleX - 8
@@ -138,7 +138,7 @@ async function buildSchedulePdf(participantName: string, subtitle: string, days:
     for (const item of day.items) {
       const meta = CATEGORY_META[item.category]
       ensureSpace(item.description ? 34 : 18)
-      draw(formatTimeRange(item.start_time, item.end_time), marginX, fontBold, 9)
+      if (showTime) draw(formatTimeRange(item.start_time, item.end_time), marginX, fontBold, 9)
       draw(truncateToWidth(item.title, fontBold, 11, titleMaxWidth), titleX, fontBold, 11)
       draw(meta.label, categoryX, font, 9, muted)
       y -= 15
@@ -167,14 +167,14 @@ async function buildSchedulePdf(participantName: string, subtitle: string, days:
  * browsers) so the caller can fall back; a user simply dismissing the
  * share sheet counts as 'shared' — it was invoked correctly either way.
  */
-async function shareSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[]): Promise<'shared' | 'unsupported'> {
+async function shareSchedulePdf(participantName: string, subtitle: string, days: PrintDaySection[], showTime: boolean): Promise<'shared' | 'unsupported'> {
   const nav = navigator as Navigator & {
     canShare?: (data: { files: File[] }) => boolean
     share?: (data: { files: File[]; title?: string }) => Promise<void>
   }
   if (!nav.canShare || !nav.share) return 'unsupported'
 
-  const pdfBlob = await buildSchedulePdf(participantName, subtitle, days)
+  const pdfBlob = await buildSchedulePdf(participantName, subtitle, days, showTime)
   const file = new File([pdfBlob], `${participantName.replace(/[^a-z0-9]+/gi, '-')}-schedule.pdf`, { type: 'application/pdf' })
   if (!nav.canShare({ files: [file] })) return 'unsupported'
 
@@ -189,7 +189,7 @@ async function shareSchedulePdf(participantName: string, subtitle: string, days:
 /** Builds a self-contained HTML document (no dependency on the app's own
  * stylesheet/theme) and writes it into a freshly opened window, which
  * auto-prints on load. Reliable in any ordinary browser tab. */
-function printHtmlDocument(participantName: string, subtitle: string, days: PrintDaySection[]) {
+function printHtmlDocument(participantName: string, subtitle: string, days: PrintDaySection[], showTime: boolean) {
   const win = window.open('', '_blank')
   if (!win) return // popup blocked — exceedingly rare for a direct click-triggered open
 
@@ -198,7 +198,7 @@ function printHtmlDocument(participantName: string, subtitle: string, days: Prin
       ? d.items.map((i) => {
           const meta = CATEGORY_META[i.category]
           return `<div class="item">
-            <div class="time">${escapeHtml(formatTimeRange(i.start_time, i.end_time))}</div>
+            ${showTime ? `<div class="time">${escapeHtml(formatTimeRange(i.start_time, i.end_time))}</div>` : ''}
             <div class="title">${meta.emoji} ${escapeHtml(i.title)}</div>
             <div class="category">${escapeHtml(meta.label)}</div>
             ${i.description ? `<div class="desc">${escapeHtml(i.description)}</div>` : ''}
@@ -244,13 +244,13 @@ ${dayBlocks}
   win.document.close()
 }
 
-export async function printSchedule(participantName: string, subtitle: string, days: PrintDaySection[]) {
+export async function printSchedule(participantName: string, subtitle: string, days: PrintDaySection[], showTime = true) {
   if (isStandaloneDisplay()) {
-    const result = await shareSchedulePdf(participantName, subtitle, days)
+    const result = await shareSchedulePdf(participantName, subtitle, days, showTime)
     if (result === 'unsupported') {
       alert("Printing isn't available from the installed app on this device. Open Companion in Safari or Chrome instead, then tap Print again.")
     }
     return
   }
-  printHtmlDocument(participantName, subtitle, days)
+  printHtmlDocument(participantName, subtitle, days, showTime)
 }
