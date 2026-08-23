@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.123',
+    date: '23 August 2026',
+    title: 'Fix: edit button showed on a care journal with no participant',
+    changes: [
+      { type: 'fix', text: 'The journal header no longer shows an editable participant name (and the pencil icon that opened a form which silently did nothing) when the organisation has no participant set up yet — it now says "No participant yet" instead.' },
+    ],
+  },
+  {
     version: '0.5.122',
     date: '23 August 2026',
     title: 'Configurable support worker types, and clearer permissions',

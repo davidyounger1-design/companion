@@ -877,6 +877,9 @@ export default function FamilyDashboard() {
 
   const clientId = clientRow?.client_id
   const clientData = clientRow?.clients as unknown as { full_name: string; dob: string | null } | null
+  // 'Participant' is a loading-state placeholder, not a real fallback name —
+  // it must never be presented as an editable participant (there is nothing
+  // for saveEdit's `.eq('id', clientId)` to update when clientId is undefined).
   const participantName = clientData?.full_name ?? 'Participant'
 
   function startEdit() {
@@ -1126,10 +1129,10 @@ export default function FamilyDashboard() {
                 <p className="eyebrow" style={{ margin: 0 }}>Care journal</p>
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {participantName}
+                  {clientId ? participantName : 'No participant yet'}
                 </h1>
               </div>
-              {isCoordinator && (
+              {isCoordinator && clientId && (
                 <button className="icon-btn" onClick={startEdit} title="Edit participant"><EditIcon size={16} /></button>
               )}
             </div>
