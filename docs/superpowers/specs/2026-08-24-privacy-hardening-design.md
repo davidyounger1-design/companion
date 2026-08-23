@@ -204,6 +204,47 @@ fight the product.
 that work replaces the org test with a *person*-scoped test, rather than simply removing it. Doing A5 now
 is still correct: a detached family profile should not retain access under any model.
 
+### A6 · Scope `notices` and the `messages` group thread to the participant
+
+**Found independently 2026-08-24 while auditing around PR #75, and verified from the current migration
+state.** This is the same systematic flaw as §1, in two more places — and the most clearly *leaky* instance,
+because both tables carry a `client_id` whose entire purpose is to say which participant the row concerns,
+and neither SELECT policy consults it.
+
+`notices` (current policy, `059:13-18`):
+```sql
+create policy "org members can view notices"
+  on notices for select
+  using (org_id = public.my_org_id() and public.my_role() <> 'recipient');
+```
+`notices.client_id` is `uuid not null references clients(id)` (`057:31`). So in a provider org, **any
+worker, coordinator, family member or therapist can read care notices about participants they have no
+relationship to.**
+
+`messages` (current policy, `057`) correctly scopes 1:1 threads via `sender_id`/`recipient_id`, but the
+**group thread** branch — `recipient_id is null and public.my_role() in ('coordinator','family')` — is
+role-and-org scoped only, never participant-scoped. Same leak for group conversations.
+
+Two facts that set the severity: `org_type = 'family'` orgs are unaffected in practice (single participant,
+so org-wide and participant-wide are the same set) — and the one live org with real data is a family org.
+But `The Friendship Circle` is a provider/Team org, so this becomes live the moment provider usage starts.
+It is also exploitable today by direct PostgREST call with a valid session, regardless of what the UI
+queries.
+
+**Proposed rule — but the coordinator row needs David's explicit decision before the migration is written:**
+
+| Role | `notices` / group-thread visibility | Rationale |
+|---|---|---|
+| coordinator | **Org-wide (unchanged) — DECISION NEEDED** | `002`'s "coordinators can manage clients" already grants deliberate org-wide participant access, so scoping notices tighter than `clients` would be inconsistent. But it is a real product choice, not a technical given. |
+| support worker | `client_id in (select public.client_ids_for_worker())` | Matches every other worker-facing table. |
+| family | `client_id in (select public.client_ids_for_family())` | Matches the family digest boundary. |
+| therapist | **No access** | Therapists see only explicitly shared behaviour notes via `note_shares`; notices were never part of that consent model. |
+| recipient | No access (unchanged) | Already excluded by `059`. |
+
+This lands in `073` with the rest of Pass A — same file, same verification pass, same class of fix. It is
+**not** a separate cycle, and the standalone task suggestion for it should be folded in here rather than
+run independently, to avoid two sessions writing overlapping policy migrations against the same tables.
+
 ---
 
 ## 3. Pass B — server-side entitlement enforcement
@@ -301,6 +342,10 @@ Behavioural — direct API probes, signed in as each role, because RLS is only p
 8. **A detached family profile** (`org_id` NULL) queries `clients` → zero rows.
 9. **A support worker** queries `behaviour_notes` for an assigned participant → still returns them (proves
    A2 didn't over-narrow).
+10. **A6, provider org, two participants P1 and P2.** A worker assigned only to P1 queries `notices` → only
+    P1's rows. Same worker queries `messages` with `recipient_id is null` → only P1's group thread. Before
+    `073` both return P2's rows too. Then repeat as a coordinator: whatever the §A6 decision is, assert it
+    explicitly rather than inferring from an empty result.
 
 Post-`074`: an org whose `entitlements` lacks `behaviour_notes` cannot read the table by direct API even
 with a valid session, and an org that has it is unaffected. Both halves required — a gate that always
@@ -316,10 +361,16 @@ participant identity (`clients.person_id` / `profile_orgs`) — sketched but und
 interaction note; the `Family +`/Enterprise commercial tiers.
 
 **Reviewer claims rejected after verification** — recorded so they are not resurrected:
-- *"`WorkerNoticeBoard.tsx:32` filters `.eq('status','active')` on `client_workers`, which has no `status`
-  column, so the query always errors and the board renders empty."* **False.** No `status` filter exists in
-  that file, or anywhere in `src/` referencing `client_workers`. A background task was spun up on this
-  premise and should be cancelled.
+- ~~*"`WorkerNoticeBoard.tsx:32` filters `.eq('status','active')` on `client_workers`…"*~~ **This rejection
+  was itself wrong — the reviewer was correct.** Retracted 2026-08-24. `WorkerNoticeBoard.tsx` **and**
+  `WorkerMessages.tsx` both filtered `.eq('status','active')` on `client_workers`, which has no such column;
+  PostgREST returns `42703`, the error was never checked, so `firstClientId` silently resolved to null and
+  both screens rendered as though the worker had no participants. Fixed in commit `076b8ca` (PR #75), which
+  confirmed the `42703` live against PostgREST and audited the other five `client_workers` call sites.
+  **Why the rejection happened, because the failure mode is instructive:** the fix had already landed and
+  switched the working tree to its branch *before* the verifying `grep` ran, so the grep read post-fix
+  source and found nothing. A clean grep against the current checkout is not evidence about the state a
+  reviewer was describing — check `git log`/`git status` for concurrent work before contradicting a finding.
 - *"`incidents` doesn't exist in the live repo, so `alter table incidents` has no table to alter."*
   **False.** `053_incidents.sql` exists; `IncidentForm`/`IncidentsSection` ship; the coordinator dashboard
   queries it (`CoordinatorDashboard.tsx:33`). This reviewer trusted `Companion-Gap-Report.md` — which is

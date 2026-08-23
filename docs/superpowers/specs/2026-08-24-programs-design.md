@@ -122,11 +122,14 @@ Three deliberate deviations from the team-mode spec's original sketch:
   behavioural description — §2/§3 always select "workers assigned to that program" with no lead
   distinction. YAGNI; a one-column, backwards-compatible addition whenever a real behaviour needs it.
 - **`clients` needs a new `unique (id, org_id)` constraint** to make `program_participants`' composite FK
-  possible. Additive, no behaviour change.
-
-`clients.id, org_id` currently has no explicit unique constraint beyond the primary key on `id` alone —
-confirm this before writing the migration; if `(id, org_id)` already exists under a different name, reuse
-it rather than adding a duplicate index.
+  possible. Additive, no behaviour change. **Verified 2026-08-24:** `clients` (defined in
+  `002_clients_workers.sql:5`) has *only* `id uuid primary key` — there is no existing `(id, org_id)`
+  unique constraint to reuse, so `073` must add one, and it must come *before* the
+  `program_participants` FK in the same file or the FK creation errors.
+- **`profiles` likewise has no `(id, org_id)` unique key**, which is why `program_workers.worker_id` is a
+  plain FK to `profiles(id)` and its org match is enforced in the assignment RPC rather than declaratively.
+  This is a deliberate asymmetry with `program_participants`, and a weaker guarantee — noted as residual
+  risk §10.4.
 
 ---
 
@@ -141,22 +144,36 @@ program-derived access and every one of those 14 policies inherits it automatica
 create or replace function public.client_ids_for_worker()
 returns setof uuid language sql stable security definer
 set search_path = 'companion', 'public' as $$
+  -- Direct assignment. The clients join + org test is NOT decoration: it is
+  -- the cross-tenant fix shipped in 069 (a removed worker whose profile was
+  -- detached retained read access to their old org's participants AND
+  -- behaviour notes, because client_workers rows survive detachment).
+  -- Removing it silently reintroduces that hole across all 14 policies.
   select cw.client_id
   from   companion.client_workers cw
+  join   companion.clients c on c.id = cw.client_id
   where  cw.worker_id = auth.uid()
+    and  c.org_id = public.my_org_id()
   union
+  -- Program-derived. Same org test, for the same reason: program_workers rows
+  -- also survive profile detachment, and my_org_id() is NULL for a detached
+  -- profile, so this correctly denies rather than leaking.
   select pp.participant_id
   from   companion.program_workers pw
   join   companion.program_participants pp on pp.program_id = pw.program_id
   where  pw.worker_id = auth.uid()
     and  pw.removed_at is null
-    and  pp.left_at is null
+    and  pp.left_at  is null
+    and  pw.org_id = public.my_org_id()
 $$;
 ```
 
-(Final body must be reconciled against the live function definition the same way this morning's `069` was
-— via `pg_get_functiondef`, not the migration file text, since `060`'s schema-move sweep may have rewritten
-it in place. Do not skip that check.)
+⚠ **This body was wrong in the first draft of this spec** — both branches omitted
+`= public.my_org_id()`, which would have reverted `069`'s cross-tenant fix the moment it was pasted.
+Recorded here because the failure mode is instructive: the union was written from the *migration file's*
+historical shape rather than from the live function, which is exactly the trap `060`'s in-place sweep sets.
+**Reconcile against `pg_get_functiondef` before pasting, every time** — do not trust this document or the
+migration files.
 
 Rejected alternatives, and why:
 - **A separate program-access helper OR'd into each of the 14 policies** — gives per-table opt-out that
@@ -240,6 +257,12 @@ makes a bare `create table` in this schema world-writable by default; every func
   `assign_worker_to_program` / `remove_worker_from_program`. Same two-check shape as `create_sub_role` et
   al. from `068`: `if my_role() <> 'coordinator' then raise exception 'forbidden'`, and
   `org_id = my_org_id()` verified on every id argument before any write.
+  **Plus a fix to an existing function:** `remove_member` (last rewritten in `069`) deletes
+  `client_workers` / `client_family` / `client_circle` rows when detaching a member, but knows nothing
+  about programs. Without adding `delete from companion.program_workers where worker_id = p_user_id` and
+  the matching `program_participants` cleanup, a removed member retains program-derived access to their
+  old org's participants — the exact hole `069` was written to close, reopened through the new path. The
+  `my_org_id()` test in §4's union is the second line of defence, not a substitute for this.
 
 **Rollout order:** `073` (additive, zero behaviour change) → verify the family/therapist invariant
 (§8, item 2) → `074` (RPCs) → frontend deploy → done. No human-attestation gate, unlike this morning's
@@ -297,6 +320,51 @@ around.
   per-program cost breakdown, is explicitly deferred per §2 point 6), but must be resolved with David
   before any billing-counting code is written in a future cycle.
 
+### 9.1 The same participant in two organisations (known limitation, own design cycle)
+
+Raised by David 2026-08-24, with a concrete real case: Sarah Younger is a participant in **The Friendship
+Circle** (Team plan) *and* has her own private **Companion Family** plan for non-Friendship-Circle
+activities. Same human, two commercial entities. She and her family want **one login** showing the whole
+picture; the coordinators and workers of each entity must stay **strictly separated**. Therapists are
+common to the participant, not to either org.
+
+**Not addressed by this spec, and not blocking it.** Programs is entirely org-internal:
+`program_participants` points at an org-scoped `clients` enrolment row and remains correct whether or not
+that row later gains person-level identity. Building Programs first does not constrain this decision.
+
+State of the world, verified by direct policy inspection 2026-08-24 (not assumed):
+
+| Path | Cross-org today? | Why |
+|---|---|---|
+| Therapist sees shared notes | **Already works** | `"therapists see only explicitly shared notes"` (`004`/`013`) is a bare `note_shares` note→therapist grant with **no org test** on either side |
+| Decision-maker shares a note | **Appears to work** | `"decision_maker can share notes"` gates on `c.decision_maker_id = auth.uid()` — a participant-level property, no org test; `therapist_id` is unconstrained by org |
+| Family / recipient views journal | **UNVERIFIED — the crux** | `client_ids_for_family()` / `client_ids_for_recipient()` bodies not yet inspected for org tests |
+| One login spanning both orgs | **Hard blocker** | `profiles.org_id` is a single nullable column and `public.my_org_id()` returns a scalar |
+
+The useful discovery is that the *clinician* layer — the most privacy-sensitive and the part that looked
+hardest — is already person-scoped by construction. The remaining work is narrower than a full
+person-identity rebuild:
+
+1. Let a family/recipient profile span orgs — either a `profile_orgs` many-to-many, or the cheaper
+   `clients.person_id` link where family/recipient **read** paths union across linked enrolments while
+   worker/coordinator paths stay untouched. The participant or decision-maker asserts the link (they are
+   the data subject); **neither provider need ever learn the other exists**.
+2. Verify and, if necessary, relax the family/recipient read paths. Security-sensitive — needs its own
+   review pass, not an assumption.
+
+Note also that `profiles.org_id` being singular is why the same person acting as decision-maker for both
+orgs currently needs two logins on two email addresses — the sharing *policies* would permit one profile
+to act across both, but there is no way for that profile to be a member of both orgs.
+
+Team-Mode-Spec §1 asserts *"a user with roles in two orgs must pick an active org; all queries scope to
+that `org_id`"* — that is aspirational, not implemented; nothing in the codebase supports multi-org
+membership.
+
+**Unrelated data hygiene, flagged while investigating:** there are currently **two** organisations both
+named `The Friendship Circle` on `companion_team_workers` (`87f8899c-4ab0-4e4c-9520-2738ac8ec74b`, 0
+people; `a853f423-4fa8-4e82-918a-c36e851b3fc9`, 1 person, 0 participants). Duplicate-named orgs will make
+this scenario very hard to reason about or test. Worth resolving before Programs is exercised against it.
+
 ---
 
 ## 10. Residual risks
@@ -305,11 +373,19 @@ around.
    sweep rewrote several function bodies in place without updating the source files (confirmed the hard
    way three times this morning, in `069`). The union rewrite in §4 must be diffed against
    `pg_get_functiondef` before it's pasted, not trusted from this document or the migration file.
-2. **`clients(id, org_id)` uniqueness is assumed, not yet confirmed live.** If it already exists under a
-   different constraint name, reuse it; if the column combination isn't actually unique for some
-   historical reason, the composite FK in `program_participants` will fail to create and that's a signal
-   to investigate before working around it.
+   **This risk already materialised once, in this very spec** — see the warning under §4.
+2. **`profiles` has no `(id, org_id)` unique key**, so `program_workers`' org integrity rests on RPC
+   discipline rather than a composite FK, unlike `program_participants`. A service-role edge function or a
+   hand-written SQL-editor insert could create a `program_workers` row whose `org_id` disagrees with the
+   worker's actual `profiles.org_id`. The `my_org_id()` test in §4's union means such a row grants no
+   access, so this is an integrity wart rather than an access hole — but it is a real asymmetry, and adding
+   `unique (id, org_id)` to `profiles` to close it properly is worth considering during implementation.
 3. **No live provider-tier org exists to test against.** Every verification query in §8 will run against
    freshly-created test data, not a real org's real usage pattern — same caveat this morning's plan carried
    for the sub-role work, mitigated the same way (careful direct-API probes rather than "it looked fine in
    the UI").
+4. **Three defects were found in this spec by adversarial review after it was first written** (the §4 org
+   test, the missing `clients(id, org_id)` constraint, the `remove_member` program cleanup). All three are
+   now corrected inline above. The lesson worth carrying: this document is a design, not a verified
+   artifact — the pre-paste `pg_get_functiondef` reconciliation and the §8 verification queries are what
+   make it safe, not its own confidence.
