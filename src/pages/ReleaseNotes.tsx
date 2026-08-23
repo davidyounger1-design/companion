@@ -3,7 +3,7 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
-    version: '0.5.121',
+    version: '0.5.122',
     date: '23 August 2026',
     title: 'Configurable support worker types, and clearer permissions',
     changes: [
