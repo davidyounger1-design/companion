@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     if (!user) return json({ ok: false, error: 'Unauthorized' })
 
     const { email, role, org_id, client_id, phone, name, sub_role_id } = await req.json()
-    if (!email || !role || !org_id) return json({ ok: false, error: 'Missing required fields' }, 400)
+    if (!email || !role || !org_id) return json({ ok: false, error: 'Missing required fields' })
 
     const admin = createClient(supabaseUrl, serviceKey, { db: { schema: 'companion' } })
 
