@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
 
   try {
     const { email, password } = await req.json()
-    if (!email || !password) return json({ ok: false, error: 'Missing email or password' }, 400)
+    if (!email || !password) return json({ ok: false, error: 'Missing email or password' })
 
     const mabUrl = Deno.env.get('MAB_API_URL') ?? 'https://myappbuddy.com.au'
     const serviceKey = Deno.env.get('COMPANION_SERVICE_KEY') ?? ''
@@ -85,6 +85,6 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, linked_org: !!orgId })
   } catch (e) {
-    return json({ ok: false, error: (e as Error).message }, 500)
+    return json({ ok: false, error: (e as Error).message })
   }
 })

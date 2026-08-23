@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const { token, password, name } = await req.json()
-    if (!token || !password || !name) return json({ ok: false, error: 'Missing required fields' }, 400)
+    if (!token || !password || !name) return json({ ok: false, error: 'Missing required fields' })
 
     const admin = createClient(supabaseUrl, serviceKey, { db: { schema: 'companion' } })
 
@@ -115,6 +115,6 @@ Deno.serve(async (req) => {
     return json({ ok: true, role: invite.role as string })
 
   } catch (e) {
-    return json({ ok: false, error: (e as Error).message }, 500)
+    return json({ ok: false, error: (e as Error).message })
   }
 })

@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return json({ ok: false, error: 'Unauthorized' }, 401)
+    if (!authHeader) return json({ ok: false, error: 'Unauthorized' })
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       db: { schema: 'companion' },
     })
     const { data: { user } } = await userClient.auth.getUser()
-    if (!user) return json({ ok: false, error: 'Unauthorized' }, 401)
+    if (!user) return json({ ok: false, error: 'Unauthorized' })
 
     const { email, role, org_id, client_id, phone, name, sub_role_id } = await req.json()
     if (!email || !role || !org_id) return json({ ok: false, error: 'Missing required fields' }, 400)
@@ -50,21 +50,22 @@ Deno.serve(async (req) => {
       .eq('id', user.id)
       .single()
 
-    if (caller?.org_id !== org_id) return json({ ok: false, error: 'Forbidden' }, 403)
+    if (caller?.org_id !== org_id) return json({ ok: false, error: 'Forbidden' })
 
     // Authoritative check: resolved server-side from the caller's sub-role
     // (companion.invitable_roles_for), not a hardcoded matrix. This function
     // runs as service-role and bypasses RLS, so this is the ONLY check
     // standing between a caller and inviting an accomplice as 'coordinator' —
     // it must reflect the same ceiling the sub-role settings UI shows.
-    const { data: allowedRoles } = await admin.rpc('invitable_roles_for', { p_user_id: user.id })
+    const { data: allowedRoles, error: rolesErr } = await admin.rpc('invitable_roles_for', { p_user_id: user.id })
+    if (rolesErr) return json({ ok: false, error: `invitable_roles_for failed: ${rolesErr.message}` })
     if (!(allowedRoles ?? []).includes(role))
-      return json({ ok: false, error: 'Forbidden' }, 403)
+      return json({ ok: false, error: `Forbidden — role '${role}' not in your invitable set: ${JSON.stringify(allowedRoles)}` })
 
     // A recipient invite must be tied to a specific client record (their login
     // is linked 1:1 to it).
     if (role === 'recipient' && !client_id)
-      return json({ ok: false, error: 'client_id is required for recipient invites' }, 400)
+      return json({ ok: false, error: 'client_id is required for recipient invites' })
 
     // sub_role_id, if supplied, must be a real, non-archived sub-role of
     // THIS org and THIS exact role — otherwise a caller could smuggle in a
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
         .eq('id', sub_role_id).eq('org_id', org_id).eq('base_role', role)
         .is('archived_at', null)
         .maybeSingle()
-      if (!sr) return json({ ok: false, error: 'Invalid sub_role_id for this role' }, 400)
+      if (!sr) return json({ ok: false, error: 'Invalid sub_role_id for this role' })
       validSubRoleId = sr.id
     }
 
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (inviteErr || !invite) {
-      return json({ ok: false, error: inviteErr?.message ?? 'Failed to create invite' }, 500)
+      return json({ ok: false, error: inviteErr?.message ?? 'Failed to create invite' })
     }
 
     const inviteUrl    = `${appUrl}/accept-invite?token=${invite.token}`
@@ -147,7 +148,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, inviteUrl })
 
   } catch (e) {
-    return json({ ok: false, error: (e as Error).message }, 500)
+    return json({ ok: false, error: (e as Error).message })
   }
 })
 
