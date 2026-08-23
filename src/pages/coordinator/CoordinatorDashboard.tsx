@@ -8,6 +8,7 @@ import { signOut } from '../../lib/auth'
 import { useState } from 'react'
 import { SettingsIcon } from '../../components/icons'
 import ColorModePill from '../../components/ColorModePill'
+import OrgBadge from '../../components/OrgBadge'
 
 export default function CoordinatorDashboard() {
   const { profile } = useAuth()
@@ -130,6 +131,7 @@ export default function CoordinatorDashboard() {
         <div>
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 600 }}>Companion</span>
           <span className="badge badge-sage" style={{ marginLeft: '0.6rem' }}>Coordinator</span>
+          <div><OrgBadge /></div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
           <ColorModePill />

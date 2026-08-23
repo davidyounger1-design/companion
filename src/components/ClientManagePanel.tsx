@@ -9,6 +9,7 @@ import NdisRecordsSection from './NdisRecordsSection'
 import MedicationList from './MedicationList'
 import { useFeatures } from '../hooks/useFeatures'
 import { useOrgFeatureFlags } from '../hooks/useOrgFeatureFlags'
+import { usePermissions } from '../hooks/usePermissions'
 import { FEATURES } from '../lib/features'
 
 type Kind = 'self' | 'guardian' | 'nominee'
@@ -29,6 +30,7 @@ export default function ClientManagePanel({
   const { user } = useAuth()
   const qc = useQueryClient()
   const { has } = useFeatures()
+  const perms = usePermissions()
   const { isEnabled: orgEnabled } = useOrgFeatureFlags()
   const showMedicationTracking = has(FEATURES.medicationTracking) && orgEnabled('medication_tracking')
   const [addingWorkerId, setAddingWorkerId] = useState('')
@@ -312,7 +314,7 @@ export default function ClientManagePanel({
 
       {has(FEATURES.goals) && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <NdisRecordsSection clientId={clientId} orgId={orgId} authorId={user!.id} canManageAny />
+          <NdisRecordsSection clientId={clientId} orgId={orgId} authorId={user!.id} canManageAny={perms.edit_any_goal} />
         </div>
       )}
 

@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import MoodSlider from '../../components/MoodSlider'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import { useFeatures } from '../../hooks/useFeatures'
+import { usePermissions } from '../../hooks/usePermissions'
 import { FEATURES } from '../../lib/features'
 import Lightbox from '../../components/Lightbox'
 import EntryComments from '../../components/EntryComments'
@@ -118,6 +119,7 @@ function MediaCell({ entryId, legacyPath }: { entryId: string; legacyPath?: stri
 export default function WorkerClientDetail() {
   const { clientId } = useParams<{ clientId: string }>()
   const { user, profile } = useAuth()
+  const perms = usePermissions()
   const { has } = useFeatures()
   const showMood = has(FEATURES.moodTracking)
   const showBehaviourNotesFeature = has(FEATURES.behaviourNotes)
@@ -404,7 +406,7 @@ export default function WorkerClientDetail() {
         </button>
         {showGoals && (
           <div style={{ marginTop: '0.875rem' }}>
-            <NdisRecordsSection clientId={client.id} orgId={client.org_id} authorId={user!.id} canManageAny={false} />
+            <NdisRecordsSection clientId={client.id} orgId={client.org_id} authorId={user!.id} canManageAny={perms.edit_any_goal} />
           </div>
         )}
       </div>}
@@ -485,7 +487,11 @@ export default function WorkerClientDetail() {
         <div className="alert alert-success" style={{ marginBottom: '1rem' }}>{successMsg}</div>
       )}
 
-      {!showForm ? (
+      {!perms.add_entries ? (
+        <div className="card" style={{ marginBottom: '1.5rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.85rem' }}>
+          Your coordinator has turned off adding journal entries for your role.
+        </div>
+      ) : !showForm ? (
         <button className="btn btn-primary btn-full" onClick={() => setShowForm(true)}
           style={{ marginBottom: '1.5rem' }}>
           + Add log entry

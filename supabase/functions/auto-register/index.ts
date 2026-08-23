@@ -71,11 +71,15 @@ Deno.serve(async (req) => {
       orgId = org?.id ?? null
     }
 
-    // Create profile as coordinator (subscriber is always the account owner)
+    // Create profile as coordinator (subscriber is always the account owner).
+    // sub_role_id: null is explicit, not just the default — coordinators
+    // can't have one (sub_roles_no_coordinator), and this upsert can re-run
+    // against an existing row that might carry a stale value.
     await admin.from('profiles').upsert({
       id: userId,
       full_name: subData.name ?? email.split('@')[0],
       role: 'coordinator',
+      sub_role_id: null,
       ...(orgId ? { org_id: orgId } : {}),
     }, { onConflict: 'id' })
 

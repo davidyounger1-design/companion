@@ -2,6 +2,12 @@ type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 
+// trusted_support_worker is deprecated — retired as a base role in favour
+// of a coordinator-defined support_worker sub-role. Kept in the union
+// because live rows can still hold it until the retirement migration's
+// gated flip runs, and lookup_invite/get_org_members type `role` as plain
+// `string` regardless, so removing it wouldn't type-check any call site
+// against real DB values anyway.
 export type Role = 'coordinator' | 'support_worker' | 'trusted_support_worker' | 'family' | 'therapist' | 'recipient'
 export type OrgType = 'family' | 'provider'
 export type LogType = 'meal' | 'activity' | 'mood' | 'note' | 'photo'
@@ -91,6 +97,7 @@ export interface Database {
           role: Role
           org_id: string | null
           phone: string | null
+          sub_role_id: string | null
           created_at: string
         }
         Insert: {
@@ -99,6 +106,7 @@ export interface Database {
           role: Role
           org_id?: string | null
           phone?: string | null
+          sub_role_id?: string | null
           created_at?: string
         }
         Update: {
@@ -106,6 +114,7 @@ export interface Database {
           role?: Role
           org_id?: string | null
           phone?: string | null
+          sub_role_id?: string | null
         }
         Relationships: []
       }
@@ -542,6 +551,7 @@ export interface Database {
           status: InviteStatus
           phone: string | null
           name: string | null
+          sub_role_id: string | null
           expires_at: string
           created_at: string
         }
@@ -555,10 +565,11 @@ export interface Database {
           status?: InviteStatus
           phone?: string | null
           name?: string | null
+          sub_role_id?: string | null
           expires_at?: string
           created_at?: string
         }
-        Update: { status?: InviteStatus }
+        Update: { status?: InviteStatus; sub_role_id?: string | null }
         Relationships: []
       }
       demo_requests: {
@@ -892,6 +903,52 @@ export interface Database {
         }
         Relationships: []
       }
+      base_roles: {
+        Row: { role: string; label: string; sub_roles_allowed: boolean; is_transitional: boolean; sort_order: number }
+        Insert: { role: string; label: string; sub_roles_allowed?: boolean; is_transitional?: boolean; sort_order?: number }
+        Update: { label?: string; sub_roles_allowed?: boolean; is_transitional?: boolean; sort_order?: number }
+        Relationships: []
+      }
+      permission_keys: {
+        Row: {
+          key: string; label: string; description: string | null
+          kind: 'gate' | 'grant'; target_table: string; target_cmd: string
+          enforced: boolean; sort_order: number
+        }
+        Insert: {
+          key: string; label: string; description?: string | null
+          kind: 'gate' | 'grant'; target_table: string; target_cmd: string
+          enforced?: boolean; sort_order?: number
+        }
+        Update: { label?: string; description?: string | null; enforced?: boolean; sort_order?: number }
+        Relationships: []
+      }
+      role_permission_defaults: {
+        Row: { base_role: string; permission_key: string; default_allowed: boolean; max_allowed: boolean }
+        Insert: { base_role: string; permission_key: string; default_allowed: boolean; max_allowed: boolean }
+        Update: { default_allowed?: boolean; max_allowed?: boolean }
+        Relationships: []
+      }
+      sub_roles: {
+        Row: {
+          id: string; org_id: string; base_role: string; name: string
+          is_default: boolean; archived_at: string | null
+          created_by: string | null; created_at: string; updated_at: string
+        }
+        Insert: {
+          id?: string; org_id: string; base_role: string; name: string
+          is_default?: boolean; archived_at?: string | null
+          created_by?: string | null; created_at?: string; updated_at?: string
+        }
+        Update: { name?: string; archived_at?: string | null }
+        Relationships: []
+      }
+      sub_role_permissions: {
+        Row: { sub_role_id: string; permission_key: string; allowed: boolean }
+        Insert: { sub_role_id: string; permission_key: string; allowed: boolean }
+        Update: { allowed?: boolean }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -930,7 +987,10 @@ export interface Database {
       }
       get_org_members: {
         Args: Record<string, never>
-        Returns: Array<{ id: string; full_name: string; role: string; email: string; phone: string | null }>
+        Returns: Array<{
+          id: string; full_name: string; role: string; email: string; phone: string | null
+          sub_role_id: string | null; sub_role_name: string | null
+        }>
       }
       update_member: {
         Args: { p_user_id: string; p_full_name: string; p_phone: string | null }
@@ -939,6 +999,38 @@ export interface Database {
       check_pending_invite: {
         Args: { p_email: string }
         Returns: Json
+      }
+      my_permissions: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      my_invitable_roles: {
+        Args: Record<string, never>
+        Returns: string[]
+      }
+      assign_sub_role: {
+        Args: { p_user_id: string; p_sub_role_id: string | null }
+        Returns: void
+      }
+      assign_invite_sub_role: {
+        Args: { p_invite_id: string; p_sub_role_id: string | null }
+        Returns: void
+      }
+      create_sub_role: {
+        Args: { p_base_role: string; p_name: string; p_permissions: Json; p_invitable_roles: string[] }
+        Returns: string
+      }
+      update_sub_role: {
+        Args: { p_id: string; p_name: string; p_permissions: Json; p_invitable_roles: string[] }
+        Returns: void
+      }
+      archive_sub_role: {
+        Args: { p_id: string; p_archived?: boolean }
+        Returns: void
+      }
+      delete_sub_role: {
+        Args: { p_id: string; p_reassign_to: string }
+        Returns: void
       }
     }
     Enums: {

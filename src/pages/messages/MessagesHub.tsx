@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { isWorkerRole } from '../../lib/roleHome'
 import FamilyStickyHeader from '../../components/FamilyStickyHeader'
 import { useUnreadMessagesMap } from '../../hooks/useUnreadMessagesMap'
 
@@ -102,7 +103,7 @@ export default function MessagesHub() {
 
   // Workers go back to their portal; everyone else (family, coordinator,
   // recipient) belongs in the family journal — never send a recipient to /worker.
-  const isWorker = profile?.role === 'support_worker' || profile?.role === 'trusted_support_worker'
+  const isWorker = isWorkerRole(profile?.role)
   const backPath = isWorker ? '/worker' : '/family'
 
   return (

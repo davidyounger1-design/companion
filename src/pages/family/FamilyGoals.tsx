@@ -1,14 +1,14 @@
 import { useAuth } from '../../context/AuthContext'
 import { useClientId } from '../../hooks/useClientId'
+import { usePermissions } from '../../hooks/usePermissions'
 import NdisRecordsSection from '../../components/NdisRecordsSection'
 import { MobileFooter } from '../../components/SiteFooter'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
 
 export default function FamilyGoals() {
-  const { user, profile, org } = useAuth()
+  const { org, user } = useAuth()
   const { clientId, participantName, isLoading } = useClientId()
-  const isCoordinator = profile?.role === 'coordinator'
-  const isFamily = profile?.role === 'family'
+  const perms = usePermissions()
 
   if (isLoading) {
     return (
@@ -34,7 +34,7 @@ export default function FamilyGoals() {
             clientId={clientId}
             orgId={org.id}
             authorId={user.id}
-            canManageAny={isCoordinator || isFamily}
+            canManageAny={perms.edit_any_goal}
           />
         )}
 

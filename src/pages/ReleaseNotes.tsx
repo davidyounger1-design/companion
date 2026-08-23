@@ -3,6 +3,18 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.121',
+    date: '23 August 2026',
+    title: 'Configurable support worker types, and clearer permissions',
+    changes: [
+      { type: 'new', text: 'Coordinators can now create their own support worker "types" (e.g. "Trusted worker") from Settings → Permissions, each with its own set of permissions — instead of a single fixed "trusted" flag.' },
+      { type: 'change', text: '"Trusted support worker" is retired as a fixed role — anyone previously marked trusted keeps the exact same access, now expressed as a support worker type.' },
+      { type: 'change', text: 'The Members list shows each support worker\'s type, and coordinators can change it directly from a member\'s row.' },
+      { type: 'fix', text: 'Coordinators can now invite another coordinator from the Members page (previously only reachable via a direct link).' },
+      { type: 'new', text: 'The app header now always shows which organisation you\'re signed into.' },
+    ],
+  },
+  {
     version: '0.5.119',
     date: '25 July 2026',
     title: 'Medication tracking, multi-photo entries, and anyone can start a timer',

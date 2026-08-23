@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ModalActivityProvider } from './context/ModalActivityContext'
+import { isWorkerRole, roleHome } from './lib/roleHome'
 import { useFeatures } from './hooks/useFeatures'
 import { FEATURES } from './lib/features'
 import { getStoredFontScale, applyFontScale } from './lib/fontScale'
@@ -55,11 +56,9 @@ import Deck from './pages/Deck'
 import SiteFooter from './components/SiteFooter'
 import UpdatePrompt from './components/UpdatePrompt'
 
-// Updates apply silently: the service worker is registered with autoUpdate and
-// uses skipWaiting()/clientsClaim(), so a new version takes effect on the next
-// app launch with no user prompt. (A manual "new version ready" banner used to
-// live here, but it fired on every deploy — and spuriously on first load when
-// the SW first claimed the page — so it was removed.)
+// Updates require a user tap: sw.ts only calls skipWaiting() in response to a
+// postMessage from UpdatePrompt, so an installed PWA can keep running the old
+// bundle indefinitely until the user acts on that prompt.
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
@@ -77,8 +76,7 @@ function RequireCoordinator({ children }: { children: React.ReactNode }) {
   if (loading) return <FullPageSpinner />
   if (!user) return <Navigate to="/sign-in" replace />
   if (profile?.role !== 'coordinator') {
-    const role = profile?.role
-    if (role === 'support_worker' || role === 'trusted_support_worker') return <Navigate to="/worker" replace />
+    if (isWorkerRole(profile?.role)) return <Navigate to="/worker" replace />
     return <Navigate to="/family" replace />
   }
   return <>{children}</>
@@ -105,7 +103,7 @@ function BlockWorker({ children }: { children: React.ReactNode }) {
   const { user, loading, profile } = useAuth()
   if (loading) return <FullPageSpinner />
   if (!user) return <Navigate to="/sign-in" replace />
-  if (profile?.role === 'support_worker' || profile?.role === 'trusted_support_worker') return <Navigate to="/worker" replace />
+  if (isWorkerRole(profile?.role)) return <Navigate to="/worker" replace />
   return <>{children}</>
 }
 
@@ -137,12 +135,7 @@ function RequireNoAuth({ children }: { children: React.ReactNode }) {
   const { user, loading, profile, org } = useAuth()
   if (loading) return <FullPageSpinner />
   if (user) {
-    const role = profile?.role
-    if (role === 'support_worker' || role === 'trusted_support_worker') return <Navigate to="/worker" replace />
-    if (role === 'family' || role === 'recipient') return <Navigate to="/family" replace />
-    if (role === 'therapist') return <Navigate to="/therapist" replace />
-    if (role === 'coordinator' && org?.org_type === 'family') return <Navigate to="/family" replace />
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={roleHome(profile?.role, org?.org_type)} replace />
   }
   return <>{children}</>
 }

@@ -71,12 +71,18 @@ Deno.serve(async (req) => {
       .eq('id', userId)
       .maybeSingle()
     const safeRole = existingProfile?.role === 'coordinator' ? 'coordinator' : invite.role
+    // MATCH SIMPLE on the composite FK raises no error for a NULL
+    // sub_role_id, so leaving this out isn't a hard failure — it's a silent
+    // one: the invitee lands on the org's default sub-role instead of the
+    // one the coordinator actually picked at invite time.
+    const safeSubRoleId = safeRole === 'coordinator' ? null : (invite.sub_role_id ?? null)
 
     await admin.from('profiles').upsert({
       id: userId,
       full_name: name.trim(),
       org_id: invite.org_id,
       role: safeRole,
+      sub_role_id: safeSubRoleId,
     }, { onConflict: 'id' })
 
     // Link to participant (mirrors what accept_invite RPC does)

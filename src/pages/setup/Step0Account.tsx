@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { checkPlan, isFamilyPlan } from '../../lib/planCheck'
+import { isWorkerRole } from '../../lib/roleHome'
 
 type PlanChoice = 'family' | 'provider' | null
 
@@ -29,7 +30,7 @@ export default function Step0Account() {
       } else {
         navigate('/setup/service', { replace: true })
       }
-    } else if (profile.role === 'support_worker' || profile.role === 'trusted_support_worker') {
+    } else if (isWorkerRole(profile.role)) {
       navigate('/worker', { replace: true })
     } else {
       navigate('/setup/service', { replace: true })

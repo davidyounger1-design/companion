@@ -6,6 +6,7 @@ import { FEATURES } from '../../lib/features'
 import { useUnreadMessagesMap } from '../../hooks/useUnreadMessagesMap'
 import { SettingsIcon } from '../../components/icons'
 import ColorModePill from '../../components/ColorModePill'
+import OrgBadge from '../../components/OrgBadge'
 
 export default function WorkerLayout() {
   const { profile, user } = useAuth()
@@ -39,6 +40,7 @@ export default function WorkerLayout() {
         <div>
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>Companion</span>
           <span className="badge badge-sage" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>Worker</span>
+          <div><OrgBadge /></div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: '1 1 auto', justifyContent: 'flex-end' }}>
           <ColorModePill />
