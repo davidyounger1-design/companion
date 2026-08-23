@@ -77,26 +77,79 @@ privacy-hardening spec §1; this model must not reintroduce it.
 
 ## 2. Data model
 
-### 2.1 The cabinet
+### 2.1 The cabinet — split identity from enrolment
+
+**Decided 2026-08-24: split the participant record properly rather than duplicating identity across
+plans.** David's reasoning, which corrected an earlier draft of this spec: two linked records each holding
+their own copy of name, date of birth and the `about` content will drift. The `about` field is the
+clearest case — it holds *what calms Sarah, how she communicates, what she loves*. Duplicated, Friendship
+Circle's copy goes stale while the family's stays current, which defeats the entire point of sharing a
+participant across plans. In a care app that is a care-quality failure, not untidiness.
+
+But a single wholly-shared record cannot work either: there is nowhere to put `org_id`, and it would force
+one decision-maker and one active flag across two independent services. So the record splits by whether a
+field describes **the person** or **one enrolment**.
 
 ```sql
 create table companion.persons (
-  id         uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now()
+  id                   uuid primary key default gen_random_uuid(),
+  full_name            text not null,
+  dob                  date,
+  about                jsonb not null default '{}',
+  recipient_profile_id uuid references companion.profiles(id) on delete set null,
+  created_at           timestamptz not null default now()
 );
-
-alter table companion.clients add column person_id uuid references companion.persons(id);
 ```
 
-`clients` keeps its name and its meaning of "this person's enrolment in one plan" — the historical name is
-not worth a rename across ~30 tables. `persons` carries no personal data itself; it is purely the identity
-that drawers hang from, so it needs no RLS beyond "no direct access" (all reads go through `clients`).
+`clients` becomes purely the enrolment, keeping `org_id`, `setting`, `decision_maker_id`,
+`decision_maker_kind`, `active`, and gaining `person_id uuid not null references companion.persons(id)`.
+It **loses** `full_name`, `dob`, `about` and `recipient_profile_id` to `persons`.
 
-**Backfill is 1:1**: every existing `clients` row gets its own fresh `persons` row. No behaviour changes,
-because a cabinet with one drawer is indistinguishable from today. Linking is then the act of pointing two
-`clients` rows at the same `persons` row.
+Why each field lands where it does:
 
-`person_id` stays nullable through the backfill and becomes `not null` afterwards, once verified.
+| Field | Level | Reason |
+|---|---|---|
+| `full_name`, `dob` | person | Self-evidently one truth. Two linked records disagreeing on a date of birth is incoherent. |
+| `about` | person | The reason for sharing at all — Friendship Circle should benefit from what the family knows. |
+| `recipient_profile_id` | person | One human, one login. Also what makes the participant's merged view fall out for free (§3.1). |
+| `org_id` | enrolment | By definition. |
+| `setting` | enrolment | Friendship Circle is a day program; the family plan is home. |
+| `decision_maker_id`, `_kind` | enrolment | Dad may be the contact at Friendship Circle while mum runs the family plan. This is *consent authority* — collapsing it would be actively wrong. |
+| `active` | enrolment | A participant can be paused at one plan and active at another. |
+
+`clients.goals` (a legacy `jsonb` column superseded by the `participant_goals` table) is dropped in the same
+pass — verify it has no remaining readers first.
+
+**`clients` keeps its name.** "Enrolment" would be a better one, but renaming it means touching every
+`client_id` foreign key across ~30 tables for no functional gain. Documented, not renamed.
+
+### 2.1.1 Who may edit identity
+
+Needs David's confirmation — it is a product rule, not a technical one. Proposed:
+
+- The **participant themselves** and any **active decision-maker of any enrolment** may edit `persons`.
+- **Coordinators and workers are read-only**, with one exception: a coordinator may set identity when
+  *creating* a person, and may edit it while that person has exactly **one** enrolment. Once a second plan
+  is involved, no single provider can change what another relies on.
+
+Every identity edit is logged, because once shared it is data two businesses depend on.
+
+### 2.1.2 A view to contain the frontend churn
+
+`clients.full_name` is read on virtually every screen. To avoid a pervasive refactor, add a
+`security_invoker` view that presents the joined shape existing reads already expect:
+
+```sql
+create view companion.participants with (security_invoker = true) as
+select c.id, c.org_id, c.person_id, c.setting, c.decision_maker_id, c.decision_maker_kind,
+       c.active, c.created_at,
+       p.full_name, p.dob, p.about, p.recipient_profile_id
+from   companion.clients c join companion.persons p on p.id = c.person_id;
+```
+
+`security_invoker = true` (PG15+) means the view respects the underlying tables' RLS as the calling user
+rather than the view owner — without it the view would silently bypass every policy on `clients`. Reads
+move to the view; only writes need to know which table a field lives on.
 
 ### 2.2 Multi-plan membership
 
@@ -145,31 +198,59 @@ to no access, never to a default.
 
 ## 3. Access resolution
 
-### 3.1 Person-scoped read paths (the merge)
+### 3.1 The two merges have different mechanisms — and that matters
 
-Only two helpers change, and only for read:
+Working this through revealed that the participant's merged view and the family's merged view come from
+**different places**, and conflating them creates a cross-plan privilege escalation.
+
+**The participant's merge comes from the person link.** With `recipient_profile_id` on `persons`, it falls
+out for free:
 
 ```sql
--- Family: every drawer of every cabinet I'm linked to.
+-- Participant: every enrolment of the person whose login this is.
+create or replace function public.client_ids_for_recipient()
+returns setof uuid language sql stable security definer
+set search_path = 'companion', 'public' as $$
+  select c.id
+  from   companion.clients c
+  join   companion.persons p on p.id = c.person_id
+  where  p.recipient_profile_id = auth.uid()
+$$;
+```
+
+**The family's merge does NOT come from the person link — it comes from holding family membership on each
+enrolment.** `client_family` stays at *enrolment* level, and `client_ids_for_family()` needs only its
+organisation test removed:
+
+```sql
+-- Family: every enrolment I am actively linked to, in any plan.
 create or replace function public.client_ids_for_family()
 returns setof uuid language sql stable security definer
 set search_path = 'companion', 'public' as $$
-  select c2.id
+  select cf.client_id
   from   companion.client_family cf
-  join   companion.clients c  on c.id = cf.client_id
-  join   companion.clients c2 on c2.person_id = c.person_id
   where  cf.family_id = auth.uid()
     and  cf.status = 'active'
 $$;
 ```
 
-Recipient equivalent resolves through `clients.recipient_profile_id` to the person, then back out to all of
-that person's drawers.
+**Why not attach family to the person, which looks tidier?** Because `invite-member` currently lets a
+*coordinator* invite someone as family. If family membership were person-level, Friendship Circle's
+coordinator inviting anyone as "family" would hand them the family plan's drawer as well — a coordinator in
+one plan silently granting access to another plan's records. That is exactly what §1 forbids, arriving
+through a side door.
 
-**Note the deliberate absence of an organisation test.** That absence *is* the merge. This directly replaces
-the organisation test that the privacy-hardening pass adds in its item A5 — that check is correct under
-today's single-plan model and is *replaced*, not deleted, here. Hardening A5 is therefore not wasted work,
-but it is temporary, and this spec is where it gets superseded.
+Keeping family at enrolment level closes it structurally: mum sees the family plan's drawer because she is
+family *on that enrolment*, established when that plan was set up — not because Friendship Circle said so.
+Her right to each drawer comes from her relationship to that plan. She still gets one merged view; it is
+just assembled from two memberships she legitimately holds rather than inferred from one.
+
+**So `person_id` is load-bearing for the participant's view and for shared identity data — not for the
+family's view.** Worth knowing, because it means the family merge works even before any linking exists.
+
+**Note the deliberate absence of an organisation test in both.** That absence *is* the merge. It directly
+replaces the organisation test the privacy-hardening pass adds in item A5 — correct under today's
+single-plan model, and *replaced* here rather than deleted. A5 is therefore not wasted, but it is temporary.
 
 ### 3.2 Everything else keeps today's behaviour
 
@@ -274,8 +355,14 @@ on both tables — `060`'s default privileges make any bare `create table` in th
 
 Additive first, cut over last, and at no point is the app broken mid-sequence.
 
-1. **`persons` + `clients.person_id`**, backfilled 1:1. Zero behaviour change — a one-drawer cabinet behaves
-   exactly as today.
+1. **`persons` + `clients.person_id`**, backfilled 1:1 — each existing enrolment gets its own person, with
+   `full_name`/`dob`/`about`/`recipient_profile_id` **copied** (not moved) up. At this point both copies
+   exist and agree; nothing reads `persons` yet, so behaviour is unchanged.
+1a. **The `participants` view** (§2.1.2), and reads repointed at it. Still no behaviour change — the view
+   returns the same shape from the same data.
+1b. **Drop the moved columns from `clients`**, once no reader remains. This is the irreversible step and the
+   one to verify hardest: `grep` for every `full_name`, `dob`, `about` and `recipient_profile_id` reference
+   against `clients` (including edge functions and any `select *` that feeds a typed row) before dropping.
 2. **`profile_orgs`**, backfilled from `profiles.org_id`/`role`/`sub_role_id`. Still zero behaviour change;
    nothing reads it yet.
 3. **Active-context plumbing** — `my_org_id()`/`my_role()` resolve via context, falling back to the single
@@ -308,6 +395,18 @@ capability is step 6.
 ## 7. Verification
 
 Structural:
+0. **The `participants` view is `security_invoker`.** Without it the view reads as its owner and bypasses
+   every RLS policy on `clients` — the single most dangerous mistake in §2.1.2, and invisible until someone
+   probes it:
+   ```sql
+   select relname, reloptions from pg_class
+   where relname = 'participants' and relnamespace = 'companion'::regnamespace;
+   -- must include security_invoker=true
+   ```
+   Then prove it behaviourally: a support worker queries the view and sees only their assigned
+   participants, not every participant in the org.
+0a. **Identity edit authority (§2.1.1) holds.** A coordinator attempts to edit `persons` for a participant
+   who has two enrolments → refused. Same coordinator, participant with one enrolment → permitted.
 1. Every existing `clients` row has exactly one `persons` row after the backfill, and no two share one.
 2. `profile_orgs` row count equals the count of profiles with a non-null `org_id`, and every role matches.
 3. RLS enabled and no non-`SELECT` grants to `anon`/`authenticated` on `persons`, `profile_orgs`,
