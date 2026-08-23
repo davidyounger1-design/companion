@@ -192,14 +192,21 @@ create table if not exists companion.invite_ceiling (
   primary key (caller_base_role, invitable_role)
 );
 
+-- NOTE: no ('coordinator'|'family', 'trusted_support_worker') rows. A
+-- coordinator's invitable-role check short-circuits to the FULL ceiling
+-- (companion.invitable_roles_for's `p.role = 'coordinator' or exists(...)`
+-- branch), so any such row would make 'Trusted worker' reappear as a
+-- directly-invitable ROLE in the invite dropdown — exactly the path this
+-- migration exists to retire in favour of a support_worker sub-role.
+-- Confirmed live 2026-08-23: seeding it, even as "transitional", made it
+-- show up in the deployed app's invite modal immediately.
 insert into companion.invite_ceiling (caller_base_role, invitable_role) values
   ('coordinator','coordinator'),  ('coordinator','family'),
   ('coordinator','recipient'),    ('coordinator','support_worker'),
-  ('coordinator','therapist'),    ('coordinator','trusted_support_worker'), -- transitional
+  ('coordinator','therapist'),
   ('family','family'),            ('family','recipient'),
   ('family','support_worker'),    ('family','therapist'),
-  ('family','trusted_support_worker'),                                      -- transitional
-  ('trusted_support_worker','support_worker'),                              -- transitional
+  ('trusted_support_worker','support_worker'),                              -- transitional, moot (zero live rows)
   ('support_worker','support_worker')            -- CEILING ONLY, see comment above
 on conflict do nothing;
 
