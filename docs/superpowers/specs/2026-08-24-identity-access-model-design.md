@@ -128,18 +128,18 @@ the migration, so nothing breaks mid-flight; they are dropped only after every r
 every access rule in the system, and changing their shape is what this design exists to avoid. Instead they
 resolve against an **active context**, defaulting to the person's only membership when they have just one.
 
-Two viable mechanisms, and this is a real open choice:
+**Decided 2026-08-24: a request header.** The client sends the active plan on each request; the functions
+read it via `current_setting('request.headers', true)`, falling back to the single membership when a person
+belongs to only one plan. Per-request, therefore tab-safe — a coordinator can have The Friendship Circle
+open in one tab and their family plan in another without the two interfering. Costs a small amount of
+client plumbing on every Supabase call.
 
-- **(a) A request header** (recommended) — the client sends the active plan on each request; the functions
-  read it via `current_setting('request.headers', true)`, falling back to the single membership. Per-request
-  and therefore tab-safe: a coordinator can legitimately have FC open in one tab and their family plan in
-  another. Costs a small amount of client plumbing on every Supabase call.
-- **(b) `profiles.active_org_id`** — the switcher writes a column; the functions read it. Simpler, no client
-  changes beyond the switcher itself. But it is shared server-side state, so two tabs fight over it, and
-  that is exactly the scenario a two-plan coordinator will hit.
+Rejected: storing the active plan in a column on `profiles`. Simpler to build, but it is shared server-side
+state, so two tabs fight over it — switching plan in one tab silently changes what the other displays. That
+is precisely the situation a two-plan coordinator creates, and the failure is confusing rather than obvious.
 
-Recommend **(a)**. Whichever is chosen, both functions must **fail closed**: an active context naming a plan
-the person is not a member of resolves to no access, never to a default.
+Both functions must **fail closed**: an active context naming a plan the person is not a member of resolves
+to no access, never to a default.
 
 ---
 
@@ -342,11 +342,22 @@ from outside the app:
 - Providers being able to discover that a participant is enrolled elsewhere — deliberately impossible.
 - Merging *administrative* surfaces across plans; those stay per-plan by design.
 - Programs, and the NDIS compliance/exports work — separate specs.
-- The billing question of how a participant enrolled in two plans is counted. **Flagged, unresolved, and
-  genuinely consequential:** today two drawers are two `clients` rows in two orgs and each plan bills for
-  its own, which is almost certainly correct (both providers really are delivering a service). But it
-  intersects the unresolved per-seat-versus-usage-meter question in `Companion-Gap-Report.md`, and must not
-  be settled implicitly by whatever the linking code happens to do.
+- Changing billing in any way. **Decided 2026-08-24, and it is a principle rather than an exception:
+  which plan a participant is in is irrelevant to billing.** Cross-plan membership is not a billing input.
+  Each plan bills its own enrolment exactly as if the other did not exist — no discount, no de-duplication,
+  no cross-plan awareness of any kind. This mirrors the privacy model: each plan is wholly ignorant of the
+  other, commercially as well as informationally.
+
+  **Why this is written down rather than left obvious:** once two `clients` rows are linked to one
+  `persons` row, the schema starts *looking* like it has a duplicate. A later reader could reasonably
+  think "she's one person, count her once" and quietly stop a provider being billed for a participant they
+  genuinely are supporting. Linking code must not touch billing counts, and any future change that appears
+  to de-duplicate participants across plans is wrong by this rule.
+
+  **What this does not settle:** whether a single plan meters per staff seat or per active participant —
+  the open contradiction in `Companion-Gap-Report.md` between MAB's pricing card and
+  `Companion-MyAppBuddy-Integration.md`. That question is about billing *within* one plan and remains
+  unresolved; nothing here answers it.
 
 ---
 
