@@ -29,7 +29,6 @@ export default function WorkerNoticeBoard() {
         .from('client_workers')
         .select('client_id')
         .eq('worker_id', user!.id)
-        .eq('status', 'active')
         .limit(1)
         .maybeSingle()
       return data?.client_id ?? null
