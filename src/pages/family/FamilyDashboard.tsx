@@ -28,6 +28,7 @@ import BehaviourNotesSection from '../../components/BehaviourNotesSection'
 import MedicationList from '../../components/MedicationList'
 import PersonLinkPanel from '../../components/PersonLinkPanel'
 import { useOrgFeatureFlags } from '../../hooks/useOrgFeatureFlags'
+import { usePermissions } from '../../hooks/usePermissions'
 
 
 function formatDate(iso: string) {
@@ -814,6 +815,7 @@ function CalendarSheet({
 export default function FamilyDashboard() {
   const navigate = useNavigate()
   const { user, profile, org, refreshProfile } = useAuth()
+  const perms = usePermissions()
   const qc = useQueryClient()
 
   const isCoordinator = profile?.role === 'coordinator'
@@ -1297,7 +1299,7 @@ export default function FamilyDashboard() {
               const canDeleteOwn = isOwnEntry && (now - new Date(e.created_at).getTime()) < 60_000
               return (
                 <EntryCard key={e.id} entry={e} showAuthor={true} showMood={showMood && !isRecipient}
-                  canEdit={isOwnEntry} canShare={canShare}
+                  canEdit={isOwnEntry && perms.edit_own_entry} canShare={canShare}
                   canDeleteOwn={canDeleteOwn} now={now}
                   expiryDays={retentionDays != null ? daysUntilExpiry(e.occurred_at, retentionDays) : undefined}
                   onEdit={setEditingEntry} onDelete={deleteOwnEntry} />
