@@ -58,7 +58,7 @@ export default function RestrictivePracticesForm({
         type,
         authorised,
         authorisation_reference: authorised && authorisationReference.trim() ? authorisationReference.trim() : null,
-        started_at: new Date(startedAt).toISOString(),
+        ...(startedAt ? { started_at: new Date(startedAt).toISOString() } : {}),
         ended_at: endedAt ? new Date(endedAt).toISOString() : null,
         notes: notes.trim() || null,
         ...(bspId ? { bsp_id: bspId } : {}),
@@ -67,6 +67,10 @@ export default function RestrictivePracticesForm({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['restrictive-practices', clientId] })
+      // An unauthorised practice auto-creates an incident via 086's trigger —
+      // refresh the incidents section on the same page too.
+      qc.invalidateQueries({ queryKey: ['incidents', clientId] })
+      qc.invalidateQueries({ queryKey: ['open-incidents'] })
       onSaved()
     },
   })
