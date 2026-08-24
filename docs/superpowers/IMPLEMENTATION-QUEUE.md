@@ -59,10 +59,17 @@ undercutting the sub-role permission system shipped earlier in this session.
 
 ---
 
-## 4 · Privacy hardening, Pass A — file ready, needs to be run
+## 4 · DONE (2026-08-24) — Privacy hardening, Pass A
 
-**Spec:** `specs/2026-08-24-privacy-hardening-design.md`. Target migration `073`, written and committed
-(`98b8d85`), **not yet run against the live DB.** Seven items, pure RLS, no schema or frontend changes:
+**Status:** `073` run live 2026-08-24. Structural checks V1/V2/V3 confirmed via direct read-only query
+afterward — dead UPDATE policy gone, only the 9 already-coordinator-gated callers of
+`client_ids_for_org()` remain (down from 14), both rewritten functions are `SECURITY DEFINER` with the
+correct `search_path`. Behavioural checks V4–V10 (need real per-role JWTs) not yet run — do those if a
+live-traffic proof is wanted, but the structural evidence already confirms the migration applied as
+written with no drift.
+
+**Spec:** `specs/2026-08-24-privacy-hardening-design.md`. Migration `073`, committed `98b8d85`. Seven
+items, pure RLS, no schema or frontend changes:
 
 - **A1** drop `"workers can flag notes"` — verified dead code; currently lets any worker rewrite any
   clinical note, including re-parenting it to another participant
@@ -82,9 +89,8 @@ Verified via direct read-only queries (I1–I4 in the file, plus one extra live 
 one of the 14 total live callers of `client_ids_for_org()` is now either already coordinator-gated inline
 (8, unaffected by A4), fixed by A3 (3), or fixed by A4b (3) — none left ungated.
 
-**Do:** paste `073_privacy_hardening_rls.sql` into the Supabase SQL Editor and run it — I don't run DDL
-against the live DB myself. Follow the file's own verification section afterward (both halves of each
-probe: the fix works *and* the live org's real workflow still works).
+Optional follow-up: run V4–V10 (behavioural, need real per-role JWTs) for live-traffic proof — not
+required, the structural checks already confirm a clean apply.
 
 ## 5 · Privacy hardening, Pass B — server-side entitlements
 
