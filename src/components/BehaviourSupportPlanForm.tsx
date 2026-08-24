@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { errorMessage } from '../lib/errorMessage'
-
-const BSP_BUCKET = 'bsp-documents'
+import { BSP_BUCKET } from '../lib/behaviourSupportPlans'
 
 function fileExt(file: File) {
   return file.name.split('.').pop()?.toLowerCase() ?? 'pdf'

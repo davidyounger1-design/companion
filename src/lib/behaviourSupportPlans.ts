@@ -1,5 +1,10 @@
 import { parseLocalDate } from './schedule'
 
+/** Private Storage bucket holding behaviour support plan documents.
+ * Dashboard-managed like journal-photos — no migration creates it, and the
+ * row's file_path is the object key inside it. */
+export const BSP_BUCKET = 'bsp-documents'
+
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
 /** Format a plan date. review_due arrives as 'YYYY-MM-DD' — parsed as local
