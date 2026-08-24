@@ -35,6 +35,13 @@ const FALLBACK: CatalogPlan[] = [
   { id: 'companion_solo',    appId: APP_ID, name: 'Solo',    blurb: 'Perfect for sole traders and tiny teams.',              priceMonth: 2900, priceYear: 29200, perSeat: false, popular: false, features: ['3 active participants', 'Unlimited workers', 'Family digest', 'Behaviour notes', 'NDIS-ready records'], sort: 1 },
   { id: 'companion_starter', appId: APP_ID, name: 'Starter', blurb: 'For growing providers with a proper team.',             priceMonth: 4900, priceYear: 49200, perSeat: false, popular: true,  features: ['10 active participants', 'Unlimited workers', 'Everything in Solo', 'Shared therapy circles', 'Priority support'], sort: 2 },
   { id: 'companion_team',    appId: APP_ID, name: 'Team',    blurb: 'Scales with your caseload — no cap.',                    priceMonth: 700,  priceYear: 7056,  perSeat: true,  popular: false, features: ['Unlimited participants', 'Unlimited workers', 'Everything in Starter', 'Usage billing (NDIS-ready)', 'Dedicated onboarding'], sort: 3 },
+  // The live hub catalog is authoritative — these two tiers were added to the
+  // hub and copied from it verbatim 2026-08-24 so fallback mode stays in step
+  // (blurbs + feature lists below match the hub exactly). The hub returns no
+  // priceYear; it follows the existing ~10-month synthesized convention here
+  // (10 × priceMonth), per the same convention the older rows use.
+  { id: 'companion_family_029', appId: APP_ID, name: 'Family +', blurb: 'Everything a family needs',                         priceMonth: 1500, priceYear: 15000, perSeat: false, popular: true,  features: ['Everything in Family plus:', 'Recipient can log in and see their own entries', 'Daily Schedule', 'Timers', 'Mood tracking'], sort: 1 },
+  { id: 'companion_enterprise', appId: APP_ID, name: 'Enterprise', blurb: 'Multi-site & large providers',                    priceMonth: 50000, priceYear: 500000, perSeat: false, popular: false, features: ['Unlimited participants', 'Everything in Team', 'SSO & advanced compliance', 'Dedicated success manager', 'API & integrations'], sort: 5, hidden: true },
 ]
 
 /**
