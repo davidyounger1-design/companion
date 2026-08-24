@@ -32,7 +32,10 @@ export default function FamilyGoals() {
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>{participantName}'s goals</h1>
         </div>
 
-        {clientId && org && user && has(FEATURES.ndisRecords) && (
+        {/* Gated on `goals`, not `ndis_records`: family plans carry `goals`
+            but not `ndis_records`, and this section is this page's only
+            content — the records gate left family with an empty page. */}
+        {clientId && org && user && has(FEATURES.goals) && (
           <NdisRecordsSection
             clientId={clientId}
             orgId={org.id}

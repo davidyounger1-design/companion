@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useFeatures } from '../hooks/useFeatures'
 import { FEATURES } from '../lib/features'
-import type { BehaviourNote } from '../types/database'
+import type { BehaviourNote, Role } from '../types/database'
 import { downloadCsv, downloadBlob } from '../lib/behaviourNotes'
 import { errorMessage } from '../lib/errorMessage'
 import BehaviourNoteCard from './BehaviourNoteCard'
@@ -14,7 +14,12 @@ import MoodTrendChart from './MoodTrendChart'
 export default function BehaviourNotesSection({ clientId }: { clientId: string }) {
   const { user, profile } = useAuth()
   const { has } = useFeatures()
-  const canExport = has(FEATURES.ndisExports)
+  // Mirror the EXPORT_ROLES union in supabase/functions/export-records
+  // (index.ts) exactly: the server rejects any role outside it, so the button
+  // must not show for them — a decision_maker previously saw it and clicked
+  // straight into that fail-closed error.
+  const EXPORT_ROLES: Role[] = ['coordinator', 'support_worker', 'trusted_support_worker', 'family']
+  const canExport = has(FEATURES.ndisExports) && !!profile && EXPORT_ROLES.includes(profile.role)
   const [selected, setSelected] = useState<BehaviourNote | null>(null)
   const [showChart, setShowChart] = useState(false)
   const [exporting, setExporting] = useState(false)
