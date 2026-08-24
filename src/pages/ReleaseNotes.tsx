@@ -3,6 +3,15 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.125',
+    date: '24 August 2026',
+    title: 'Fix: "Note" journal entries could not be saved',
+    changes: [
+      { type: 'fix', text: 'Picking "Note" when logging a journal entry now saves correctly. It never worked — the database never accepted that entry type — and the error shown ("Could not save") hid the real reason.' },
+      { type: 'fix', text: 'Error messages across the app (journal entries, behaviour notes, goals, incidents, medications) now show the actual reason a save failed instead of a generic "Could not save. Try again."' },
+    ],
+  },
+  {
     version: '0.5.123',
     date: '23 August 2026',
     title: 'Fix: edit button showed on a care journal with no participant',

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { supabase } from '../../../lib/supabase'
+import { errorMessage } from '../../../lib/errorMessage'
 import { ensureFreeFamilySubscription } from '../../../lib/familyPlan'
 
 export default function FamilyStep1Participant() {
@@ -29,7 +30,7 @@ export default function FamilyStep1Participant() {
       await refreshProfile()
       navigate('/setup/family/invite')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+      setError(errorMessage(e, 'Something went wrong. Please try again.'))
     } finally {
       setSaving(false)
     }

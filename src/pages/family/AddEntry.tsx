@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { errorMessage } from '../../lib/errorMessage'
 import MoodSlider from '../../components/MoodSlider'
 import { createImageThumbnail, encryptFile, mimeFromPath } from '../../lib/photoEncryption'
 import { useFeatures } from '../../hooks/useFeatures'
@@ -153,7 +154,7 @@ export default function AddEntry() {
       qc.invalidateQueries({ queryKey: ['family-journal', clientId] })
       navigate('/family')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save entry.')
+      setError(errorMessage(e, 'Could not save entry.'))
     } finally {
       setSaving(false)
     }

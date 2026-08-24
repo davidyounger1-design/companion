@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { supabase } from '../../lib/supabase'
+import { errorMessage } from '../../lib/errorMessage'
 import { useAuth } from '../../context/AuthContext'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES } from '../../lib/features'
@@ -446,7 +447,7 @@ function ActivityTab({
             </div>
             {addLog.isError && (
               <div className="alert alert-error">
-                {addLog.error instanceof Error ? addLog.error.message : 'Could not save. Try again.'}
+                {errorMessage(addLog.error, 'Could not save. Try again.')}
               </div>
             )}
           </form>
@@ -503,7 +504,7 @@ function ActivityTab({
                   )}
                   {updateLog.isError && (
                     <div className="alert alert-error" style={{ fontSize: '0.8rem' }}>
-                      {updateLog.error instanceof Error ? updateLog.error.message : 'Could not save.'}
+                      {errorMessage(updateLog.error, 'Could not save.')}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '0.5rem' }}>

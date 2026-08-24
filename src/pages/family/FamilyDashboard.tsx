@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { useModalOpen } from '../../context/ModalActivityContext'
 import { supabase } from '../../lib/supabase'
+import { errorMessage } from '../../lib/errorMessage'
 import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
@@ -411,13 +412,13 @@ function EditEntryModal({
         qc.invalidateQueries({ queryKey: ['entry-photos', entry.id] })
       }
     }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not save.'); setSaving(false) }
+    catch (e) { setError(errorMessage(e, 'Could not save.')); setSaving(false) }
   }
 
   async function handleDelete() {
     setDeleting(true)
     try { await onDelete(entry.id) }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not delete.'); setDeleting(false); setConfirmDelete(false) }
+    catch (e) { setError(errorMessage(e, 'Could not delete.')); setDeleting(false); setConfirmDelete(false) }
   }
 
   return (

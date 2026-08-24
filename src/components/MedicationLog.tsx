@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { errorMessage } from '../lib/errorMessage'
 import { useAuth } from '../context/AuthContext'
 import { STATUS_LABEL, STATUS_COLOR, formatMedicationDate } from '../lib/medications'
 import type { MedicationLog as MedicationLogType, MedicationLogStatus } from '../types/database'
@@ -90,7 +91,7 @@ export default function MedicationLog({
             </div>
             {addLog.isError && (
               <div className="alert alert-error" style={{ fontSize: '0.8rem' }}>
-                {addLog.error instanceof Error ? addLog.error.message : 'Could not save.'}
+                {errorMessage(addLog.error, 'Could not save.')}
               </div>
             )}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
