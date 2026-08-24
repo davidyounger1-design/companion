@@ -177,22 +177,18 @@ Progress against §5's 7 steps:
   Friendship Circle's first participant as the SAME person). Doing step 5 (person-scope the two read
   helpers) and step 6 (linking) next, ahead of the staff plan-switcher UI, which can wait until a real
   staff member actually needs it.
-- **Step 5 — WRITTEN, NOT YET RUN.** `080_person_scope_recipient_family.sql` — confirmed live 2026-08-25
-  that this has NOT been applied yet (`client_ids_for_family()` still has the old org-gated body). Once
-  run: `client_ids_for_recipient()` joins through `persons.recipient_profile_id` (returns every enrolment
-  of a person once linked, not just one); `client_ids_for_family()` loses the org test 073/A5 added —
-  deliberately superseded per the spec's own note, not a regression.
-- **Step 6 — WRITTEN, NOT YET RUN.** `081_person_linking.sql` — confirmed live 2026-08-25 that
-  `person_link_codes`/`person_links` don't exist yet. Once run: the actual linking feature — those two
-  tables (zero direct grants, RPC-only access) and four RPCs (`generate_person_link_code`,
-  `preview_person_link`, `confirm_person_link`, `unlink_person`), implementing all seven §4.1 safeguards.
-- **Frontend — DONE, but calling RPCs that don't exist yet.** `PersonLinkPanel.tsx`, wired into
-  `FamilyDashboard.tsx` (shown to both family and recipient, never coordinator/worker), shipped as
-  `0.5.128`. **It will error for anyone who tries to use it until 080 and 081 are both run** — deployed
-  ahead of the migrations by mistake (assumed "just get it all done" meant the migrations were already
-  applied; they weren't, since this app's convention is David pastes every migration himself). Low
-  practical risk right now — nobody has a second enrolment to link yet — but run 080 then 081 before
-  relying on this feature.
+- **Step 5 — DONE.** `080_person_scope_recipient_family.sql` run live and confirmed 2026-08-25:
+  `client_ids_for_recipient()` now joins through `persons.recipient_profile_id`; `client_ids_for_family()`
+  lost the org test 073/A5 added, as intended.
+- **Step 6 — DONE.** `081_person_linking.sql` run live and confirmed 2026-08-25: `person_link_codes`/
+  `person_links` exist, RLS enabled, zero direct table grants. EXECUTE grants matrix confirmed exactly as
+  intended — the four public RPCs (`generate_person_link_code`, `preview_person_link`,
+  `confirm_person_link`, `unlink_person`) granted to `authenticated` only, the internal
+  `is_participant_or_decision_maker` helper granted to nobody.
+- **Frontend — DONE and now backed by working RPCs.** `PersonLinkPanel.tsx` in `FamilyDashboard.tsx`,
+  shipped as `0.5.128`. The end-to-end flow (generate → preview → confirm → unlink) hasn't been run
+  against real data yet — that's the actual test of whether Sarah Younger can be linked across her two
+  enrolments.
 - **URGENT FIX, found while building the above — `082_auto_create_person_trigger.sql`, DONE.** 077's
   `clients.person_id not null` was added without auditing every INSERT call site. Two real live breaks:
   `setup_family_org()` (every new family-plan signup, since step 1 of onboarding) and
