@@ -1,6 +1,8 @@
 import { useAuth } from '../../context/AuthContext'
 import { useClientId } from '../../hooks/useClientId'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 import NdisRecordsSection from '../../components/NdisRecordsSection'
 import { MobileFooter } from '../../components/SiteFooter'
 import FamilyBottomNav from '../../components/FamilyBottomNav'
@@ -9,6 +11,7 @@ export default function FamilyGoals() {
   const { org, user } = useAuth()
   const { clientId, participantName, isLoading } = useClientId()
   const perms = usePermissions()
+  const { has } = useFeatures()
 
   if (isLoading) {
     return (
@@ -29,7 +32,7 @@ export default function FamilyGoals() {
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>{participantName}'s goals</h1>
         </div>
 
-        {clientId && org && user && (
+        {clientId && org && user && has(FEATURES.ndisRecords) && (
           <NdisRecordsSection
             clientId={clientId}
             orgId={org.id}

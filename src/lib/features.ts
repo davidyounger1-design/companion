@@ -26,6 +26,7 @@ export const FEATURES = {
   behaviourNotes: 'behaviour_notes',
   therapyCircles: 'therapy_circles',
   ndisExports: 'ndis_exports',
+  ndisRecords: 'ndis_records',
   providerDashboard: 'provider_dashboard',
   recipientLogin: 'recipient_login',
   moodTracking: 'mood_tracking',

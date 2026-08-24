@@ -125,7 +125,7 @@ export default function WorkerClientDetail() {
   const showMood = has(FEATURES.moodTracking)
   const showBehaviourNotesFeature = has(FEATURES.behaviourNotes)
   const showIncidentWorkflows = has(FEATURES.incidentWorkflows)
-  const showNdisRecords = has(FEATURES.goals)
+  const showNdisRecords = has(FEATURES.ndisRecords)
   const { isEnabled: orgEnabled } = useOrgFeatureFlags()
   const showMedicationTracking = has(FEATURES.medicationTracking) && orgEnabled('medication_tracking')
   const [showMedications, setShowMedications] = useState(false)
