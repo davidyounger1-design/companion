@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES } from '../../lib/features'
 import { useScheduleSkips } from '../../hooks/useScheduleSkips'
+import { usePermissions } from '../../hooks/usePermissions'
 import AiBadge from '../../components/AiBadge'
 import MoodSlider from '../../components/MoodSlider'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
@@ -222,7 +223,7 @@ function ActivityTab({
   authorId: string
   showMood: boolean
 }) {
-  const { profile } = useAuth()
+  const perms = usePermissions()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [selectedType, setSelectedType] = useState<LogType>('activity')
@@ -473,7 +474,7 @@ function ActivityTab({
             const typeInfo = LOG_TYPES.find((t) => t.type === log.type)
             const isEditing = editingId === log.id
             const isOwn = log.author_id === authorId
-            const canEdit = isOwn || profile?.role === 'coordinator'
+            const canEdit = (isOwn && perms.edit_own_entry) || perms.edit_any_entry
 
             if (isEditing) {
               return (

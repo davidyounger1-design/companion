@@ -659,8 +659,8 @@ export default function WorkerClientDetail() {
 
               return (
                 <div key={log.id} className="card card-sm"
-                  style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer' }}
-                  onClick={() => startEdit(log)}>
+                  style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: perms.edit_own_entry ? 'pointer' : 'default' }}
+                  onClick={perms.edit_own_entry ? () => startEdit(log) : undefined}>
                   <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon ?? '📝'}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
@@ -677,7 +677,9 @@ export default function WorkerClientDetail() {
                     <EntryReactions entryId={log.id} />
                     <EntryComments entryId={log.id} clientId={log.client_id} orgId={log.org_id} />
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2, flexShrink: 0 }}>✏️</span>
+                  {perms.edit_own_entry && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2, flexShrink: 0 }}>✏️</span>
+                  )}
                 </div>
               )
             })}
