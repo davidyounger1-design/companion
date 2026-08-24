@@ -138,9 +138,9 @@ the restrictive gate on that assumption risks locking a real org out of a table 
 
 ---
 
-## 6 · Identity & access model
+## 6 · Identity & access model — IN PROGRESS (started 2026-08-25)
 
-**Spec:** `specs/2026-08-24-identity-access-model-design.md`. Large. All design questions closed.
+**Spec:** `specs/2026-08-24-identity-access-model-design.md`. Large, 7-stage rollout per §5, additive-first.
 
 Cabinet/drawer model: split `clients` into `persons` (identity: name, dob, about, own login) and the
 enrolment; staff roles switch plan context, person-side roles get one merged view; active plan travels as a
@@ -150,6 +150,24 @@ coordinator only when no family-plan enrolment exists).
 **Note the email caveat:** the edit-authority rule can't be enforced by a policy for the login email, which
 lives on `auth.users` and is changed via `update-member-email` — a service-role function that bypasses RLS.
 The check has to go in the function body or the rule holds for two fields out of three.
+
+Progress against §5's 7 steps:
+- **Step 1 + 1a — DONE.** `077_persons_identity_split.sql` run live, all four verification checks (V1–V4)
+  confirmed via direct query: `companion.persons` created and backfilled 1:1 from every existing `clients`
+  row (a per-row loop, not a `row_number()` pairing — two live rows share every backfilled column, which
+  would have made a naive pairing genuinely risky), the `companion.participants` `security_invoker` view
+  added. Zero behaviour change — nothing reads either yet.
+- **Step 1b — not started.** Drop `clients.full_name`/`dob`/`about`/`recipient_profile_id`/`goals` once
+  every frontend/function reader is repointed at the `participants` view. Requires a grep-everything pass
+  first; deliberately the hardest and most irreversible step, done last among 1/1a/1b.
+- **Step 2 (`profile_orgs`) — next.**
+- Steps 3–7 (active-context plumbing, frontend plan switcher, person-scoping the two read helpers, linking
+  itself, cleanup) — not started.
+
+Trigger for this work: David tried to add Sarah Younger (already a participant on her family plan) as The
+Friendship Circle's first participant — the exact cross-plan scenario this spec exists for, and the
+schema/linking work wasn't done yet. Chose to build it properly rather than add her as a disconnected
+duplicate.
 
 ---
 
