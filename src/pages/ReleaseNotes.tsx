@@ -3,6 +3,16 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.135',
+    date: '25 August 2026',
+    title: 'Family goals restored, NDIS registers locked',
+    changes: [
+      { type: 'fix', text: 'Family accounts can see Goals & progress again — it was accidentally hidden behind the NDIS-records entitlement.' },
+      { type: 'change', text: 'Restrictive-practice and behaviour-support-plan entries can no longer be deleted by anyone; they can only be added or edited, so both registers stay complete for NDIS audits.' },
+      { type: 'change', text: 'The export button is now only shown to roles that are permitted to export participant records.' },
+    ],
+  },
+  {
     version: '0.5.134',
     date: '25 August 2026',
     title: 'Server-side exports with an audit trail',
