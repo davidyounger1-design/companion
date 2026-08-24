@@ -1,11 +1,14 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- 073 · Privacy & access-control hardening, Pass A  (idempotent)
 --
--- Six RLS corrections. No new tables, no schema changes, no frontend
--- changes. Every item fixes a live, verified hole — not a theoretical
--- one. Full rationale: docs/superpowers/specs/2026-08-24-privacy-
--- hardening-design.md. Read that before touching anything here; this
--- file assumes its reasoning and states only what changes.
+-- Six RLS corrections from the spec, plus three more (A4b) found live
+-- while reconciling A4 against the actual database. No new tables, no
+-- schema changes, no frontend changes. Every item fixes a live,
+-- verified hole — not a theoretical one. Full rationale:
+-- docs/superpowers/specs/2026-08-24-privacy-hardening-design.md. Read
+-- that before touching anything here; this file assumes its reasoning
+-- and states only what changes (A4b is not in that spec — it exists
+-- purely to keep A4 from breaking real live functionality).
 --
 -- INDEPENDENT of 071/072/074/075, all written or applied separately.
 -- May run before or after any of them — nothing here references a
@@ -69,9 +72,13 @@ from   pg_policy where polrelid = 'companion.behaviour_notes'::regclass
 order  by polcmd, polname;
 
 -- I3 · Every caller of client_ids_for_org(), before A4 tightens it.
---      Each must already be coordinator-gated, or fixed by A3 in this
---      same file — if anything else shows up here, STOP and reconcile
---      before running the transaction; A4 would silently zero it out.
+--      Each must already be coordinator-gated, or fixed by A3/A4b in
+--      this same file — if anything else shows up here, STOP and
+--      reconcile before running the transaction; A4 would silently
+--      zero it out. (A4b's three policies were found by running this
+--      exact query directly against live, after A1-A6 were first
+--      drafted — that is why they aren't already listed as an I-block
+--      finding above; this query is what found them.)
 select n.nspname, c.relname, pol.polname,
        pg_get_expr(pol.polqual, pol.polrelid)      as using_expr,
        pg_get_expr(pol.polwithcheck, pol.polrelid) as check_expr
@@ -171,10 +178,100 @@ set search_path = 'companion', 'public' as $$
     and  c.org_id = public.my_org_id()
 $$;
 
+-- ── A4b · Three more client_ids_for_org() callers, found live ──────
+--
+-- Discovered via a direct I3 read-only query against the live DB
+-- (see chat, not captured as an I-block above since it was run after
+-- this file's first commit) — NOT in the original six-item plan.
+-- Once A4 above makes client_ids_for_org() return nothing for a
+-- non-coordinator, these three policies silently lose all access for
+-- the family role and for workers, breaking real live functionality —
+-- the one live org today is a family plan, so the first two are
+-- capabilities family members actually use.
+--
+--   "family can manage client_workers" (companion.client_workers,
+--   polcmd='*') and "family can manage client_family"
+--   (companion.client_family, polcmd='*') both gate on role='family'
+--   but scope on the bare, unrestricted client_ids_for_org() — after
+--   A4 that returns empty for family, so both policies go from
+--   "org-wide reach" (already too broad — the actual gap this closes)
+--   straight to "no access at all" instead of the correct
+--   "this family's own linked participants."
+--
+--   "can view photos for visible entries" (companion.log_entry_photos,
+--   polcmd='r') has a bare client_ids_for_org() OR-term with no role
+--   test — support workers currently rely on it for photo access since
+--   there is no dedicated worker clause. Replaced with the same
+--   recipient/family/worker/coordinator shape used elsewhere, so photo
+--   access for a log entry tracks exactly who can already see that
+--   entry (companion.log_entries), not "anyone in the org."
+drop policy if exists "family can manage client_workers" on companion.client_workers;
+create policy "family can manage client_workers"
+  on companion.client_workers for all
+  using (
+    public.my_role() = 'family'
+    and client_id in (select public.client_ids_for_family())
+  );
+
+drop policy if exists "family can manage client_family" on companion.client_family;
+create policy "family can manage client_family"
+  on companion.client_family for all
+  using (
+    public.my_role() = 'family'
+    and client_id in (select public.client_ids_for_family())
+  );
+
+drop policy if exists "can view photos for visible entries" on companion.log_entry_photos;
+create policy "can view photos for visible entries"
+  on companion.log_entry_photos for select
+  using (
+    exists (
+      select 1 from companion.log_entries le
+      where le.id = log_entry_photos.entry_id
+        and ( le.client_id in (select public.client_ids_for_recipient())
+           or le.client_id in (select public.client_ids_for_family())
+           or le.client_id in (select public.client_ids_for_worker())
+           or (le.org_id = public.my_org_id() and public.my_role() = 'coordinator') )
+    )
+  );
+
 -- ── A6 · Participant-scope notices and the messages group thread ──
--- Coordinators keep org-wide access (confirmed 2026-08-24) — consistent
--- with "coordinators can manage clients" (002) and their existing
--- org-wide read of log_entries (003) and behaviour_notes (004).
+--
+-- CORRECTED 2026-08-24 after the I4 inspect results came back — live
+-- reality differs from every migration file for both tables, in a way
+-- that would have made the originally-drafted fix here a no-op:
+--
+--   notices:  the ONLY live SELECT policy is "view notices" — org-wide,
+--             NO role check at all (not even excluding recipient). It
+--             exists in NO migration file (grepped all 72 prior files).
+--             059's "org members can view notices" (which DOES exclude
+--             recipient) was apparently never actually applied — only
+--             "view notices" is live. Worse than this spec originally
+--             documented: recipients currently CAN read notices.
+--
+--   messages: TWO live permissive SELECT policies both apply (Postgres
+--             ORs permissive policies) — "org members can view messages"
+--             (043/044's org_type-aware shape, matches no later file
+--             verbatim either) AND "view messages" (also in NO migration
+--             file). Working through both combined: coordinators already
+--             get unconditional org-wide access; support workers only
+--             ever get their own 1:1 threads and never had group-thread
+--             access to lose. The one real leak is family: both policies
+--             grant "recipient_id is null" group-thread access to ANY
+--             family-role user, with no check against which participant
+--             they are actually linked to via client_family.
+--
+--   Preserved deliberately: the org_type = 'family' branch, which grants
+--   coordinator+family UNCONDITIONAL message access with no participant
+--   check at all. That is exactly the one real live org. A naive fix
+--   would have narrowed this — a real behaviour change nobody asked
+--   for — so it is kept verbatim and only PROVIDER-org family access
+--   gains participant scoping.
+--
+-- Drops BOTH the documented and the undocumented policy on each table —
+-- dropping only the documented one would leave the undocumented
+-- duplicate fully in force underneath the new policy, nullifying the fix.
+drop policy if exists "view notices" on companion.notices;
 drop policy if exists "org members can view notices" on companion.notices;
 create policy "org members can view notices"
   on companion.notices for select
@@ -187,13 +284,13 @@ create policy "org members can view notices"
       or ( public.my_role() = 'family'
            and client_id in (select public.client_ids_for_family()) )
       -- therapist: no access — notices were never part of the note_shares
-      -- consent model. recipient: no access — unchanged from 059.
+      -- consent model. recipient: no access — this is the actual fix;
+      -- previously granted with no role check at all.
     )
   );
 
--- Only the group-thread branch changes. The two 1:1 branches
--- (sender_id/recipient_id = auth.uid()) are untouched, verbatim from 057.
 drop policy if exists "org members can view messages" on companion.messages;
+drop policy if exists "view messages" on companion.messages;
 create policy "org members can view messages"
   on companion.messages for select
   using (
@@ -201,10 +298,17 @@ create policy "org members can view messages"
     and (
       sender_id = auth.uid()
       or recipient_id = auth.uid()
-      or ( recipient_id is null
-           and ( public.my_role() = 'coordinator'
-                 or ( public.my_role() = 'family'
-                      and client_id in (select public.client_ids_for_family()) ) ) )
+      or public.my_role() = 'coordinator'
+      -- Family org: UNCHANGED from live behaviour — unconditional, no
+      -- participant check. Single-participant orgs, so nothing to leak.
+      or ( public.my_org_type() = 'family' and public.my_role() = 'family' )
+      -- Provider org: THE FIX — group thread scoped to participants this
+      -- family member is actually linked to, instead of every participant
+      -- in the org.
+      or ( public.my_org_type() <> 'family'
+           and public.my_role() = 'family'
+           and recipient_id is null
+           and client_id in (select public.client_ids_for_family()) )
     )
   );
 
