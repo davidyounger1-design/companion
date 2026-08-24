@@ -3,6 +3,16 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.131',
+    date: '25 August 2026',
+    title: 'Plan entitlements now gate records, invites and retention',
+    changes: [
+      { type: 'change', text: 'NDIS Records is now controlled by its own plan entitlement (ndis_records) on the worker, coordinator and family screens, instead of following the Goals entitlement. Plans without it no longer see the section — talk to MyAppBuddy admin if your plan should include it.' },
+      { type: 'change', text: 'Inviting a recipient or therapist now checks your plan\'s entitlements before sending, so a plan that doesn\'t include those roles can\'t be invited into them.' },
+      { type: 'new', text: 'Journal entries older than your plan\'s retention window are now removed automatically overnight. If your plan doesn\'t set a window, entries are kept indefinitely.' },
+    ],
+  },
+  {
     version: '0.5.130',
     date: '25 August 2026',
     title: 'Journal edits now leave an audit trail',
