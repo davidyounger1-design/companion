@@ -94,9 +94,28 @@ required, the structural checks already confirm a clean apply.
 
 ## 5 · Privacy hardening, Pass B — server-side entitlements
 
-Same spec, §3. Target `074`. Entitlement gating is browser-only and bypassable by direct API call. Follow
-`055`'s precedent (mirror onto `organisations`, sync in `reconcileOrgPlan`, enforce with a restrictive
-policy). Must not ship before Pass A.
+Same spec, §3. Entitlement gating is browser-only and bypassable by direct API call. Follows `055`'s
+precedent (mirror onto `organisations`, sync in `reconcileOrgPlan`, enforce with a restrictive policy).
+Must not ship before Pass A — which is now done (item 4).
+
+**Split into two steps after discovering there are FOUR active orgs today, not the one the spec's risk
+analysis assumed** — including two duplicate "The Friendship Circle" rows sharing one subscription id, and
+one whose `plan` column holds what looks like a display name ("Family +") rather than a real MAB slug.
+None of the four have ever had entitlements resolved server-side, and `behaviour_notes` /
+`medication_tracking` / `incident_workflows` aren't gated by `RequireFeature` anywhere in the frontend today
+— so there's no existing signal whether any of their MAB plans actually have those keys ticked on. Shipping
+the restrictive gate on that assumption risks locking a real org out of a table it's using right now.
+
+- **Step 1 — DONE (2026-08-24).** `074_org_entitlements_mirror.sql`: adds `organisations.entitlements
+  jsonb`, `public.org_has_feature(text)` (fail-closed, `stable security definer`), and
+  `reconcileOrgPlan`/`fetchFeatures` now write the org's resolved feature set on login. Purely additive —
+  nothing reads or enforces it yet, so this changes no live behaviour. Frontend shipped as `0.5.126`.
+- **Step 2 — blocked on data, not code.** Once each of the four orgs has logged in at least once
+  post-`074`, run the verification query at the bottom of that file. Any table a org is actively using but
+  whose feature key is missing from its mirrored `entitlements` is a MAB Admin gap (tick the key onto that
+  plan) that must be fixed before the gate can go in for that org. Only once all four check out clean should
+  the actual restrictive `for all` gate on `behaviour_notes`/`medications`/`medication_logs`/
+  `participant_goals`/`incidents` ship, as a follow-up migration.
 
 ---
 

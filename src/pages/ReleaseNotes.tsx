@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.126',
+    date: '24 August 2026',
+    title: 'Behind the scenes: entitlements now sync to the server',
+    changes: [
+      { type: 'change', text: 'No visible change yet. Your subscription\'s included features are now also recorded against your organisation on sign-in, laying the groundwork for enforcing them server-side rather than only in the app itself.' },
+    ],
+  },
+  {
     version: '0.5.125',
     date: '24 August 2026',
     title: 'Fix: "Note" journal entries could not be saved',

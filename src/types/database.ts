@@ -55,6 +55,7 @@ export interface Database {
           metered_axis: MeteredAxis | null
           owner_id: string | null
           created_at: string
+          entitlements: string[]
         }
         Insert: {
           id?: string
@@ -72,6 +73,7 @@ export interface Database {
           metered_axis?: MeteredAxis | null
           owner_id?: string | null
           created_at?: string
+          entitlements?: string[]
         }
         Update: {
           name?: string
@@ -87,6 +89,7 @@ export interface Database {
           seats?: number | null
           metered_axis?: MeteredAxis | null
           owner_id?: string | null
+          entitlements?: string[]
         }
         Relationships: []
       }
