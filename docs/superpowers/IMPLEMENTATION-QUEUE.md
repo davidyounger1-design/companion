@@ -10,6 +10,25 @@ exists, follow it rather than re-deriving.
 
 ---
 
+## 0 · IN PROGRESS (2026-08-24) — MAB webhook was never registered, and would have 401'd anyway
+
+Found while investigating why a cancelled test org's `billing_status` stayed stale: `sync-subscription`
+had no `config.toml` entry, so it sat on the platform default `verify_jwt=true` since deploy — every
+delivery attempt would 401 at the gateway before the function's own HMAC check ever ran (confirmed by
+cross-checking MAB's `api/lib/events.php`, which sends only `Content-Type`/`X-MAB-Signature`, no
+`Authorization` header). Separately, and independently fatal on its own: MAB's `webhook_endpoints` table
+has zero rows for Companion — only Haven's and Leave Planner's exist. Billing-status sync has relied
+entirely on the pull-based `check-plan` call at sign-in this whole time.
+
+**Done:** `verify_jwt` fixed (redeployed with `--no-verify-jwt`, confirmed live). A coordinator-only
+"Register webhook" button added to the Subscription page (`0.5.127`) — calls the existing but never-wired
+`register-mab-webhook` function and displays its response.
+
+**Do:** as coordinator, open Account → Subscription, click "Register webhook". It returns a `whsec_...`
+secret and next steps. Set that as this project's `MAB_WEBHOOK_SECRET` (Supabase secret, via CLI or
+Dashboard — not in chat), then in MAB Admin → Developers → Webhooks, find the new Companion endpoint and
+click Activate (it registers inactive/fail-closed). Once activated, remove the button from `Account.tsx`.
+
 ## 1 · DONE (2026-08-24) — `'note'` journal entries cannot be saved
 
 **Status:** `075` applied live and confirmed working — a Note entry saves correctly now.
