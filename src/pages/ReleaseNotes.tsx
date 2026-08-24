@@ -3,6 +3,15 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.130',
+    date: '25 August 2026',
+    title: 'Journal edits now leave an audit trail',
+    changes: [
+      { type: 'new', text: 'When a journal entry, behaviour note, incident or medication record is edited, the previous version is now kept in a permanent revision history — nothing is ever silently overwritten. Revisions are retained for audit purposes.' },
+      { type: 'change', text: 'Editing your own journal entries now also checks your plan\'s edit permission. Therapists no longer see the edit pencil; coordinators, workers and family accounts are unchanged.' },
+    ],
+  },
+  {
     version: '0.5.129',
     date: '25 August 2026',
     title: 'Belong to more than one plan under one login',
