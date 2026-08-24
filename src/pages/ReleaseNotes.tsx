@@ -3,6 +3,15 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.134',
+    date: '25 August 2026',
+    title: 'Server-side exports with an audit trail',
+    changes: [
+      { type: 'change', text: 'Participant record, goal, medication, incident and restrictive-practice exports (CSV and PDF) are now generated on the server instead of in the browser, so the data is checked against your plan and organisation before it ever leaves — and every export is recorded in an audit log.' },
+      { type: 'new', text: 'PDF exports are now available for the same records, with the same columns as the CSV download.' },
+    ],
+  },
+  {
     version: '0.5.133',
     date: '25 August 2026',
     title: 'Behaviour support plans register',
