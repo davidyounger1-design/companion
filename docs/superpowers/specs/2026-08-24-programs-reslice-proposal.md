@@ -36,7 +36,7 @@ it is bigger than the agreed slice, proposes a concrete cut, and asks for a deci
   commercial tiers; the billing-metering question; the same-participant-two-orgs scenario.
   **Status corrections since approval:** the compliance cycle has largely landed in this repo
   (`record_revisions` 084, `restrictive_practices` 086, `behaviour_support_plans` 087, server-side
-  exports + `export_log` 088 — Tasks 4-5), and the `ndis_records` entitlement key now exists
+  exports + `export_log` 088 — landed across Tasks 1–5 of this workflow), and the `ndis_records` entitlement key now exists
   (cf00415, declared, pending MAB Admin plan assignment). Only `rostering` remains as a missing key.
 - §10 Residual risks: function-body drift vs migration files; `profiles` lacks `(id, org_id)`
   unique; no provider-tier org to test against; three defects found and corrected by review.
@@ -163,7 +163,7 @@ provider-tier org live). Cost: the DB layer ships and sits unused until the UI s
 **Foundation + primary surfaces (Option B — the spec's own v1 scope)** enables the complete agreed
 feature: coordinators create programs, assign participants/workers, filter the dashboard, tag the
 roster, attribute logs/notes. Defers: the named items in §3.3. Compliance impact: neutral-positive
-— the compliance tables that landed in Tasks 4-5 inherit `program_id` readiness. Rework risk: low
+— the compliance tables that landed across Tasks 1–5 of this workflow inherit `program_id` readiness. Rework risk: low
 — every deferred item is asserted additive.
 
 **Deferral costs, item by item:**
