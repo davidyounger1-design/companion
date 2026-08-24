@@ -955,6 +955,26 @@ export interface Database {
         Update: { allowed?: boolean }
         Relationships: []
       }
+      profile_orgs: {
+        Row: {
+          profile_id: string
+          org_id: string
+          role: string
+          sub_role_id: string | null
+          joined_at: string
+          left_at: string | null
+        }
+        Insert: {
+          profile_id: string
+          org_id: string
+          role: string
+          sub_role_id?: string | null
+          joined_at?: string
+          left_at?: string | null
+        }
+        Update: { role?: string; sub_role_id?: string | null; left_at?: string | null }
+        Relationships: []
+      }
     }
     Views: {
       participants: {

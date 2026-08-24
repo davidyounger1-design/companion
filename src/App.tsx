@@ -55,6 +55,7 @@ import DisplaySettings from './pages/settings/DisplaySettings'
 import Deck from './pages/Deck'
 import SiteFooter from './components/SiteFooter'
 import UpdatePrompt from './components/UpdatePrompt'
+import PlanSwitcherBanner from './components/PlanSwitcherBanner'
 
 // Updates require a user tap: sw.ts only calls skipWaiting() in response to a
 // postMessage from UpdatePrompt, so an installed PWA can keep running the old
@@ -181,6 +182,7 @@ export default function App() {
         <AuthProvider>
         <ModalActivityProvider>
           <ColorModeGate />
+          <PlanSwitcherBanner />
           <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />

@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.129',
+    date: '25 August 2026',
+    title: 'Belong to more than one plan under one login',
+    changes: [
+      { type: 'new', text: 'If your account belongs to more than one Companion plan, a "Viewing:" switcher now appears so you can pick which one you\'re working in. Hidden entirely if you only belong to one plan — which is everyone today, unless you\'ve just accepted an invite into a second one.' },
+    ],
+  },
+  {
     version: '0.5.128',
     date: '25 August 2026',
     title: 'Link a participant across two plans',
