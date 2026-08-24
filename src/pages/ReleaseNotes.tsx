@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.128',
+    date: '25 August 2026',
+    title: 'Link a participant across two plans',
+    changes: [
+      { type: 'new', text: 'If the same person is enrolled in more than one Companion plan (for example a family plan and a provider’s plan), a family member or the participant can now link the two records with a one-time code, so journal entries, goals and photos show up in one place for both. Notices and messages stay separate per plan. Only the participant or their decision-maker can link or unlink — never a coordinator or worker.' },
+    ],
+  },
+  {
     version: '0.5.127',
     date: '24 August 2026',
     title: 'Behind the scenes: faster subscription-status updates',

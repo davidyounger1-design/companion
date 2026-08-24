@@ -26,6 +26,7 @@ import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, Not
 import NoticeCard from '../../components/NoticeCard'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
 import MedicationList from '../../components/MedicationList'
+import PersonLinkPanel from '../../components/PersonLinkPanel'
 import { useOrgFeatureFlags } from '../../hooks/useOrgFeatureFlags'
 
 
@@ -1145,6 +1146,8 @@ export default function FamilyDashboard() {
             </div>
           </div>
         )}
+
+        {clientId && <PersonLinkPanel clientId={clientId} participantName={participantName} />}
 
         {clientId && org && showMood && (
           <RecipientMoodLog clientId={clientId} orgId={org.id} participantName={participantName} />

@@ -125,6 +125,7 @@ export interface Database {
         Row: {
           id: string
           org_id: string
+          person_id: string
           full_name: string
           setting: string | null
           dob: string | null
@@ -139,6 +140,7 @@ export interface Database {
         Insert: {
           id?: string
           org_id: string
+          person_id?: string
           full_name: string
           setting?: string | null
           dob?: string | null
@@ -152,6 +154,7 @@ export interface Database {
         }
         Update: {
           org_id?: string
+          person_id?: string
           full_name?: string
           setting?: string | null
           dob?: string | null
@@ -954,7 +957,23 @@ export interface Database {
       }
     }
     Views: {
-      [_ in never]: never
+      participants: {
+        Row: {
+          id: string
+          org_id: string
+          person_id: string
+          setting: string | null
+          decision_maker_id: string | null
+          decision_maker_kind: string | null
+          active: boolean
+          created_at: string
+          full_name: string
+          dob: string | null
+          about: { loves?: string; calming?: string; comms?: string }
+          recipient_profile_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       lookup_invite: {
@@ -1033,6 +1052,22 @@ export interface Database {
       }
       delete_sub_role: {
         Args: { p_id: string; p_reassign_to: string }
+        Returns: void
+      }
+      generate_person_link_code: {
+        Args: { p_client_id: string }
+        Returns: Array<{ code: string; expires_at: string }>
+      }
+      preview_person_link: {
+        Args: { p_code: string; p_target_client_id: string }
+        Returns: Array<{ first_name: string; last_initial: string; dob: string | null; source_org_name: string }>
+      }
+      confirm_person_link: {
+        Args: { p_code: string; p_target_client_id: string }
+        Returns: void
+      }
+      unlink_person: {
+        Args: { p_client_id: string }
         Returns: void
       }
     }

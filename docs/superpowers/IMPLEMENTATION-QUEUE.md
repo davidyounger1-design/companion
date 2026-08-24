@@ -177,12 +177,41 @@ Progress against §5's 7 steps:
   Friendship Circle's first participant as the SAME person). Doing step 5 (person-scope the two read
   helpers) and step 6 (linking) next, ahead of the staff plan-switcher UI, which can wait until a real
   staff member actually needs it.
+- **Step 5 — DONE.** `080_person_scope_recipient_family.sql` run live. `client_ids_for_recipient()` now
+  joins through `persons.recipient_profile_id` (returns every enrolment of a person once linked, not just
+  one). `client_ids_for_family()` lost the org test 073/A5 added — deliberately superseded per the spec's
+  own note, not a regression. Verified: nobody currently spans more than one org via `client_family`, so
+  invisible for real users today.
+- **Step 6 — DONE.** `081_person_linking.sql` run live — the actual feature: `person_link_codes` +
+  `person_links` tables (zero direct grants, RPC-only access) and four RPCs
+  (`generate_person_link_code`, `preview_person_link`, `confirm_person_link`, `unlink_person`), implementing
+  all seven §4.1 safeguards (no cross-tenant search, single-use expiring codes, participant/decision-maker
+  only — never coordinator/worker, confirm-before-commit with minimal disclosure, reversible unlink via a
+  fresh person snapshot, a chaining guard on the target side).
+- **Frontend — DONE.** `PersonLinkPanel.tsx`, wired into `FamilyDashboard.tsx` (shown to both family and
+  recipient, never coordinator/worker) — generate a code, redeem+confirm a code, or unlink. Shipped as
+  `0.5.128`.
+- **URGENT FIX, found while building the above — `082_auto_create_person_trigger.sql`, DONE.** 077's
+  `clients.person_id not null` was added without auditing every INSERT call site. Two real live breaks:
+  `setup_family_org()` (every new family-plan signup, since step 1 of onboarding) and
+  `Step4Clients.tsx` (add-a-participant during onboarding) both insert into `clients` without setting
+  `person_id` — broken in production from the moment 077 shipped until this ran. Fixed with a BEFORE
+  INSERT trigger that auto-provisions a `persons` row when the caller leaves `person_id` null, covering
+  every insert path without touching either call site. Verified live against a safe (non-seat-capped) org
+  after the first verification attempt hit an unrelated pre-existing trigger (055's participant-seat
+  enforcement) on the org it happened to pick.
 - Step 7 (cleanup — drop `profiles.org_id`/`role`/`sub_role_id` once nothing reads them) — last, as planned.
 
 Trigger for this work: David tried to add Sarah Younger (already a participant on her family plan) as The
 Friendship Circle's first participant — the exact cross-plan scenario this spec exists for, and the
 schema/linking work wasn't done yet. Chose to build it properly rather than add her as a disconnected
 duplicate.
+
+**Not built:** the staff plan-switcher UI (step 4's other half) — deferred, nobody spans two plans as
+staff yet. A passive "linked to another plan" indicator on the coordinator's own `ClientManagePanel.tsx`
+was also not built (coordinators can't act on it per rule 3, so it wasn't part of the original ask) —
+worth adding later as a read-only signal if it'd help coordinators understand why a participant's activity
+includes entries from elsewhere.
 
 ---
 
