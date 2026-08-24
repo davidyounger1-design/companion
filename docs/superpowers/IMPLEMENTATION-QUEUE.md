@@ -164,9 +164,20 @@ Progress against §5's 7 steps:
   rows backfilled 1:1 from the 13 profiles with a non-null `org_id`, zero role/sub_role_id mismatches, RLS
   enabled with only `SELECT` granted, composite FK validated. `profiles.org_id`/`role`/`sub_role_id` stay
   untouched as the "primary plan" until step 7.
-- **Step 3 (active-context plumbing) — next.**
-- Steps 4–7 (frontend plan switcher, person-scoping the two read helpers, linking itself, cleanup) — not
-  started.
+- **Step 3 — DONE.** `079_active_context.sql` run live, confirmed via direct query: `my_org_id()`/
+  `my_role()` now resolve via `active_org_id()` (reads the `x-active-org-id` request header, falls back to
+  a profile's single membership, fails closed on anything ambiguous or naming a plan the caller isn't in).
+  V1/V2 both pass — all 13 real profiles still resolve to exactly their existing org/role. David clicked
+  around the live app afterward (103 policies and 10 functions call these two directly) — normal behaviour
+  confirmed.
+- **Re-sequenced 4/5/6.** The spec's step 4 bundles two different things: a plan switcher for STAFF who
+  span two plans, and the merged care view for FAMILY/PARTICIPANTS. Nobody staff-side needs the switcher
+  yet (no one spans two plans today), but the merged view + actual linking is exactly what's blocking
+  David's real goal (Sarah Younger, already a participant on her family plan, needs to become The
+  Friendship Circle's first participant as the SAME person). Doing step 5 (person-scope the two read
+  helpers) and step 6 (linking) next, ahead of the staff plan-switcher UI, which can wait until a real
+  staff member actually needs it.
+- Step 7 (cleanup — drop `profiles.org_id`/`role`/`sub_role_id` once nothing reads them) — last, as planned.
 
 Trigger for this work: David tried to add Sarah Younger (already a participant on her family plan) as The
 Friendship Circle's first participant — the exact cross-plan scenario this spec exists for, and the
