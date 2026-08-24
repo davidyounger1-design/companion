@@ -36,3 +36,13 @@ verify_jwt = false
 
 [functions.check-plan]
 verify_jwt = false
+
+# HMAC-signed by MAB (X-MAB-Signature), not a Companion user JWT — MAB's
+# outbound webhook call (api/lib/events.php) sends no Authorization header
+# at all, so verify_jwt=true 401s every delivery before the function's own
+# signature check ever runs. Confirmed live 2026-08-24: this had been the
+# default (true) since deploy, so no MAB webhook had ever been delivered
+# successfully — billing_status only ever synced via the pull-based
+# check-plan call at login.
+[functions.sync-subscription]
+verify_jwt = false
