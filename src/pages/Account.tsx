@@ -49,6 +49,9 @@ export default function Account() {
   const [savingFlag, setSavingFlag] = useState(false)
   const showMedicationToggle = has(FEATURES.medicationTracking)
   const medicationTrackingEnabled = isEnabled('medication_tracking')
+  const [webhookBusy, setWebhookBusy] = useState(false)
+  const [webhookResult, setWebhookResult] = useState<unknown>(null)
+  const [webhookError, setWebhookError] = useState('')
 
   async function toggleMedicationTracking(on: boolean) {
     setSavingFlag(true)
@@ -56,6 +59,26 @@ export default function Account() {
       await setFlag.mutateAsync({ key: 'medication_tracking', value: on })
     } catch { /* ignore — setFlag handles error display */ }
     setSavingFlag(false)
+  }
+
+  // One-time setup action — registers this project's sync-subscription
+  // function as a MAB webhook endpoint (idempotent, safe to call again).
+  // Shows the raw response (including the one-time secret) so it can be
+  // copied straight into `supabase secrets set` / the Dashboard — nobody
+  // else ever sees this value.
+  async function registerWebhook() {
+    setWebhookBusy(true)
+    setWebhookError('')
+    setWebhookResult(null)
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('register-mab-webhook')
+      if (fnErr) { setWebhookError('Could not reach the function. Try again.'); return }
+      setWebhookResult(data)
+    } catch {
+      setWebhookError('Could not reach the function. Try again.')
+    } finally {
+      setWebhookBusy(false)
+    }
   }
 
   useEffect(() => {
@@ -215,6 +238,28 @@ export default function Account() {
             </div>
           </div>
         )}
+
+        {/* One-time setup: register the MAB webhook endpoint. Idempotent —
+            safe to click again after a redeploy. Remove this block once
+            confirmed registered and activated in MAB Admin. */}
+        <div className="card card-sm" style={{ marginTop: '1.5rem' }}>
+          <p style={{ fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>⚙️ Register MAB webhook (one-time setup)</p>
+          <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', margin: '0.2rem 0 0.75rem' }}>
+            Registers this project's subscription-sync function with MyAppBuddy so cancellations sync
+            immediately instead of only at next sign-in. Click once, then follow the steps shown below.
+          </p>
+          <button className="btn btn-secondary" onClick={registerWebhook} disabled={webhookBusy}>
+            {webhookBusy ? <span className="spinner" /> : 'Register webhook'}
+          </button>
+          {webhookError && <div className="alert alert-error" style={{ marginTop: '0.75rem' }}>{webhookError}</div>}
+          {webhookResult != null && (
+            <pre style={{
+              marginTop: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)',
+              background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+              fontSize: '0.75rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}>{JSON.stringify(webhookResult, null, 2)}</pre>
+          )}
+        </div>
       </div>
     </div>
   )

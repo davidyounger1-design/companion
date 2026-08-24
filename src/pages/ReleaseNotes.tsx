@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.127',
+    date: '24 August 2026',
+    title: 'Behind the scenes: faster subscription-status updates',
+    changes: [
+      { type: 'change', text: 'No visible change yet. Laying the groundwork so a cancelled subscription is reflected immediately instead of only the next time someone signs in.' },
+    ],
+  },
+  {
     version: '0.5.126',
     date: '24 August 2026',
     title: 'Behind the scenes: entitlements now sync to the server',
