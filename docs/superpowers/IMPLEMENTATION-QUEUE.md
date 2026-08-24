@@ -10,9 +10,9 @@ exists, follow it rather than re-deriving.
 
 ---
 
-## 1 · URGENT — `'note'` journal entries cannot be saved
+## 1 · DONE (2026-08-24) — `'note'` journal entries cannot be saved
 
-**Status:** SQL written (`supabase/migrations/075_log_entries_allow_note_type.sql`), **not applied**.
+**Status:** `075` applied live and confirmed working — a Note entry saves correctly now.
 
 Reported live 2026-08-24: a support worker picked "Note" from the four entry types, filled it in, and got
 "Could not save. Try again." A coordinator reproduced it from the family side ("Could not save entry.").
@@ -25,10 +25,11 @@ Long-standing, **not** a regression from the sub-role work.
 **Do:** apply `075`. Then verify by actually saving a Note entry in the live app, not just by reading the
 constraint back.
 
-## 2 · URGENT — every database error shows a generic message
+## 2 · DONE (2026-08-24) — every database error shows a generic message
 
-**Status:** diagnosed, not started. A helper (`src/lib/errorMessage.ts`) was drafted and deliberately
-reverted to keep this out of the design session.
+**Status:** `src/lib/errorMessage.ts` added and wired in at 13 real sites; deployed as `0.5.125`. Six
+sites that looked identical (auth/setup flows backed by `lib/auth.ts`) were already correct and left
+untouched, since those helpers already wrap Supabase errors in a real `Error` upstream.
 
 Supabase rejects with a `PostgrestError` — a plain object, **not** an `Error` instance. So the
 `e instanceof Error ? e.message : 'Could not save…'` pattern throws away the real reason for every
