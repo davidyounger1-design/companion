@@ -3,6 +3,15 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.133',
+    date: '25 August 2026',
+    title: 'Behaviour support plans register',
+    changes: [
+      { type: 'new', text: 'Coordinators can now upload behaviour support plan documents for each participant and track when they are next due for review. Each plan can be opened directly from the register, and restrictive-practice entries can be linked to the plan they sit under.' },
+      { type: 'new', text: 'The register is available to plans that include the behaviour-support-plans entitlement. Uploaded plans are kept for audit purposes — they are never deleted.' },
+    ],
+  },
+  {
     version: '0.5.132',
     date: '25 August 2026',
     title: 'Restrictive practices register',
