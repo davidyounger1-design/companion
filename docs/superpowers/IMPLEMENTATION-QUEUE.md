@@ -160,9 +160,13 @@ Progress against §5's 7 steps:
 - **Step 1b — not started.** Drop `clients.full_name`/`dob`/`about`/`recipient_profile_id`/`goals` once
   every frontend/function reader is repointed at the `participants` view. Requires a grep-everything pass
   first; deliberately the hardest and most irreversible step, done last among 1/1a/1b.
-- **Step 2 (`profile_orgs`) — next.**
-- Steps 3–7 (active-context plumbing, frontend plan switcher, person-scoping the two read helpers, linking
-  itself, cleanup) — not started.
+- **Step 2 — DONE.** `078_profile_orgs.sql` run live, V1–V3 confirmed via direct query: 13 `profile_orgs`
+  rows backfilled 1:1 from the 13 profiles with a non-null `org_id`, zero role/sub_role_id mismatches, RLS
+  enabled with only `SELECT` granted, composite FK validated. `profiles.org_id`/`role`/`sub_role_id` stay
+  untouched as the "primary plan" until step 7.
+- **Step 3 (active-context plumbing) — next.**
+- Steps 4–7 (frontend plan switcher, person-scoping the two read helpers, linking itself, cleanup) — not
+  started.
 
 Trigger for this work: David tried to add Sarah Younger (already a participant on her family plan) as The
 Friendship Circle's first participant — the exact cross-plan scenario this spec exists for, and the
