@@ -31,6 +31,7 @@ export type MeteredAxis = 'workers' | 'participants'
 export type ProgressRating = 'regressed' | 'no_change' | 'some_progress' | 'good_progress' | 'achieved'
 export type MedicationRoute = 'oral' | 'topical' | 'inhaled' | 'injected' | 'ophthalmic' | 'otic' | 'nasal' | 'sublingual' | 'transdermal' | 'other'
 export type MedicationLogStatus = 'taken' | 'refused' | 'deferred' | 'missed'
+export type RestrictivePracticeType = 'chemical' | 'environmental' | 'mechanical' | 'physical' | 'seclusion'
 
 // ─── Supabase Database schema type ───────────────────────────────────────────
 // Structured to match Supabase's generated type format so `createClient<Database>` resolves correctly.
@@ -544,6 +545,62 @@ export interface Database {
           resolved_by?: string | null
           resolution_notes?: string | null
         }
+        Relationships: []
+      }
+      restrictive_practices: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          recorded_by: string
+          type: RestrictivePracticeType
+          authorised: boolean
+          authorisation_reference: string | null
+          started_at: string
+          ended_at: string | null
+          notes: string | null
+          bsp_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          recorded_by: string
+          type: RestrictivePracticeType
+          authorised?: boolean
+          authorisation_reference?: string | null
+          started_at?: string
+          ended_at?: string | null
+          notes?: string | null
+          bsp_id?: string | null
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
+      behaviour_support_plans: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          uploaded_by: string
+          file_path: string
+          file_name: string
+          review_due: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          uploaded_by: string
+          file_path: string
+          file_name: string
+          review_due?: string | null
+          created_at?: string
+        }
+        Update: Record<string, never>
         Relationships: []
       }
       invites: {
@@ -1114,6 +1171,8 @@ export type BehaviourNote = Tables['behaviour_notes']['Row']
 export type NoteShare    = Tables['note_shares']['Row']
 export type AccessLog    = Tables['access_log']['Row']
 export type Incident     = Tables['incidents']['Row']
+export type RestrictivePractice = Tables['restrictive_practices']['Row']
+export type BehaviourSupportPlan = Tables['behaviour_support_plans']['Row']
 export type Invite       = Tables['invites']['Row']
 export type OrgSettings  = Tables['org_settings']['Row']
 export type Notice       = Tables['notices']['Row']

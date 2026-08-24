@@ -6,6 +6,8 @@ import BehaviourNotesSection from './BehaviourNotesSection'
 import IncidentForm from './IncidentForm'
 import IncidentsSection from './IncidentsSection'
 import NdisRecordsSection from './NdisRecordsSection'
+import RestrictivePracticesForm from './RestrictivePracticesForm'
+import RestrictivePracticesSection from './RestrictivePracticesSection'
 import MedicationList from './MedicationList'
 import { useFeatures } from '../hooks/useFeatures'
 import { useOrgFeatureFlags } from '../hooks/useOrgFeatureFlags'
@@ -35,6 +37,7 @@ export default function ClientManagePanel({
   const showMedicationTracking = has(FEATURES.medicationTracking) && orgEnabled('medication_tracking')
   const [addingWorkerId, setAddingWorkerId] = useState('')
   const [showIncidentForm, setShowIncidentForm] = useState(false)
+  const [showRpForm, setShowRpForm] = useState(false)
   const [dangerMode, setDangerMode] = useState<'deactivate' | 'delete' | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
@@ -305,6 +308,30 @@ export default function ClientManagePanel({
         </div>
       )}
 
+      {has(FEATURES.restrictivePractices) && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <p style={{ fontWeight: 700, fontSize: '0.85rem', margin: 0 }}>Restrictive practices</p>
+            {!showRpForm && (
+              <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
+                onClick={() => setShowRpForm(true)}>
+                + Record practice
+              </button>
+            )}
+          </div>
+          {showRpForm && (
+            <RestrictivePracticesForm
+              clientId={clientId}
+              orgId={orgId}
+              authorId={user!.id}
+              onSaved={() => setShowRpForm(false)}
+              onCancel={() => setShowRpForm(false)}
+            />
+          )}
+          <RestrictivePracticesSection clientId={clientId} />
+        </div>
+      )}
+
       {showMedicationTracking && (
         <div style={{ marginBottom: '1.5rem' }}>
           <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Medications</p>
@@ -359,7 +386,7 @@ export default function ClientManagePanel({
           <div className="card card-sm" style={{ background: 'color-mix(in srgb, var(--color-error) 8%, transparent)' }}>
             <p style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
               This permanently deletes {participantName} and ALL their records — journal entries, behaviour notes,
-              incidents, goals, schedule, and messages. This cannot be undone. If you just want to free up a seat or
+              incidents, restrictive practices, goals, schedule, and messages. This cannot be undone. If you just want to free up a seat or
               pause billing for them, use Deactivate instead.
             </p>
             <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
