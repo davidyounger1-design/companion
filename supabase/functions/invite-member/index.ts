@@ -52,6 +52,29 @@ Deno.serve(async (req) => {
 
     if (caller?.org_id !== org_id) return json({ ok: false, error: 'Forbidden' })
 
+    // Plan-entitlement backstop: `recipient` and `therapist` are themselves
+    // plan entitlements (`recipient_login` / `therapy_circles`), so an org
+    // whose plan doesn't include them must not be able to hand those roles
+    // out. Reads the mirrored organisations.entitlements array directly with
+    // the admin (service-role) client — NOT org_has_feature(), whose
+    // public.my_org_id() derives from the auth context this client lacks and
+    // would wrongly fail closed for everyone. FAIL CLOSED: a read error or a
+    // missing key is Forbidden. Other roles are unaffected.
+    const ENTITLED_ROLE_KEY: Record<string, string> = {
+      recipient: 'recipient_login',
+      therapist: 'therapy_circles',
+    }
+    const requiredEntitlement = ENTITLED_ROLE_KEY[role]
+    if (requiredEntitlement) {
+      const { data: orgRow, error: entitlementsErr } = await admin
+        .from('organisations')
+        .select('entitlements')
+        .eq('id', org_id)
+        .maybeSingle()
+      if (entitlementsErr || !orgRow || !Array.isArray(orgRow.entitlements) || !orgRow.entitlements.includes(requiredEntitlement))
+        return json({ ok: false, error: `Forbidden — this org's plan does not include '${requiredEntitlement}' (required for ${role} invites)` })
+    }
+
     // Authoritative check: resolved server-side from the caller's sub-role
     // (companion.invitable_roles_for), not a hardcoded matrix. This function
     // runs as service-role and bypasses RLS, so this is the ONLY check
