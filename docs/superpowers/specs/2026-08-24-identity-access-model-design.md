@@ -132,9 +132,23 @@ address** equally.
   departure from an earlier draft of this spec, which had them able to. It is also an asymmetry worth
   naming: a participant sees their whole cabinet but cannot alter who the record says they are.
 - **Any active family member, on any of the person's enrolments, may edit.**
-- **A coordinator may edit only while the person has exactly one enrolment.** Once a second plan exists, no
-  single provider can change data another provider relies on.
+- **A coordinator may edit unless the person is enrolled in a family plan.**
 - Workers and therapists: never.
+
+That coordinator clause is the whole of it, and it resolves every case David specified plus the gap he was
+asked about (answered 2026-08-24: **(b), both coordinators may edit**):
+
+| Situation | Who may edit | Falls out of the rule because |
+|---|---|---|
+| One provider plan | that coordinator | no family plan exists |
+| One family plan | that coordinator | they are a family member anyway (see below) |
+| Provider + family plan | family members only, incl. the family plan's coordinator | a family plan exists, so provider coordinators step back |
+| Two provider plans, no family plan | **both coordinators** | no family plan exists |
+
+The principle underneath: **a family-plan enrolment means the family has taken stewardship of the record, so
+providers step back. Absent one, providers are the only stewards there are.** That is what makes "both
+coordinators" correct in the last row rather than a deadlock — and the audit log makes any disagreement
+between two providers traceable.
 
 David also specified "if in two plans including a family plan, the coordinator of the family plan can
 edit." **That needs no separate rule — it is already true.** `setup_family_org` inserts the creating
@@ -142,12 +156,9 @@ coordinator into `client_family` with `relationship = 'primary_carer'`, so a fam
 a family member of that participant by construction (verified against the live function body 2026-08-24).
 The "any family member" rule already covers them.
 
-**Open gap needing David's answer:** a participant in **two provider plans with no family plan** — say
-Friendship Circle and a second provider. The rules above give edit rights to no coordinator (there are two
-enrolments) and there may be no family member either. That is a deadlock: nobody can fix a typo. Options
-are (a) any family member only, accepting that a participant with no family member on file has frozen
-identity data, (b) both coordinators may edit, or (c) the *earliest* enrolment's coordinator retains it.
-Not guessing.
+Implementing the coordinator clause needs a "does this person have a family-plan enrolment?" test — a join
+from `persons` through `clients` to `organisations.org_type = 'family'`. Cheap, and it belongs in a helper
+rather than inline in a policy, since both the policy and the email edge function need it.
 
 **Implementation note — the email is not in this schema.** Login email lives on `auth.users`, reachable via
 `persons.recipient_profile_id → profiles → auth.users`. It is changed through the existing
