@@ -356,7 +356,7 @@ export default function WorkerClientDetail() {
                 onCancel={() => setShowBehaviourForm(false)}
               />
             )}
-            <BehaviourNotesSection clientId={client.id} participantName={client.full_name} />
+            <BehaviourNotesSection clientId={client.id} />
           </div>
         )}
       </div>}

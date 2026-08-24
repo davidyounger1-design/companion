@@ -1228,7 +1228,7 @@ export default function FamilyDashboard() {
             </button>
             {showBehaviourNotes && (
               <div style={{ marginTop: '0.875rem' }}>
-                <BehaviourNotesSection clientId={clientId} participantName={participantName} />
+                <BehaviourNotesSection clientId={clientId} />
               </div>
             )}
           </div>

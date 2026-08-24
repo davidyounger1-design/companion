@@ -372,7 +372,7 @@ export default function ClientManagePanel({
         </div>
       )}
 
-      {has(FEATURES.behaviourNotes) && <BehaviourNotesSection clientId={clientId} participantName={participantName} />}
+      {has(FEATURES.behaviourNotes) && <BehaviourNotesSection clientId={clientId} />}
 
       <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
         <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--color-error)' }}>Danger zone</p>
