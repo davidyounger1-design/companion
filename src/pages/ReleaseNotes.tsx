@@ -3,6 +3,15 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.132',
+    date: '25 August 2026',
+    title: 'Restrictive practices register',
+    changes: [
+      { type: 'new', text: 'Coordinators can now keep a formal register of restrictive practices for each participant — the type of practice, whether it is authorised, the authorisation reference, when it applied, and notes. Recording an unauthorised practice automatically raises a high-severity incident so it can never slip through unnoticed.' },
+      { type: 'new', text: 'The register is available to plans that include the restrictive-practices entitlement. Practices a participant has left behind can be viewed but never deleted, in line with audit requirements.' },
+    ],
+  },
+  {
     version: '0.5.131',
     date: '25 August 2026',
     title: 'Plan entitlements now gate records, invites and retention',
