@@ -46,10 +46,10 @@ create policy "connected users can view goals"
   on companion.participant_goals for select
   using (
     (org_id = public.my_org_id() and public.my_role() = 'coordinator')
-    or client_id in (select client_id from client_family  where family_id = auth.uid() and status = 'active')
-    or client_id in (select id from clients where recipient_profile_id = auth.uid())
+    or client_id in (select client_id from companion.client_family where family_id = auth.uid() and status = 'active')
+    or client_id in (select id from companion.clients where recipient_profile_id = auth.uid())
     or client_id in (select public.client_ids_for_worker())
-    or client_id in (select id from clients where decision_maker_id = auth.uid())
+    or client_id in (select id from companion.clients where decision_maker_id = auth.uid())
   );
 
 create policy "connected users can add goals"
@@ -58,8 +58,8 @@ create policy "connected users can add goals"
     created_by = auth.uid()
     and (
       (org_id = public.my_org_id() and public.my_role() = 'coordinator')
-      or client_id in (select client_id from client_family  where family_id = auth.uid() and status = 'active')
-      or client_id in (select id from clients where recipient_profile_id = auth.uid())
+      or client_id in (select client_id from companion.client_family where family_id = auth.uid() and status = 'active')
+      or client_id in (select id from companion.clients where recipient_profile_id = auth.uid())
       or client_id in (select public.client_ids_for_worker())
     )
   );
@@ -87,10 +87,10 @@ create policy "connected users can view progress"
   on companion.goal_progress_records for select
   using (
     (org_id = public.my_org_id() and public.my_role() = 'coordinator')
-    or client_id in (select client_id from client_family  where family_id = auth.uid() and status = 'active')
-    or client_id in (select id from clients where recipient_profile_id = auth.uid())
+    or client_id in (select client_id from companion.client_family where family_id = auth.uid() and status = 'active')
+    or client_id in (select id from companion.clients where recipient_profile_id = auth.uid())
     or client_id in (select public.client_ids_for_worker())
-    or client_id in (select id from clients where decision_maker_id = auth.uid())
+    or client_id in (select id from companion.clients where decision_maker_id = auth.uid())
   );
 
 create policy "connected users can log progress"
@@ -99,8 +99,8 @@ create policy "connected users can log progress"
     author_id = auth.uid()
     and (
       (org_id = public.my_org_id() and public.my_role() = 'coordinator')
-      or client_id in (select client_id from client_family  where family_id = auth.uid() and status = 'active')
-      or client_id in (select id from clients where recipient_profile_id = auth.uid())
+      or client_id in (select client_id from companion.client_family where family_id = auth.uid() and status = 'active')
+      or client_id in (select id from companion.clients where recipient_profile_id = auth.uid())
       or client_id in (select public.client_ids_for_worker())
     )
   );
