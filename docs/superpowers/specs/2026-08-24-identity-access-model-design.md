@@ -125,14 +125,38 @@ pass — verify it has no remaining readers first.
 
 ### 2.1.1 Who may edit identity
 
-Needs David's confirmation — it is a product rule, not a technical one. Proposed:
+**Decided by David 2026-08-24.** Applies to `full_name`, `dob`, and the participant's **login email
+address** equally.
 
-- The **participant themselves** and any **active decision-maker of any enrolment** may edit `persons`.
-- **Coordinators and workers are read-only**, with one exception: a coordinator may set identity when
-  *creating* a person, and may edit it while that person has exactly **one** enrolment. Once a second plan
-  is involved, no single provider can change what another relies on.
+- **The participant may never edit their own name, date of birth or email.** Note this is a deliberate
+  departure from an earlier draft of this spec, which had them able to. It is also an asymmetry worth
+  naming: a participant sees their whole cabinet but cannot alter who the record says they are.
+- **Any active family member, on any of the person's enrolments, may edit.**
+- **A coordinator may edit only while the person has exactly one enrolment.** Once a second plan exists, no
+  single provider can change data another provider relies on.
+- Workers and therapists: never.
 
-Every identity edit is logged, because once shared it is data two businesses depend on.
+David also specified "if in two plans including a family plan, the coordinator of the family plan can
+edit." **That needs no separate rule — it is already true.** `setup_family_org` inserts the creating
+coordinator into `client_family` with `relationship = 'primary_carer'`, so a family plan's coordinator *is*
+a family member of that participant by construction (verified against the live function body 2026-08-24).
+The "any family member" rule already covers them.
+
+**Open gap needing David's answer:** a participant in **two provider plans with no family plan** — say
+Friendship Circle and a second provider. The rules above give edit rights to no coordinator (there are two
+enrolments) and there may be no family member either. That is a deadlock: nobody can fix a typo. Options
+are (a) any family member only, accepting that a participant with no family member on file has frozen
+identity data, (b) both coordinators may edit, or (c) the *earliest* enrolment's coordinator retains it.
+Not guessing.
+
+**Implementation note — the email is not in this schema.** Login email lives on `auth.users`, reachable via
+`persons.recipient_profile_id → profiles → auth.users`. It is changed through the existing
+`update-member-email` edge function, which runs as service role and therefore **bypasses RLS entirely**.
+So this authority rule cannot be enforced by a policy for email — it must be implemented as an explicit
+check inside that function. A policy on `persons` covers name and date of birth; email needs the function
+edited too, or the rule holds for two fields out of three.
+
+Every identity edit is logged — once shared, it is data two businesses depend on.
 
 ### 2.1.2 A view to contain the frontend churn
 
@@ -405,8 +429,11 @@ Structural:
    ```
    Then prove it behaviourally: a support worker queries the view and sees only their assigned
    participants, not every participant in the org.
-0a. **Identity edit authority (§2.1.1) holds.** A coordinator attempts to edit `persons` for a participant
-   who has two enrolments → refused. Same coordinator, participant with one enrolment → permitted.
+0a. **Identity edit authority (§2.1.1) holds, for all three fields.** A coordinator attempts to edit
+   `persons` for a participant with two enrolments → refused; same coordinator, one enrolment → permitted.
+   A family member on either enrolment → permitted. The participant themselves → refused. Then repeat the
+   coordinator-with-two-enrolments case against **`update-member-email`**, which bypasses RLS and so fails
+   this test unless the check was added in the function body rather than a policy.
 1. Every existing `clients` row has exactly one `persons` row after the backfill, and no two share one.
 2. `profile_orgs` row count equals the count of profiles with a non-null `org_id`, and every role matches.
 3. RLS enabled and no non-`SELECT` grants to `anon`/`authenticated` on `persons`, `profile_orgs`,
