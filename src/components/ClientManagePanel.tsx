@@ -8,6 +8,8 @@ import IncidentsSection from './IncidentsSection'
 import NdisRecordsSection from './NdisRecordsSection'
 import RestrictivePracticesForm from './RestrictivePracticesForm'
 import RestrictivePracticesSection from './RestrictivePracticesSection'
+import BehaviourSupportPlanForm from './BehaviourSupportPlanForm'
+import BehaviourSupportPlansSection from './BehaviourSupportPlansSection'
 import MedicationList from './MedicationList'
 import { useFeatures } from '../hooks/useFeatures'
 import { useOrgFeatureFlags } from '../hooks/useOrgFeatureFlags'
@@ -38,6 +40,7 @@ export default function ClientManagePanel({
   const [addingWorkerId, setAddingWorkerId] = useState('')
   const [showIncidentForm, setShowIncidentForm] = useState(false)
   const [showRpForm, setShowRpForm] = useState(false)
+  const [showBspForm, setShowBspForm] = useState(false)
   const [dangerMode, setDangerMode] = useState<'deactivate' | 'delete' | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
@@ -329,6 +332,30 @@ export default function ClientManagePanel({
             />
           )}
           <RestrictivePracticesSection clientId={clientId} />
+        </div>
+      )}
+
+      {has(FEATURES.behaviourSupportPlans) && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <p style={{ fontWeight: 700, fontSize: '0.85rem', margin: 0 }}>Behaviour support plans</p>
+            {!showBspForm && (
+              <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
+                onClick={() => setShowBspForm(true)}>
+                + Upload plan
+              </button>
+            )}
+          </div>
+          {showBspForm && (
+            <BehaviourSupportPlanForm
+              clientId={clientId}
+              orgId={orgId}
+              authorId={user!.id}
+              onSaved={() => setShowBspForm(false)}
+              onCancel={() => setShowBspForm(false)}
+            />
+          )}
+          <BehaviourSupportPlansSection clientId={clientId} />
         </div>
       )}
 
