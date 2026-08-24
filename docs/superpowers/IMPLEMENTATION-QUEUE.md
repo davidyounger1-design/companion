@@ -44,33 +44,47 @@ Known sites: `AddEntry.tsx:156`, `FamilyDashboard.tsx:414`, `WorkerClientDetail.
 
 This is cheap and it pays for itself the next time something like item 1 happens.
 
-## 3 · Edge functions may still need pasting
+## 3 · DONE (2026-08-24) — `redeem-invite` and `auto-register` were running stale code
+
+**Status:** confirmed via direct `supabase functions download` + diff against committed source, then
+redeployed via `supabase functions deploy --use-api` and re-verified byte-identical. Live now.
 
 `invite-member`, `redeem-invite`, `auto-register` were rewritten 2026-08-23 for sub-roles and all three
-also had their non-2xx returns fixed (Supabase swallows the body on non-2xx, which is why `invite-member`
-surfaced as an opaque "Edge Function returned a non-2xx status code"). **Unconfirmed whether the corrected
-`invite-member` was ever pasted** — the retry result never came back.
-
-**Do:** confirm all three deployed. Until then the live `invite-member` may still reject invites with the
-real reason hidden.
+also had their non-2xx returns fixed (Supabase swallows the body on non-2xx). `invite-member` had in fact
+been redeployed (confirmed identical to committed source). **`redeem-invite` and `auto-register` had not**
+— both were still running code from mid-July, predating both fixes. This was a real live bug, not just an
+unconfirmed deploy: `redeem-invite` never set `sub_role_id` on the new profile, so every invite redemption
+silently dropped the coordinator's chosen sub-role and fell back to the org's default — directly
+undercutting the sub-role permission system shipped earlier in this session.
 
 ---
 
-## 4 · Privacy hardening, Pass A
+## 4 · Privacy hardening, Pass A — file ready, needs to be run
 
-**Spec:** `specs/2026-08-24-privacy-hardening-design.md`. Target migration `073`. **Fully decided — every
-open question closed.** Six items, pure RLS, no schema or frontend changes:
+**Spec:** `specs/2026-08-24-privacy-hardening-design.md`. Target migration `073`, written and committed
+(`98b8d85`), **not yet run against the live DB.** Seven items, pure RLS, no schema or frontend changes:
 
 - **A1** drop `"workers can flag notes"` — verified dead code; currently lets any worker rewrite any
   clinical note, including re-parenting it to another participant
 - **A2** role-test the `behaviour_notes` SELECT policy
 - **A3** three medication policies — every org member can currently read **and write** MAR records
 - **A4** role-test `client_ids_for_org()`, closing participant enumeration
+- **A4b** (found live, not in the original spec) three more `client_ids_for_org()` callers that A4 would
+  otherwise silently break: `"family can manage client_workers"`, `"family can manage client_family"` —
+  rescoped to `client_ids_for_family()` — and `"can view photos for visible entries"`, given a real
+  worker clause it never had
 - **A5** missing cross-tenant org test on `client_ids_for_family()` (deliberately *not* the therapist helper)
-- **A6** participant-scope `notices` and the `messages` group thread; coordinators keep drawer-wide access
+- **A6** participant-scope `notices` and the `messages` group thread; coordinators keep drawer-wide access.
+  **Rewritten 2026-08-24** after direct DB inspection found the live policies (`"view notices"`,
+  `"view messages"`) don't match any migration file — the original draft here would have been a no-op
 
-Follow the spec's verification section — it includes both halves of each probe (the fix works *and* the
-live org's real workflow still works).
+Verified via direct read-only queries (I1–I4 in the file, plus one extra live I3 re-run after A4b): every
+one of the 14 total live callers of `client_ids_for_org()` is now either already coordinator-gated inline
+(8, unaffected by A4), fixed by A3 (3), or fixed by A4b (3) — none left ungated.
+
+**Do:** paste `073_privacy_hardening_rls.sql` into the Supabase SQL Editor and run it — I don't run DDL
+against the live DB myself. Follow the file's own verification section afterward (both halves of each
+probe: the fix works *and* the live org's real workflow still works).
 
 ## 5 · Privacy hardening, Pass B — server-side entitlements
 
