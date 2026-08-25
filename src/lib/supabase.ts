@@ -13,11 +13,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Injects the active-plan context (identity-access-model-design.md §2.3)
-// on every request. Read fresh per call, not captured once — the active
-// org can change mid-session (switchOrg) without recreating the client.
+// on PostgREST requests only. Read fresh per call, not captured once — the
+// active org can change mid-session (switchOrg) without recreating the client.
+//
+// The header must NOT go on edge-function invokes or auth calls: the functions
+// gateway's CORS allow-list doesn't include x-active-org-id, so the browser's
+// preflight fails and every functions.invoke() dies with
+// "Failed to send a request to the Edge Function" (0.5.137).
 function fetchWithActiveOrg(input: RequestInfo | URL, init: RequestInit = {}) {
   const activeOrgId = getActiveOrgId()
-  if (!activeOrgId) return fetch(input, init)
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  if (!activeOrgId || !url.includes('/rest/v1/')) return fetch(input, init)
   const headers = new Headers(init.headers)
   headers.set('x-active-org-id', activeOrgId)
   return fetch(input, { ...init, headers })

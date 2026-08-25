@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.137',
+    date: '25 August 2026',
+    title: 'Invites and plan checks working again',
+    changes: [
+      { type: 'fix', text: 'Inviting a member, plan checks and entitlement refreshes now reach the server again — a technical header the app attached to those requests was not on the server\'s allow-list, so the browser silently blocked every one of them before it left your device. Invites now send normally.' },
+    ],
+  },
+  {
     version: '0.5.136',
     date: '25 August 2026',
     title: 'Plan names on the subscription page, entitlement sync hardening',
