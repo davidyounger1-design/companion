@@ -9,14 +9,20 @@ import { supabase } from './supabase'
  * FAIL CLOSED: on any error, or a subscription the hub hasn't decided on, this
  * returns an empty set. Callers must treat "key absent" as NOT included — never
  * as allowed.
+ *
+ * Returns null (not an empty set) when the hub couldn't be reached at all —
+ * that's "unknown", not "nothing included". Gating still fails closed on null,
+ * but reconcileOrgPlan must NOT write null over the stored entitlements mirror
+ * (a transient fetch failure would wipe the column that server-side RLS gating
+ * reads, locking members out of plan-gated sections until the next login).
  */
-export async function fetchFeatures(): Promise<Set<string>> {
+export async function fetchFeatures(): Promise<Set<string> | null> {
   try {
     const { data, error } = await supabase.functions.invoke('check-features')
-    if (error || !data?.features || !Array.isArray(data.features)) return new Set()
+    if (error || !data?.features || !Array.isArray(data.features)) return null
     return new Set<string>(data.features)
   } catch {
-    return new Set()
+    return null
   }
 }
 

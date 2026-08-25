@@ -55,3 +55,24 @@ export function planMeters(plan: string | null): MeteredAxis | null {
   if (/participants?$/i.test(plan)) return 'participants'
   return 'workers'
 }
+
+// Cosmetic last-resort fallback ONLY — the real plan name comes from MAB via
+// check-plan (`info.plan`), so this must never become a second source of truth
+// for plan data. It prettifies a raw plan id for the rare case the hub couldn't
+// be reached, so users never see an internal id like companion_team_workers.
+// Names mirror the MAB catalog; any id not listed gets a generic prettification.
+const KNOWN_PLAN_NAMES: Record<string, string> = {
+  companion_family: 'Family',
+  companion_family_029: 'Family +',
+  companion_enterprise: 'Enterprise',
+  companion_solo: 'Solo',
+  companion_starter_participant: 'Starter',
+  companion_team_workers: 'Team',
+}
+
+export function planDisplayName(planId: string): string {
+  if (KNOWN_PLAN_NAMES[planId]) return KNOWN_PLAN_NAMES[planId]
+  const bare = planId.replace(/^companion_/, '')
+  if (!bare) return planId
+  return bare.split('_').map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w)).join(' ')
+}

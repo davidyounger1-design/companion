@@ -61,10 +61,18 @@ export async function reconcileOrgPlan(org: Organisation | null): Promise<OrgPat
     if ((org.metered_axis ?? null) !== nextAxis) patch.metered_axis = nextAxis
   }
 
-  const nextEntitlements = [...features].sort()
-  const currentEntitlements = [...(org.entitlements ?? [])].sort()
-  if (JSON.stringify(nextEntitlements) !== JSON.stringify(currentEntitlements)) {
-    patch.entitlements = nextEntitlements
+  // features is null when the hub couldn't be reached — "unknown", not
+  // "nothing included". Never mirror that over the stored entitlements:
+  // org_has_feature() gates RLS server-side off this column, and one transient
+  // fetch failure at login would otherwise wipe it and lock every member out
+  // of plan-gated sections until the next successful login. An empty (non-null)
+  // set is a real hub answer and is mirrored normally.
+  if (features !== null) {
+    const nextEntitlements = [...features].sort()
+    const currentEntitlements = [...(org.entitlements ?? [])].sort()
+    if (JSON.stringify(nextEntitlements) !== JSON.stringify(currentEntitlements)) {
+      patch.entitlements = nextEntitlements
+    }
   }
 
   if (Object.keys(patch).length === 0) return null

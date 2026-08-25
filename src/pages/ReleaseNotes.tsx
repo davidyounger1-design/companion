@@ -3,6 +3,15 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.136',
+    date: '25 August 2026',
+    title: 'Plan names on the subscription page, entitlement sync hardening',
+    changes: [
+      { type: 'fix', text: 'The subscription page now shows your plan\'s name (for example "Team") for every member — previously only the subscription owner saw the real name and everyone else saw an internal plan ID.' },
+      { type: 'fix', text: 'If MyAppBuddy is briefly unreachable when you sign in, your saved plan entitlements are no longer cleared — plan-gated sections keep working and recover automatically on the next successful check.' },
+    ],
+  },
+  {
     version: '0.5.135',
     date: '25 August 2026',
     title: 'Family goals restored, NDIS registers locked',
