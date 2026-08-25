@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { roleHome } from '../lib/roleHome'
-import { checkPlan } from '../lib/planCheck'
+import { checkPlan, planDisplayName } from '../lib/planCheck'
 import { supabase } from '../lib/supabase'
 import { MabEmbed } from '../components/MabEmbed'
 import { WidgetBoundary } from '../components/WidgetBoundary'
@@ -116,7 +116,11 @@ export default function Account() {
     return <Navigate to={roleHome(profile.role, org?.org_type)} replace />
   }
 
-  const planLabel = live.plan ?? org?.plan ?? 'Unknown'
+  // live.plan is MAB's display name; when check-plan couldn't resolve it (hub
+  // unreachable, or a member whose email isn't the subscription owner), fall
+  // back to prettifying the raw plan id stored on the org — never show the id.
+  const planId = live.planId ?? org?.plan ?? null
+  const planLabel = live.plan ?? (planId ? planDisplayName(planId) : 'Unknown')
   const statusKey = (live.status ? MAB_STATUS[live.status] : null) ?? org?.billing_status ?? ''
   const billing = BILLING_LABEL[statusKey]
 

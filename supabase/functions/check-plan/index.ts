@@ -38,6 +38,11 @@ interface LinkSub {
   createdAt?: string
 }
 
+interface PlanCatalogEntry {
+  id?: string
+  name?: string
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
@@ -62,10 +67,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('MAB_SECRET_KEY')
       || Deno.env.get('COMPANION_SERVICE_KEY') || ''
 
-    // Resolve the caller's subscription from the /link listing. The dedicated
-    // subscription/check endpoint rejects this key type (401), but /link accepts
-    // it. Match by owner email; among the caller's subscriptions prefer active
-    // ones, then the most recently created (their current plan).
     const res = await fetch(
       `${mabUrl}/api/v1/link/subscriptions?app=companion&status=all`,
       { headers: { Authorization: `Bearer ${serviceKey}` } },
@@ -75,11 +76,45 @@ Deno.serve(async (req) => {
     const data = await res.json()
     const subs: LinkSub[] = Array.isArray(data) ? data : (data?.subscriptions ?? [])
     const email = user.email.toLowerCase()
-    const mine = subs.filter((s) => s.ownerEmail?.toLowerCase() === email)
-    const active = mine.filter((s) => ['active', 'trialing', 'trial'].includes(s.status ?? ''))
-    const pool = active.length ? active : mine
-    pool.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
-    const chosen = pool[0]
+
+    // Resolution order (v18):
+    // 1. The caller's org stores its MAB subscription id (myappbuddy_subscription_id)
+    //    — the authoritative match for every member of the org, not just the
+    //    subscription owner. Read it with the service role; treat any failure
+    //    here as "no preference", never as a hard error.
+    // 2. Fallback (unchanged v17 behaviour): owner-email match from /link —
+    //    among the caller's subscriptions prefer active ones, then the most
+    //    recently created (their current plan).
+    let chosen: LinkSub | undefined
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    if (serviceRoleKey) {
+      try {
+        const admin = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          serviceRoleKey,
+          { db: { schema: 'companion' }, auth: { persistSession: false } },
+        )
+        const { data: prof, error: profErr } = await admin
+          .from('profiles').select('org_id').eq('id', user.id).maybeSingle()
+        if (!profErr && prof?.org_id) {
+          const { data: orgRow } = await admin
+            .from('organisations').select('myappbuddy_subscription_id')
+            .eq('id', prof.org_id).maybeSingle()
+          const orgSubId = orgRow?.myappbuddy_subscription_id ?? null
+          if (orgSubId) chosen = subs.find((s) => s.id === orgSubId)
+        }
+      } catch {
+        // Org lookup is a preference — fall through to the email match below.
+      }
+    }
+
+    if (!chosen) {
+      const mine = subs.filter((s) => s.ownerEmail?.toLowerCase() === email)
+      const active = mine.filter((s) => ['active', 'trialing', 'trial'].includes(s.status ?? ''))
+      const pool = active.length ? active : mine
+      pool.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+      chosen = pool[0]
+    }
     if (!chosen?.id) return json(nullPlan)
 
     const result = {
@@ -89,6 +124,21 @@ Deno.serve(async (req) => {
       subscription_id: chosen.id ?? null,
       account_id: chosen.accountId ?? null,
       seats: typeof chosen.seats === 'number' ? chosen.seats : null,
+    }
+
+    // /link carries the plan id but sometimes not the display name — resolve it
+    // from MAB's public plans catalog so the app never shows a raw plan id.
+    if (!result.plan && result.plan_id) {
+      try {
+        const catRes = await fetch(`${mabUrl}/api/v1/plans`)
+        if (catRes.ok) {
+          const cat = await catRes.json()
+          const plans: PlanCatalogEntry[] = Array.isArray(cat?.plans) ? cat.plans : []
+          result.plan = plans.find((p) => p.id === result.plan_id)?.name ?? null
+        }
+      } catch {
+        // Leave plan null — the client prettifies the id as a last resort.
+      }
     }
 
     // Keep MAB's app_ref current on login — cheap, idempotent, self-healing.
