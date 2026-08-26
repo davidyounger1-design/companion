@@ -10,6 +10,7 @@ export default function Step4Clients() {
   const { user, profile, org } = useAuth()
   const [name, setName] = useState('')
   const [dob, setDob] = useState('')
+  const [email, setEmail] = useState('')
   const [added, setAdded] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -68,11 +69,16 @@ export default function Step4Clients() {
       return
     }
     setSaving(true)
-    const { error: err } = await supabase.from('clients').insert({
-      org_id: orgId,
-      full_name: name.trim(),
-      dob: dob || null,
-      active: true,
+    // create_participant (migration 091) inserts through the 082/055
+    // triggers just like the old direct insert, and auto-links when the
+    // email matches a participant in another plan (plus their family's
+    // drawers already in this org).
+    const { data, error: err } = await supabase.rpc('create_participant', {
+      p_org_id: orgId,
+      p_full_name: name.trim(),
+      p_dob: dob || null,
+      p_email: email.trim() || null,
+      p_active: true,
     })
     setSaving(false)
     if (err) {
@@ -83,13 +89,30 @@ export default function Step4Clients() {
           ? `You've reached your plan's limit of ${seats ?? 'your plan\'s'} participant${seats === 1 ? '' : 's'}. Increase your plan quantity to add more.`
           : err.message
       )
-    } else {
-      qc.invalidateQueries({ queryKey: ['clients', orgId] })
-      setAdded((prev) => [...prev, name.trim()])
-      setActiveCount((prev) => (prev ?? 0) + 1)
-      setName('')
-      setDob('')
+      return
     }
+    if (!data || data.ok === false) {
+      setError(data?.error ?? 'Could not add the participant — try again.')
+      return
+    }
+    qc.invalidateQueries({ queryKey: ['clients', orgId] })
+    // Auto-link result: unique email match → linked instantly; multiple
+    // matches → created unlinked (nothing disclosed, fixable via the
+    // manual link flow on the family dashboard).
+    let label = name.trim()
+    if (data.reason === 'matched') {
+      const fam = (data.linked_count ?? 1) - 1
+      label += fam > 0
+        ? ` — linked to their existing record (plus ${fam} family ${fam === 1 ? 'link' : 'links'})`
+        : ' — linked to their existing record'
+    } else if (data.reason === 'ambiguous') {
+      label += " — couldn't auto-link: the email matches more than one existing record"
+    }
+    setAdded((prev) => [...prev, label])
+    setActiveCount((prev) => (prev ?? 0) + 1)
+    setName('')
+    setDob('')
+    setEmail('')
   }
 
   return (
@@ -140,6 +163,23 @@ export default function Step4Clients() {
               value={dob}
               onChange={(e) => setDob(e.target.value)}
             />
+          </div>
+          <div className="field" style={{ marginBottom: '0.75rem' }}>
+            <label htmlFor="clientEmail">
+              Email <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>(optional)</span>
+            </label>
+            <input
+              id="clientEmail"
+              type="email"
+              className="input"
+              placeholder="e.g. alex@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !saving && name.trim() && addClient()}
+            />
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+              Links this participant to their existing record if they're already in another plan — and links their family's records here too.
+            </p>
           </div>
           <button
             className="btn btn-primary"

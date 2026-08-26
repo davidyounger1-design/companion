@@ -3,6 +3,15 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.138',
+    date: '26 August 2026',
+    title: 'Participants link automatically by email',
+    changes: [
+      { type: 'new', text: 'When you add a participant with an email address, Companion now recognises an existing participant with the same email — even in another plan — and links the new record to them automatically. Their family members\' records already in your plan are linked too, so re-adding a household in a second plan happens in one go.' },
+      { type: 'change', text: 'Add Participant now includes an optional email field. When it finds a match, the other plan\'s family sees a notice, and every automatic link is recorded in an audit trail; if the same email is held by more than one person, no link is made and nothing is shared.' },
+    ],
+  },
+  {
     version: '0.5.137',
     date: '25 August 2026',
     title: 'Invites and plan checks working again',
