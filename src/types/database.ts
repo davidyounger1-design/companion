@@ -1147,6 +1147,24 @@ export interface Database {
         Args: { p_client_id: string }
         Returns: void
       }
+      create_participant: {
+        Args: {
+          p_org_id: string
+          p_full_name: string
+          p_dob?: string | null
+          p_email?: string | null
+          p_active?: boolean
+        }
+        Returns: {
+          ok: boolean
+          error?: string
+          client_id: string
+          person_id: string
+          linked: boolean
+          reason: 'matched' | 'none' | 'ambiguous'
+          linked_count?: number
+        }
+      }
     }
     Enums: {
       [_ in never]: never
