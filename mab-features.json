@@ -12,5 +12,6 @@
   { "key": "behaviour_support_plans", "name": "Behaviour support plans register" },
   { "key": "goals", "name": "Goals & progress tracking" },
   { "key": "retention_30", "name": "30-day journal retention" },
-  { "key": "medication_tracking", "name": "Medication tracking" }
+  { "key": "medication_tracking", "name": "Medication tracking" },
+  { "key": "rostering", "name": "Rostering & shift handover" }
 ]

@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
   )
 
   let body: {
-    record?: { org_id?: string; client_id?: string; sender_id?: string; author_id?: string; user_id?: string }
+    record?: { org_id?: string; client_id?: string; sender_id?: string; author_id?: string; user_id?: string; worker_id?: string; created_by?: string }
     type?: string
   }
   try { body = await req.json() } catch { return new Response('bad json', { status: 400 }) }
@@ -102,6 +102,25 @@ Deno.serve(async (req) => {
       .eq('notify_on_entry', true)
 
     if (authorId) q.neq('user_id', authorId)
+
+    const { data } = await q
+    subs = data
+  } else if (body.type === 'shift') {
+    // Shift notification (rostering, 095_rostering_notify.sql): the assigned
+    // worker only, excluding the shift's creator (the coordinator who
+    // published/cancelled it — relevant only if the same person somehow
+    // holds both roles on this shift).
+    const workerId = record.worker_id
+    if (!workerId) return new Response('no worker', { status: 200 })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const q = (supabase as any)
+      .from('push_subscriptions')
+      .select('endpoint')
+      .eq('user_id', workerId)
+      .eq('org_id', record.org_id)
+
+    if (record.created_by) q.neq('user_id', record.created_by)
 
     const { data } = await q
     subs = data

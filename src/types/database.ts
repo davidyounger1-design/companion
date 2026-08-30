@@ -1032,6 +1032,88 @@ export interface Database {
         Update: { role?: string; sub_role_id?: string | null; left_at?: string | null }
         Relationships: []
       }
+      programs: {
+        Row: { id: string; org_id: string; name: string; kind: string; colour: string | null; active: boolean; created_at: string }
+        Insert: { id?: string; org_id: string; name: string; kind: string; colour?: string | null; active?: boolean; created_at?: string }
+        Update: { name?: string; kind?: string; colour?: string | null; active?: boolean }
+        Relationships: []
+      }
+      program_participants: {
+        Row: { program_id: string; participant_id: string; org_id: string; joined_at: string; left_at: string | null }
+        Insert: { program_id: string; participant_id: string; org_id: string; joined_at?: string; left_at?: string | null }
+        Update: { left_at?: string | null }
+        Relationships: []
+      }
+      program_workers: {
+        Row: { program_id: string; worker_id: string; org_id: string; assigned_at: string; removed_at: string | null }
+        Insert: { program_id: string; worker_id: string; org_id: string; assigned_at?: string; removed_at?: string | null }
+        Update: { removed_at?: string | null }
+        Relationships: []
+      }
+      shifts: {
+        Row: {
+          id: string; org_id: string; program_id: string; worker_id: string | null
+          is_open: boolean; required_skills: string[]; template_id: string | null
+          starts_at: string; ends_at: string; status: string
+          notes: string | null; override_note: string | null
+          created_by: string; created_at: string; updated_at: string | null; deleted_at: string | null
+        }
+        Insert: {
+          id?: string; org_id: string; program_id: string; worker_id?: string | null
+          is_open?: boolean; required_skills?: string[]; template_id?: string | null
+          starts_at: string; ends_at: string; status?: string
+          notes?: string | null; override_note?: string | null
+          created_by: string; created_at?: string; updated_at?: string | null; deleted_at?: string | null
+        }
+        Update: {
+          worker_id?: string | null; is_open?: boolean; required_skills?: string[]
+          starts_at?: string; ends_at?: string; status?: string
+          notes?: string | null; override_note?: string | null
+          updated_at?: string | null; deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      shift_participants: {
+        Row: { shift_id: string; participant_id: string; org_id: string; left_at: string | null }
+        Insert: { shift_id: string; participant_id: string; org_id: string; left_at?: string | null }
+        Update: { left_at?: string | null }
+        Relationships: []
+      }
+      shift_handovers: {
+        Row: { id: string; shift_id: string; author_id: string; body: string | null; nothing_to_hand_over: boolean; created_at: string }
+        Insert: { id?: string; shift_id: string; author_id: string; body?: string | null; nothing_to_hand_over?: boolean; created_at?: string }
+        Update: Record<string, never>
+        Relationships: []
+      }
+      shift_templates: {
+        Row: {
+          id: string; org_id: string; program_id: string; worker_id: string
+          day_of_week: number; starts_time: string; ends_time: string
+          end_date: string | null; participant_ids: string[]; active: boolean; created_at: string
+        }
+        Insert: {
+          id?: string; org_id: string; program_id: string; worker_id: string
+          day_of_week: number; starts_time: string; ends_time: string
+          end_date?: string | null; participant_ids?: string[]; active?: boolean; created_at?: string
+        }
+        Update: {
+          worker_id?: string; day_of_week?: number; starts_time?: string; ends_time?: string
+          end_date?: string | null; participant_ids?: string[]; active?: boolean
+        }
+        Relationships: []
+      }
+      worker_availability: {
+        Row: { worker_id: string; org_id: string; day_of_week: number; starts_time: string; ends_time: string }
+        Insert: { worker_id: string; org_id: string; day_of_week: number; starts_time: string; ends_time: string }
+        Update: { starts_time?: string; ends_time?: string }
+        Relationships: []
+      }
+      profile_skills: {
+        Row: { profile_id: string; org_id: string; skill: string }
+        Insert: { profile_id: string; org_id: string; skill: string }
+        Update: Record<string, never>
+        Relationships: []
+      }
     }
     Views: {
       participants: {
@@ -1145,6 +1227,133 @@ export interface Database {
       }
       unlink_person: {
         Args: { p_client_id: string }
+        Returns: void
+      }
+      create_program: {
+        Args: { p_name: string; p_kind: string; p_colour?: string | null }
+        Returns: string
+      }
+      update_program: {
+        Args: { p_id: string; p_name: string; p_kind: string; p_colour: string | null }
+        Returns: void
+      }
+      archive_program: {
+        Args: { p_id: string }
+        Returns: void
+      }
+      assign_participant_to_program: {
+        Args: { p_program_id: string; p_participant_id: string }
+        Returns: void
+      }
+      remove_participant_from_program: {
+        Args: { p_program_id: string; p_participant_id: string }
+        Returns: void
+      }
+      assign_worker_to_program: {
+        Args: { p_program_id: string; p_worker_id: string }
+        Returns: void
+      }
+      remove_worker_from_program: {
+        Args: { p_program_id: string; p_worker_id: string }
+        Returns: void
+      }
+      rostering_create_shift: {
+        Args: {
+          p_program_id: string; p_worker_id: string | null; p_starts_at: string; p_ends_at: string
+          p_participant_ids: string[]; p_notes?: string | null; p_override_note?: string | null
+        }
+        Returns: string
+      }
+      rostering_update_shift: {
+        Args: {
+          p_shift_id: string; p_worker_id: string | null; p_starts_at: string; p_ends_at: string
+          p_participant_ids: string[]; p_notes?: string | null; p_override_note?: string | null
+        }
+        Returns: void
+      }
+      rostering_delete_shift: {
+        Args: { p_shift_id: string }
+        Returns: void
+      }
+      rostering_publish_shift: {
+        Args: { p_shift_id: string }
+        Returns: void
+      }
+      rostering_cancel_shift: {
+        Args: { p_shift_id: string; p_reason: string }
+        Returns: void
+      }
+      rostering_confirm_shift: {
+        Args: { p_shift_id: string }
+        Returns: void
+      }
+      rostering_claim_shift: {
+        Args: { p_shift_id: string }
+        Returns: void
+      }
+      rostering_start_shift: {
+        Args: { p_shift_id: string }
+        Returns: void
+      }
+      rostering_end_shift: {
+        Args: { p_shift_id: string; p_handover_body?: string | null; p_nothing_to_hand_over?: boolean }
+        Returns: void
+      }
+      rostering_copy_forward: {
+        Args: { p_source_week: string; p_target_week: string }
+        Returns: { created: number; skipped: number }
+      }
+      rostering_week_grid: {
+        Args: { p_week_start: string; p_program_id: string }
+        Returns: Array<{
+          id: string; worker_id: string | null; worker_name: string | null; is_open: boolean; status: string
+          starts_at: string; ends_at: string; required_skills: string[]; notes: string | null; template_id: string | null
+          participants: Array<{ id: string; full_name: string }> | null
+        }>
+      }
+      rostering_warnings: {
+        Args: { p_week_start: string; p_program_id: string }
+        Returns: {
+          overlaps: Array<{ worker_id: string; shift_a: string; shift_b: string }>
+          uncovered: Array<{ participant_id: string; day: string }>
+          unconfirmed: Array<{ id: string; starts_at: string }>
+        }
+      }
+      rostering_previous_handover: {
+        Args: { p_program_id: string; p_participant_ids: string[]; p_before: string }
+        Returns: {
+          id: string; shift_id: string; author_id: string; body: string | null
+          nothing_to_hand_over: boolean; created_at: string; fallback_no_shared_participants: boolean
+        } | null
+      }
+      rostering_set_availability: {
+        Args: { p_days: Array<{ day_of_week: number; starts_time: string; ends_time: string }> }
+        Returns: void
+      }
+      rostering_set_skills: {
+        Args: { p_skills: string[] }
+        Returns: void
+      }
+      rostering_create_template: {
+        Args: {
+          p_program_id: string; p_worker_id: string; p_day_of_week: number
+          p_starts_time: string; p_ends_time: string; p_end_date: string | null; p_participant_ids: string[]
+        }
+        Returns: string
+      }
+      rostering_update_template: {
+        Args: {
+          p_id: string; p_worker_id: string; p_day_of_week: number
+          p_starts_time: string; p_ends_time: string; p_end_date: string | null; p_participant_ids: string[]
+        }
+        Returns: void
+      }
+      rostering_pause_template: {
+        Args: { p_id: string; p_active: boolean }
+        Returns: void
+      }
+      rostering_delete_template: {
+        Args: { p_id: string }
         Returns: void
       }
     }
