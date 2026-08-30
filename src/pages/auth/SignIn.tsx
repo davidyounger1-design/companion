@@ -7,6 +7,7 @@ import { signIn } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import { checkPlan, isFamilyPlan } from '../../lib/planCheck'
 import { checkMfaRequired } from '../../lib/mfa'
+import { roleHome } from '../../lib/roleHome'
 import MfaCodeInput from '../../components/MfaCodeInput'
 
 const schema = z.object({
@@ -86,14 +87,7 @@ export default function SignIn() {
       const { data: result } = await supabase.rpc('accept_invite', { p_token: inviteToken })
       const r = result as { ok?: boolean; role?: string; error?: string } | null
       if (r?.ok) {
-        const workerRoles = ['support_worker', 'trusted_support_worker']
-        navigate(
-          workerRoles.includes(r.role ?? '') ? '/worker' :
-          (r.role === 'family' || r.role === 'recipient') ? '/family' :
-          r.role === 'therapist' ? '/therapist' :
-          '/dashboard',
-          { replace: true }
-        )
+        navigate(roleHome(r.role), { replace: true })
         return
       }
     }
@@ -127,16 +121,8 @@ export default function SignIn() {
       navigate('/setup/family/participant')
     } else if (!planIsFamily && planInfo.plan !== null && profile.role === 'family') {
       navigate('/setup/service')
-    } else if (profile.role === 'family' || profile.role === 'recipient') {
-      navigate('/family')
-    } else if (profile.role === 'support_worker' || profile.role === 'trusted_support_worker') {
-      navigate('/worker')
-    } else if (profile.role === 'therapist') {
-      navigate('/therapist')
-    } else if (isCoordinator && isFamilyOrg) {
-      navigate('/family')
     } else {
-      navigate('/dashboard')
+      navigate(roleHome(profile.role, orgType))
     }
   }
 

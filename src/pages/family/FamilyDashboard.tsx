@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { useModalOpen } from '../../context/ModalActivityContext'
 import { supabase } from '../../lib/supabase'
+import { errorMessage } from '../../lib/errorMessage'
 import type { LogEntry } from '../../types/database'
 import Lightbox from '../../components/Lightbox'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
@@ -25,7 +26,9 @@ import { EditIcon, TrashIcon, JournalIcon, MealIcon, ActivityIcon, MoodIcon, Not
 import NoticeCard from '../../components/NoticeCard'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
 import MedicationList from '../../components/MedicationList'
+import PersonLinkPanel from '../../components/PersonLinkPanel'
 import { useOrgFeatureFlags } from '../../hooks/useOrgFeatureFlags'
+import { usePermissions } from '../../hooks/usePermissions'
 
 
 function formatDate(iso: string) {
@@ -411,13 +414,13 @@ function EditEntryModal({
         qc.invalidateQueries({ queryKey: ['entry-photos', entry.id] })
       }
     }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not save.'); setSaving(false) }
+    catch (e) { setError(errorMessage(e, 'Could not save.')); setSaving(false) }
   }
 
   async function handleDelete() {
     setDeleting(true)
     try { await onDelete(entry.id) }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not delete.'); setDeleting(false); setConfirmDelete(false) }
+    catch (e) { setError(errorMessage(e, 'Could not delete.')); setDeleting(false); setConfirmDelete(false) }
   }
 
   return (
@@ -812,6 +815,7 @@ function CalendarSheet({
 export default function FamilyDashboard() {
   const navigate = useNavigate()
   const { user, profile, org, refreshProfile } = useAuth()
+  const perms = usePermissions()
   const qc = useQueryClient()
 
   const isCoordinator = profile?.role === 'coordinator'
@@ -877,6 +881,9 @@ export default function FamilyDashboard() {
 
   const clientId = clientRow?.client_id
   const clientData = clientRow?.clients as unknown as { full_name: string; dob: string | null } | null
+  // 'Participant' is a loading-state placeholder, not a real fallback name —
+  // it must never be presented as an editable participant (there is nothing
+  // for saveEdit's `.eq('id', clientId)` to update when clientId is undefined).
   const participantName = clientData?.full_name ?? 'Participant'
 
   function startEdit() {
@@ -1126,10 +1133,10 @@ export default function FamilyDashboard() {
                 <p className="eyebrow" style={{ margin: 0 }}>Care journal</p>
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {participantName}
+                  {clientId ? participantName : 'No participant yet'}
                 </h1>
               </div>
-              {isCoordinator && (
+              {isCoordinator && clientId && (
                 <button className="icon-btn" onClick={startEdit} title="Edit participant"><EditIcon size={16} /></button>
               )}
             </div>
@@ -1141,6 +1148,8 @@ export default function FamilyDashboard() {
             </div>
           </div>
         )}
+
+        {clientId && <PersonLinkPanel clientId={clientId} participantName={participantName} />}
 
         {clientId && org && showMood && (
           <RecipientMoodLog clientId={clientId} orgId={org.id} participantName={participantName} />
@@ -1219,7 +1228,7 @@ export default function FamilyDashboard() {
             </button>
             {showBehaviourNotes && (
               <div style={{ marginTop: '0.875rem' }}>
-                <BehaviourNotesSection clientId={clientId} participantName={participantName} />
+                <BehaviourNotesSection clientId={clientId} />
               </div>
             )}
           </div>
@@ -1290,7 +1299,7 @@ export default function FamilyDashboard() {
               const canDeleteOwn = isOwnEntry && (now - new Date(e.created_at).getTime()) < 60_000
               return (
                 <EntryCard key={e.id} entry={e} showAuthor={true} showMood={showMood && !isRecipient}
-                  canEdit={isOwnEntry} canShare={canShare}
+                  canEdit={isOwnEntry && perms.edit_own_entry} canShare={canShare}
                   canDeleteOwn={canDeleteOwn} now={now}
                   expiryDays={retentionDays != null ? daysUntilExpiry(e.occurred_at, retentionDays) : undefined}
                   onEdit={setEditingEntry} onDelete={deleteOwnEntry} />

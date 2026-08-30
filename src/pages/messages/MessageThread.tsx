@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { isWorkerRole } from '../../lib/roleHome'
 import FamilyStickyHeader from '../../components/FamilyStickyHeader'
 
 function formatTime(iso: string) {
@@ -176,7 +177,7 @@ export default function MessageThread() {
     ? `${recipient.full_name} · ${ROLE_LABEL[recipient.role] ?? recipient.role}`
     : 'Loading…'
 
-  const isWorker = profile?.role === 'support_worker' || profile?.role === 'trusted_support_worker'
+  const isWorker = isWorkerRole(profile?.role)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--color-bg)' }}>

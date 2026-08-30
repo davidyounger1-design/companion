@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { roleHome } from '../../lib/roleHome'
 
 interface InviteDetails {
   org_id: string
@@ -14,11 +15,12 @@ interface InviteDetails {
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  support_worker: 'Support Worker',
-  coordinator:    'Coordinator',
-  family:         'Family Member',
-  therapist:      'Therapist',
-  recipient:      'Care Recipient',
+  support_worker:         'Support Worker',
+  trusted_support_worker: 'Trusted Support Worker',
+  coordinator:            'Coordinator',
+  family:                 'Family Member',
+  therapist:              'Therapist',
+  recipient:              'Care Recipient',
 }
 
 // Friendly text for accept_invite's error codes — the RPC returns short
@@ -68,14 +70,7 @@ export default function AcceptInvite() {
   }, [token])
 
   function goToDashboard(role: string) {
-    const workerRoles = ['support_worker', 'trusted_support_worker']
-    navigate(
-      workerRoles.includes(role) ? '/worker' :
-      role === 'family' || role === 'recipient' ? '/family' :
-      role === 'therapist' ? '/therapist' :
-      '/dashboard',
-      { replace: true }
-    )
+    navigate(roleHome(role), { replace: true })
   }
 
   async function handleAccept() {

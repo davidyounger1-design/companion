@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { errorMessage } from '../lib/errorMessage'
 import { RATING_LABEL } from '../lib/ndisRecords'
 import type { ProgressRating } from '../types/database'
 
@@ -64,7 +65,7 @@ export default function ProgressRecordForm({
         </div>
         {save.isError && (
           <div className="alert alert-error">
-            {save.error instanceof Error ? save.error.message : 'Could not save. Try again.'}
+            {errorMessage(save.error, 'Could not save. Try again.')}
           </div>
         )}
         <div style={{ display: 'flex', gap: '0.5rem' }}>

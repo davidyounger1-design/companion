@@ -6,7 +6,10 @@ import { ensureProfile } from '../lib/auth'
 import { reconcileOrgPlan } from '../lib/reconcilePlan'
 import { roleHome } from '../lib/roleHome'
 import { isOverParticipantSeats, CHOOSE_PARTICIPANTS_PATH } from '../lib/seatOverage'
+import { ACTIVE_ORG_STORAGE_KEY } from '../lib/activeOrg'
 import type { Profile, Organisation } from '../types/database'
+
+type Membership = { org_id: string; role: string; org_name: string }
 
 interface AuthState {
   user: User | null
@@ -15,6 +18,10 @@ interface AuthState {
   org: Organisation | null
   loading: boolean
   refreshProfile: () => Promise<void>
+  /** Every org this profile currently belongs to. Length 1 for everyone
+   *  today — the plan switcher only appears once someone has 2+. */
+  memberships: Membership[]
+  switchOrg: (orgId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState>({
@@ -24,6 +31,8 @@ const AuthContext = createContext<AuthState>({
   org: null,
   loading: true,
   refreshProfile: async () => {},
+  memberships: [],
+  switchOrg: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,18 +44,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     org: null,
     loading: true,
     refreshProfile: async () => {},
+    memberships: [],
+    switchOrg: async () => {},
   })
 
   async function refreshProfile() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-    let org: Organisation | null = null
-    if (profile?.org_id) {
-      const { data } = await supabase.from('organisations').select('*').eq('id', profile.org_id).maybeSingle()
-      org = data
-    }
-    setState((prev) => ({ ...prev, profile, org }))
+    const { profile, org, memberships } = await hydrateUser(user)
+    setState((prev) => ({ ...prev, profile, org, memberships }))
+  }
+
+  // Person-side roles (family/recipient) always get a merged view and never
+  // switch — only staff-side roles (coordinator/support_worker) span more
+  // than one plan in practice, but this checks role generically rather than
+  // hardcoding that, since nothing stops a person-side role from also
+  // holding a staff membership elsewhere.
+  async function switchOrg(orgId: string) {
+    sessionStorage.setItem(ACTIVE_ORG_STORAGE_KEY, orgId)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { profile, org, memberships } = await hydrateUser(user)
+    setState((prev) => ({ ...prev, profile, org, memberships }))
+    if (profile) navigate(roleHome(profile.role, org?.org_type), { replace: true })
   }
 
   // If a plan downgrade left more active participants than the org's current
@@ -83,13 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        hydrateUser(session.user, session).then(async ({ profile, org }) => {
-          setState((prev) => ({ ...prev, user: session.user, session, profile, org, loading: false }))
+        hydrateUser(session.user).then(async ({ profile, org, memberships }) => {
+          setState((prev) => ({ ...prev, user: session.user, session, profile, org, memberships, loading: false }))
           if (await guardSeatOverage(profile, org)) return
           reconcileInBackground(profile, org)
         })
       } else {
-        setState((prev) => ({ ...prev, user: null, session: null, profile: null, org: null, loading: false }))
+        setState((prev) => ({ ...prev, user: null, session: null, profile: null, org: null, memberships: [], loading: false }))
       }
     })
 
@@ -101,23 +121,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
       if (session?.user) {
-        hydrateUser(session.user, session).then(async ({ profile, org }) => {
-          setState((prev) => ({ ...prev, user: session.user, session, profile, org, loading: false }))
+        hydrateUser(session.user).then(async ({ profile, org, memberships }) => {
+          setState((prev) => ({ ...prev, user: session.user, session, profile, org, memberships, loading: false }))
           if (await guardSeatOverage(profile, org)) return
           reconcileInBackground(profile, org)
         })
       } else {
-        setState((prev) => ({ ...prev, user: null, session: null, profile: null, org: null, loading: false }))
+        setState((prev) => ({ ...prev, user: null, session: null, profile: null, org: null, memberships: [], loading: false }))
       }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  return <AuthContext.Provider value={{ ...state, refreshProfile }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ ...state, refreshProfile, switchOrg }}>{children}</AuthContext.Provider>
 }
 
-async function hydrateUser(user: User, _session: Session): Promise<{ profile: Profile | null; org: Organisation | null }> {
+async function hydrateUser(
+  user: User,
+): Promise<{ profile: Profile | null; org: Organisation | null; memberships: Membership[] }> {
   let profile: Profile | null = null
 
   const { data: existing } = await supabase
@@ -139,17 +161,56 @@ async function hydrateUser(user: User, _session: Session): Promise<{ profile: Pr
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
       profile = data
     } catch {
-      return { profile: null, org: null }
+      return { profile: null, org: null, memberships: [] }
     }
   }
 
+  if (!profile) return { profile: null, org: null, memberships: [] }
+
+  // Every org this profile currently belongs to (profile_orgs is what
+  // my_org_id()/my_role() actually resolve against — profiles.org_id/role
+  // is kept in sync as the "primary" for display, but the active context
+  // below is what decides what's actually shown).
+  const { data: rows } = await supabase
+    .from('profile_orgs')
+    .select('org_id, role, organisations(name)')
+    .eq('profile_id', profile.id)
+    .is('left_at', null)
+  const memberships: Membership[] = (rows ?? []).map((r) => ({
+    org_id: r.org_id,
+    role: r.role,
+    org_name: (r.organisations as unknown as { name: string } | null)?.name ?? 'Unknown plan',
+  }))
+
+  // Resolve which membership is active: a stored choice if it's still
+  // valid, else the profile's primary org_id if that's still a real
+  // membership, else the first membership found. Self-healing if the
+  // stored choice points at an org this profile has since left.
+  const stored = sessionStorage.getItem(ACTIVE_ORG_STORAGE_KEY)
+  const active =
+    memberships.find((m) => m.org_id === stored) ??
+    memberships.find((m) => m.org_id === profile!.org_id) ??
+    memberships[0] ??
+    null
+  if (active) sessionStorage.setItem(ACTIVE_ORG_STORAGE_KEY, active.org_id)
+  else sessionStorage.removeItem(ACTIVE_ORG_STORAGE_KEY)
+
+  // Effective profile: role reflects the ACTIVE membership, not
+  // necessarily the raw profiles row (which is just the "primary" for
+  // single-membership backward-compat and display). Everything else in
+  // the app reads profile.role/org_id and should keep working unchanged,
+  // now automatically respecting whichever plan is active.
+  const effectiveProfile: Profile = active
+    ? { ...profile, org_id: active.org_id, role: active.role as Profile['role'] }
+    : profile
+
   let org: Organisation | null = null
-  if (profile?.org_id) {
-    const { data } = await supabase.from('organisations').select('*').eq('id', profile.org_id).maybeSingle()
+  if (active) {
+    const { data } = await supabase.from('organisations').select('*').eq('id', active.org_id).maybeSingle()
     org = data
   }
 
-  return { profile, org }
+  return { profile: effectiveProfile, org, memberships }
 }
 
 export function useAuth() {

@@ -6,10 +6,12 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { supabase } from '../../lib/supabase'
+import { errorMessage } from '../../lib/errorMessage'
 import { useAuth } from '../../context/AuthContext'
 import MoodSlider from '../../components/MoodSlider'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
 import { useFeatures } from '../../hooks/useFeatures'
+import { usePermissions } from '../../hooks/usePermissions'
 import { FEATURES } from '../../lib/features'
 import Lightbox from '../../components/Lightbox'
 import EntryComments from '../../components/EntryComments'
@@ -118,11 +120,12 @@ function MediaCell({ entryId, legacyPath }: { entryId: string; legacyPath?: stri
 export default function WorkerClientDetail() {
   const { clientId } = useParams<{ clientId: string }>()
   const { user, profile } = useAuth()
+  const perms = usePermissions()
   const { has } = useFeatures()
   const showMood = has(FEATURES.moodTracking)
   const showBehaviourNotesFeature = has(FEATURES.behaviourNotes)
   const showIncidentWorkflows = has(FEATURES.incidentWorkflows)
-  const showNdisRecords = has(FEATURES.goals)
+  const showNdisRecords = has(FEATURES.ndisRecords)
   const { isEnabled: orgEnabled } = useOrgFeatureFlags()
   const showMedicationTracking = has(FEATURES.medicationTracking) && orgEnabled('medication_tracking')
   const [showMedications, setShowMedications] = useState(false)
@@ -353,7 +356,7 @@ export default function WorkerClientDetail() {
                 onCancel={() => setShowBehaviourForm(false)}
               />
             )}
-            <BehaviourNotesSection clientId={client.id} participantName={client.full_name} />
+            <BehaviourNotesSection clientId={client.id} />
           </div>
         )}
       </div>}
@@ -404,7 +407,7 @@ export default function WorkerClientDetail() {
         </button>
         {showGoals && (
           <div style={{ marginTop: '0.875rem' }}>
-            <NdisRecordsSection clientId={client.id} orgId={client.org_id} authorId={user!.id} canManageAny={false} />
+            <NdisRecordsSection clientId={client.id} orgId={client.org_id} authorId={user!.id} canManageAny={perms.edit_any_goal} />
           </div>
         )}
       </div>}
@@ -485,7 +488,11 @@ export default function WorkerClientDetail() {
         <div className="alert alert-success" style={{ marginBottom: '1rem' }}>{successMsg}</div>
       )}
 
-      {!showForm ? (
+      {!perms.add_entries ? (
+        <div className="card" style={{ marginBottom: '1.5rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.85rem' }}>
+          Your coordinator has turned off adding journal entries for your role.
+        </div>
+      ) : !showForm ? (
         <button className="btn btn-primary btn-full" onClick={() => setShowForm(true)}
           style={{ marginBottom: '1.5rem' }}>
           + Add log entry
@@ -571,7 +578,7 @@ export default function WorkerClientDetail() {
 
             {addLog.isError && (
               <div className="alert alert-error">
-                {addLog.error instanceof Error ? addLog.error.message : 'Could not save. Try again.'}
+                {errorMessage(addLog.error, 'Could not save. Try again.')}
               </div>
             )}
           </form>
@@ -634,7 +641,7 @@ export default function WorkerClientDetail() {
                     )}
                     {updateLog.isError && (
                       <div className="alert alert-error" style={{ fontSize: '0.8rem' }}>
-                        {updateLog.error instanceof Error ? updateLog.error.message : 'Could not save.'}
+                        {errorMessage(updateLog.error, 'Could not save.')}
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -652,8 +659,8 @@ export default function WorkerClientDetail() {
 
               return (
                 <div key={log.id} className="card card-sm"
-                  style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer' }}
-                  onClick={() => startEdit(log)}>
+                  style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: perms.edit_own_entry ? 'pointer' : 'default' }}
+                  onClick={perms.edit_own_entry ? () => startEdit(log) : undefined}>
                   <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{typeInfo?.icon ?? '📝'}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
@@ -670,7 +677,9 @@ export default function WorkerClientDetail() {
                     <EntryReactions entryId={log.id} />
                     <EntryComments entryId={log.id} clientId={log.client_id} orgId={log.org_id} />
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2, flexShrink: 0 }}>✏️</span>
+                  {perms.edit_own_entry && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingTop: 2, flexShrink: 0 }}>✏️</span>
+                  )}
                 </div>
               )
             })}

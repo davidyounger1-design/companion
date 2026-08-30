@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { SettingsIcon } from './icons'
 import ColorModePill from './ColorModePill'
+import OrgBadge from './OrgBadge'
 
 /** The branded top bar for the whole family/recipient portal — logo, role
  * badge, name/email, appearance pill, and settings/sign-out. Shared by every
@@ -34,6 +35,7 @@ export default function FamilyHeader() {
         <span className="badge badge-sage" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
           {isCoordinator ? 'Coordinator' : isRecipient ? 'Recipient' : 'Family'}
         </span>
+        <div><OrgBadge /></div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', minWidth: 0, flex: '1 1 auto', justifyContent: 'flex-end' }}>
         {(currentUserName || user?.email) && (

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { errorMessage } from '../lib/errorMessage'
 import { SEVERITY_LABEL, CATEGORY_LABEL } from '../lib/incidents'
 import type { IncidentSeverity, IncidentCategory } from '../types/database'
 
@@ -101,7 +102,7 @@ export default function IncidentForm({
 
         {save.isError && (
           <div className="alert alert-error">
-            {save.error instanceof Error ? save.error.message : 'Could not save. Try again.'}
+            {errorMessage(save.error, 'Could not save. Try again.')}
           </div>
         )}
 

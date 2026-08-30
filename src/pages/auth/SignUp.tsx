@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { signUp } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
+import { roleHome } from '../../lib/roleHome'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Please enter your full name'),
@@ -39,14 +40,7 @@ export default function SignUp() {
         if (inviteToken) {
           const { data: inv } = await supabase.rpc('accept_invite', { p_token: inviteToken })
           const r = inv as { ok?: boolean; role?: string } | null
-          const workerRoles = ['support_worker', 'trusted_support_worker']
-          navigate(
-            workerRoles.includes(r?.role ?? '') ? '/worker' :
-            (r?.role === 'family' || r?.role === 'recipient') ? '/family' :
-            r?.role === 'therapist' ? '/therapist' :
-            '/dashboard',
-            { replace: true }
-          )
+          navigate(roleHome(r?.role), { replace: true })
         } else {
           navigate('/setup/account')
         }

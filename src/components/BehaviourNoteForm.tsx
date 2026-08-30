@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { moodEmoji5 } from '../lib/behaviourNotes'
+import { errorMessage } from '../lib/errorMessage'
 
 const MOOD_SCALE = [1, 2, 3, 4, 5]
 
@@ -137,7 +138,7 @@ export default function BehaviourNoteForm({
 
         {save.isError && (
           <div className="alert alert-error">
-            {save.error instanceof Error ? save.error.message : 'Could not save. Try again.'}
+            {errorMessage(save.error, 'Could not save. Try again.')}
           </div>
         )}
 

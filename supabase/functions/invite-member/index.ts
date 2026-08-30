@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return json({ ok: false, error: 'Unauthorized' }, 401)
+    if (!authHeader) return json({ ok: false, error: 'Unauthorized' })
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -36,10 +36,10 @@ Deno.serve(async (req) => {
       db: { schema: 'companion' },
     })
     const { data: { user } } = await userClient.auth.getUser()
-    if (!user) return json({ ok: false, error: 'Unauthorized' }, 401)
+    if (!user) return json({ ok: false, error: 'Unauthorized' })
 
-    const { email, role, org_id, client_id, phone, name } = await req.json()
-    if (!email || !role || !org_id) return json({ ok: false, error: 'Missing required fields' }, 400)
+    const { email, role, org_id, client_id, phone, name, sub_role_id } = await req.json()
+    if (!email || !role || !org_id) return json({ ok: false, error: 'Missing required fields' })
 
     const admin = createClient(supabaseUrl, serviceKey, { db: { schema: 'companion' } })
 
@@ -50,26 +50,61 @@ Deno.serve(async (req) => {
       .eq('id', user.id)
       .single()
 
-    if (caller?.org_id !== org_id) return json({ ok: false, error: 'Forbidden' }, 403)
+    if (caller?.org_id !== org_id) return json({ ok: false, error: 'Forbidden' })
 
-    // Explicit allow-list of which roles each caller role may invite. This is
-    // the authoritative check (the function runs as service-role and bypasses
-    // RLS): without it, a trusted_support_worker could invite an accomplice as
-    // 'coordinator' and escalate to full org control. Anything not listed is
-    // denied by default.
-    const INVITE_MATRIX: Record<string, string[]> = {
-      coordinator:            ['coordinator', 'family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist'],
-      family:                 ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist'],
-      trusted_support_worker: ['support_worker'],
+    // Plan-entitlement backstop: `recipient` and `therapist` are themselves
+    // plan entitlements (`recipient_login` / `therapy_circles`), so an org
+    // whose plan doesn't include them must not be able to hand those roles
+    // out. Reads the mirrored organisations.entitlements array directly with
+    // the admin (service-role) client — NOT org_has_feature(), whose
+    // public.my_org_id() derives from the auth context this client lacks and
+    // would wrongly fail closed for everyone. FAIL CLOSED: a read error or a
+    // missing key is Forbidden. Other roles are unaffected.
+    const ENTITLED_ROLE_KEY: Record<string, string> = {
+      recipient: 'recipient_login',
+      therapist: 'therapy_circles',
     }
-    const allowed = INVITE_MATRIX[caller?.role ?? '']
-    if (!allowed || !allowed.includes(role))
-      return json({ ok: false, error: 'Forbidden' }, 403)
+    const requiredEntitlement = ENTITLED_ROLE_KEY[role]
+    if (requiredEntitlement) {
+      const { data: orgRow, error: entitlementsErr } = await admin
+        .from('organisations')
+        .select('entitlements')
+        .eq('id', org_id)
+        .maybeSingle()
+      if (entitlementsErr || !orgRow || !Array.isArray(orgRow.entitlements) || !orgRow.entitlements.includes(requiredEntitlement))
+        return json({ ok: false, error: `Forbidden — this org's plan does not include '${requiredEntitlement}' (required for ${role} invites)` })
+    }
+
+    // Authoritative check: resolved server-side from the caller's sub-role
+    // (companion.invitable_roles_for), not a hardcoded matrix. This function
+    // runs as service-role and bypasses RLS, so this is the ONLY check
+    // standing between a caller and inviting an accomplice as 'coordinator' —
+    // it must reflect the same ceiling the sub-role settings UI shows.
+    const { data: allowedRoles, error: rolesErr } = await admin.rpc('invitable_roles_for', { p_user_id: user.id })
+    if (rolesErr) return json({ ok: false, error: `invitable_roles_for failed: ${rolesErr.message}` })
+    if (!(allowedRoles ?? []).includes(role))
+      return json({ ok: false, error: `Forbidden — role '${role}' not in your invitable set: ${JSON.stringify(allowedRoles)}` })
 
     // A recipient invite must be tied to a specific client record (their login
     // is linked 1:1 to it).
     if (role === 'recipient' && !client_id)
-      return json({ ok: false, error: 'client_id is required for recipient invites' }, 400)
+      return json({ ok: false, error: 'client_id is required for recipient invites' })
+
+    // sub_role_id, if supplied, must be a real, non-archived sub-role of
+    // THIS org and THIS exact role — otherwise a caller could smuggle in a
+    // different org's (or a different base role's) sub-role id and have the
+    // composite FK on invites reject it late, or worse, silently mismatch.
+    let validSubRoleId: string | null = null
+    if (sub_role_id) {
+      const { data: sr } = await admin
+        .from('sub_roles')
+        .select('id')
+        .eq('id', sub_role_id).eq('org_id', org_id).eq('base_role', role)
+        .is('archived_at', null)
+        .maybeSingle()
+      if (!sr) return json({ ok: false, error: 'Invalid sub_role_id for this role' })
+      validSubRoleId = sr.id
+    }
 
     // Fetch names for the email copy
     const [{ data: org }, { data: client }, { data: inviter }] = await Promise.all([
@@ -88,22 +123,32 @@ Deno.serve(async (req) => {
       .eq('email', email.trim().toLowerCase())
       .eq('status', 'pending')
 
-    // Create the invite row (token is generated by database default)
+    // Create the invite row (token is generated by database default).
+    // sub_role_id is listed explicitly — an explicit-column insert like this
+    // one is exactly how a field silently vanishes if it's added to the
+    // request body without also being added here.
     const { data: invite, error: inviteErr } = await admin
       .from('invites')
-      .insert({ org_id, email: email.trim().toLowerCase(), role, client_id: client_id ?? null, phone: phone?.trim() || null, name: name?.trim() || null })
+      .insert({
+        org_id, email: email.trim().toLowerCase(), role, client_id: client_id ?? null,
+        phone: phone?.trim() || null, name: name?.trim() || null, sub_role_id: validSubRoleId,
+      })
       .select('token')
       .single()
 
     if (inviteErr || !invite) {
-      return json({ ok: false, error: inviteErr?.message ?? 'Failed to create invite' }, 500)
+      return json({ ok: false, error: inviteErr?.message ?? 'Failed to create invite' })
     }
 
     const inviteUrl    = `${appUrl}/accept-invite?token=${invite.token}`
     const inviteeName     = name?.trim() || null
     const participantName = client?.full_name ?? 'the participant'
     const inviterName     = inviter?.full_name ?? 'Someone'
-    const roleLabel       = ROLE_LABEL[role]  ?? role
+    let roleLabel = ROLE_LABEL[role] ?? role
+    if (validSubRoleId) {
+      const { data: sr } = await admin.from('sub_roles').select('name').eq('id', validSubRoleId).single()
+      if (sr?.name) roleLabel = sr.name
+    }
 
     // Send via Resend
     const resendRes = await fetch('https://api.resend.com/emails', {
@@ -126,7 +171,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, inviteUrl })
 
   } catch (e) {
-    return json({ ok: false, error: (e as Error).message }, 500)
+    return json({ ok: false, error: (e as Error).message })
   }
 })
 

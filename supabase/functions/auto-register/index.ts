@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
 
   try {
     const { email, password } = await req.json()
-    if (!email || !password) return json({ ok: false, error: 'Missing email or password' }, 400)
+    if (!email || !password) return json({ ok: false, error: 'Missing email or password' })
 
     const mabUrl = Deno.env.get('MAB_API_URL') ?? 'https://myappbuddy.com.au'
     const serviceKey = Deno.env.get('COMPANION_SERVICE_KEY') ?? ''
@@ -71,16 +71,20 @@ Deno.serve(async (req) => {
       orgId = org?.id ?? null
     }
 
-    // Create profile as coordinator (subscriber is always the account owner)
+    // Create profile as coordinator (subscriber is always the account owner).
+    // sub_role_id: null is explicit, not just the default — coordinators
+    // can't have one (sub_roles_no_coordinator), and this upsert can re-run
+    // against an existing row that might carry a stale value.
     await admin.from('profiles').upsert({
       id: userId,
       full_name: subData.name ?? email.split('@')[0],
       role: 'coordinator',
+      sub_role_id: null,
       ...(orgId ? { org_id: orgId } : {}),
     }, { onConflict: 'id' })
 
     return json({ ok: true, linked_org: !!orgId })
   } catch (e) {
-    return json({ ok: false, error: (e as Error).message }, 500)
+    return json({ ok: false, error: (e as Error).message })
   }
 })

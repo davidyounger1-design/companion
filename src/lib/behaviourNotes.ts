@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import type { BehaviourNote } from '../types/database'
 
 const MOOD_EMOJI: Record<number, string> = { 1: '😔', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' }
 
@@ -18,24 +17,8 @@ export async function logNoteAccess(noteId: string, actorId: string, action: 'vi
   await supabase.from('access_log').insert({ note_id: noteId, actor_id: actorId, action })
 }
 
-export function notesToCsv(notes: BehaviourNote[]) {
-  const header = ['Date', 'Title', 'Mood before', 'Mood after', 'Antecedent', 'Behaviour', 'Response', 'Flagged for review']
-  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-  const rows = notes.map((n) => [
-    new Date(n.occurred_at).toLocaleString('en-AU'),
-    n.title,
-    n.mood_before != null ? String(n.mood_before) : '',
-    n.mood_after != null ? String(n.mood_after) : '',
-    n.antecedent ?? '',
-    n.behaviour ?? '',
-    n.response ?? '',
-    n.flagged_for_review ? 'Yes' : 'No',
-  ].map(escape).join(','))
-  return [header.map(escape).join(','), ...rows].join('\n')
-}
-
-export function downloadCsv(filename: string, csv: string) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+/** Trigger a browser download of an in-memory blob (CSV, PDF, …). */
+export function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -44,4 +27,8 @@ export function downloadCsv(filename: string, csv: string) {
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
+}
+
+export function downloadCsv(filename: string, csv: string) {
+  downloadBlob(filename, new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
 }

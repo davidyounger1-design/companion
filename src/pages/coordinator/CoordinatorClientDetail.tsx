@@ -5,10 +5,12 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { supabase } from '../../lib/supabase'
+import { errorMessage } from '../../lib/errorMessage'
 import { useAuth } from '../../context/AuthContext'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES } from '../../lib/features'
 import { useScheduleSkips } from '../../hooks/useScheduleSkips'
+import { usePermissions } from '../../hooks/usePermissions'
 import AiBadge from '../../components/AiBadge'
 import MoodSlider from '../../components/MoodSlider'
 import { MoodBar, moodColor, moodEmoji } from '../../components/MoodSlider'
@@ -221,7 +223,7 @@ function ActivityTab({
   authorId: string
   showMood: boolean
 }) {
-  const { profile } = useAuth()
+  const perms = usePermissions()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [selectedType, setSelectedType] = useState<LogType>('activity')
@@ -446,7 +448,7 @@ function ActivityTab({
             </div>
             {addLog.isError && (
               <div className="alert alert-error">
-                {addLog.error instanceof Error ? addLog.error.message : 'Could not save. Try again.'}
+                {errorMessage(addLog.error, 'Could not save. Try again.')}
               </div>
             )}
           </form>
@@ -472,7 +474,7 @@ function ActivityTab({
             const typeInfo = LOG_TYPES.find((t) => t.type === log.type)
             const isEditing = editingId === log.id
             const isOwn = log.author_id === authorId
-            const canEdit = isOwn || profile?.role === 'coordinator'
+            const canEdit = (isOwn && perms.edit_own_entry) || perms.edit_any_entry
 
             if (isEditing) {
               return (
@@ -503,7 +505,7 @@ function ActivityTab({
                   )}
                   {updateLog.isError && (
                     <div className="alert alert-error" style={{ fontSize: '0.8rem' }}>
-                      {updateLog.error instanceof Error ? updateLog.error.message : 'Could not save.'}
+                      {errorMessage(updateLog.error, 'Could not save.')}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '0.5rem' }}>

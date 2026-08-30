@@ -4,24 +4,26 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useFeatures } from '../hooks/useFeatures'
 import { FEATURES } from '../lib/features'
-import type { BehaviourNote } from '../types/database'
-import { notesToCsv, downloadCsv } from '../lib/behaviourNotes'
+import type { BehaviourNote, Role } from '../types/database'
+import { downloadCsv, downloadBlob } from '../lib/behaviourNotes'
+import { errorMessage } from '../lib/errorMessage'
 import BehaviourNoteCard from './BehaviourNoteCard'
 import BehaviourNoteDetail from './BehaviourNoteDetail'
 import MoodTrendChart from './MoodTrendChart'
 
-export default function BehaviourNotesSection({
-  clientId,
-  participantName,
-}: {
-  clientId: string
-  participantName?: string
-}) {
+export default function BehaviourNotesSection({ clientId }: { clientId: string }) {
   const { user, profile } = useAuth()
   const { has } = useFeatures()
-  const canExport = has(FEATURES.ndisExports)
+  // Mirror the EXPORT_ROLES union in supabase/functions/export-records
+  // (index.ts) exactly: the server rejects any role outside it, so the button
+  // must not show for them — a decision_maker previously saw it and clicked
+  // straight into that fail-closed error.
+  const EXPORT_ROLES: Role[] = ['coordinator', 'support_worker', 'trusted_support_worker', 'family']
+  const canExport = has(FEATURES.ndisExports) && !!profile && EXPORT_ROLES.includes(profile.role)
   const [selected, setSelected] = useState<BehaviourNote | null>(null)
   const [showChart, setShowChart] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const { data: notes, isLoading } = useQuery({
     queryKey: ['behaviour-notes', clientId],
@@ -51,9 +53,29 @@ export default function BehaviourNotesSection({
   const canShare = isDecisionMaker
   const canViewAccessLog = isDecisionMaker || isCoordinator
 
-  function exportCsv() {
+  async function exportCsv() {
     if (!notes?.length) return
-    downloadCsv(`behaviour-notes-${(participantName ?? 'notes').toLowerCase().replace(/\s+/g, '-')}.csv`, notesToCsv(notes))
+    setExportError(null)
+    setExporting(true)
+    try {
+      // Server-side export (edge function): access-controlled + audit-logged.
+      const { data, error } = await supabase.functions.invoke('export-records', {
+        body: { kind: 'participant_record', format: 'csv', client_id: clientId },
+      })
+      if (error) throw error
+      if (!data?.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Export failed')
+      const res = data as { filename: string; content: string; encoding?: string }
+      if (res.encoding === 'base64') {
+        const bytes = Uint8Array.from(atob(res.content), (c) => c.charCodeAt(0))
+        downloadBlob(res.filename, new Blob([bytes], { type: 'application/pdf' }))
+      } else {
+        downloadCsv(res.filename, res.content)
+      }
+    } catch (e) {
+      setExportError(errorMessage(e, 'Could not export.'))
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -67,12 +89,16 @@ export default function BehaviourNotesSection({
             </button>
           )}
           {!!notes?.length && canExport && (
-            <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }} onClick={exportCsv}>
-              Export CSV
+            <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }} onClick={exportCsv} disabled={exporting}>
+              {exporting ? 'Exporting…' : 'Export CSV'}
             </button>
           )}
         </div>
       </div>
+
+      {exportError && (
+        <div className="alert alert-error" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>{exportError}</div>
+      )}
 
       {showChart && !!notes?.length && (
         <div className="card card-sm" style={{ marginBottom: '1rem' }}>

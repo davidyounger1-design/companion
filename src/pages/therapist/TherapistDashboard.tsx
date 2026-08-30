@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { signOut } from '../../lib/auth'
 import { SettingsIcon } from '../../components/icons'
 import ColorModePill from '../../components/ColorModePill'
+import OrgBadge from '../../components/OrgBadge'
 import BehaviourNoteCard from '../../components/BehaviourNoteCard'
 import BehaviourNoteDetail from '../../components/BehaviourNoteDetail'
 import type { BehaviourNote } from '../../types/database'
@@ -48,6 +49,7 @@ export default function TherapistDashboard() {
         <div>
           <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 600 }}>Companion</span>
           <span className="badge badge-sage" style={{ marginLeft: '0.6rem' }}>Therapist</span>
+          <div><OrgBadge /></div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
           <ColorModePill />

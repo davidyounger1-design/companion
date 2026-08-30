@@ -3,6 +3,140 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.137',
+    date: '25 August 2026',
+    title: 'Invites and plan checks working again',
+    changes: [
+      { type: 'fix', text: 'Inviting a member, plan checks and entitlement refreshes now reach the server again — a technical header the app attached to those requests was not on the server\'s allow-list, so the browser silently blocked every one of them before it left your device. Invites now send normally.' },
+    ],
+  },
+  {
+    version: '0.5.136',
+    date: '25 August 2026',
+    title: 'Plan names on the subscription page, entitlement sync hardening',
+    changes: [
+      { type: 'fix', text: 'The subscription page now shows your plan\'s name (for example "Team") for every member — previously only the subscription owner saw the real name and everyone else saw an internal plan ID.' },
+      { type: 'fix', text: 'If MyAppBuddy is briefly unreachable when you sign in, your saved plan entitlements are no longer cleared — plan-gated sections keep working and recover automatically on the next successful check.' },
+    ],
+  },
+  {
+    version: '0.5.135',
+    date: '25 August 2026',
+    title: 'Family goals restored, NDIS registers locked',
+    changes: [
+      { type: 'fix', text: 'Family accounts can see Goals & progress again — it was accidentally hidden behind the NDIS-records entitlement.' },
+      { type: 'change', text: 'Restrictive-practice and behaviour-support-plan entries can no longer be deleted by anyone; they can only be added or edited, so both registers stay complete for NDIS audits.' },
+      { type: 'change', text: 'The export button is now only shown to roles that are permitted to export participant records.' },
+    ],
+  },
+  {
+    version: '0.5.134',
+    date: '25 August 2026',
+    title: 'Server-side exports with an audit trail',
+    changes: [
+      { type: 'change', text: 'Participant record, goal, medication, incident and restrictive-practice exports (CSV and PDF) are now generated on the server instead of in the browser, so the data is checked against your plan and organisation before it ever leaves — and every export is recorded in an audit log.' },
+      { type: 'new', text: 'PDF exports are now available for the same records, with the same columns as the CSV download.' },
+    ],
+  },
+  {
+    version: '0.5.133',
+    date: '25 August 2026',
+    title: 'Behaviour support plans register',
+    changes: [
+      { type: 'new', text: 'Coordinators can now upload behaviour support plan documents for each participant and track when they are next due for review. Each plan can be opened directly from the register, and restrictive-practice entries can be linked to the plan they sit under.' },
+      { type: 'new', text: 'The register is available to plans that include the behaviour-support-plans entitlement. Uploaded plans are kept for audit purposes — they are never deleted.' },
+    ],
+  },
+  {
+    version: '0.5.132',
+    date: '25 August 2026',
+    title: 'Restrictive practices register',
+    changes: [
+      { type: 'new', text: 'Coordinators can now keep a formal register of restrictive practices for each participant — the type of practice, whether it is authorised, the authorisation reference, when it applied, and notes. Recording an unauthorised practice automatically raises a high-severity incident so it can never slip through unnoticed.' },
+      { type: 'new', text: 'The register is available to plans that include the restrictive-practices entitlement. Practices a participant has left behind can be viewed but never deleted, in line with audit requirements.' },
+    ],
+  },
+  {
+    version: '0.5.131',
+    date: '25 August 2026',
+    title: 'Plan entitlements now gate records, invites and retention',
+    changes: [
+      { type: 'change', text: 'NDIS Records is now controlled by its own plan entitlement (ndis_records) on the worker, coordinator and family screens, instead of following the Goals entitlement. Plans without it no longer see the section — talk to MyAppBuddy admin if your plan should include it.' },
+      { type: 'change', text: 'Inviting a recipient or therapist now checks your plan\'s entitlements before sending, so a plan that doesn\'t include those roles can\'t be invited into them.' },
+      { type: 'new', text: 'Journal entries older than your plan\'s retention window are now removed automatically overnight. If your plan doesn\'t set a window, entries are kept indefinitely.' },
+    ],
+  },
+  {
+    version: '0.5.130',
+    date: '25 August 2026',
+    title: 'Journal edits now leave an audit trail',
+    changes: [
+      { type: 'new', text: 'When a journal entry, behaviour note, incident or medication record is edited, the previous version is now kept in a permanent revision history — nothing is ever silently overwritten. Revisions are retained for audit purposes.' },
+      { type: 'change', text: 'Editing your own journal entries now also checks your plan\'s edit permission. Therapists no longer see the edit pencil; coordinators, workers and family accounts are unchanged.' },
+    ],
+  },
+  {
+    version: '0.5.129',
+    date: '25 August 2026',
+    title: 'Belong to more than one plan under one login',
+    changes: [
+      { type: 'new', text: 'If your account belongs to more than one Companion plan, a "Viewing:" switcher now appears so you can pick which one you\'re working in. Hidden entirely if you only belong to one plan — which is everyone today, unless you\'ve just accepted an invite into a second one.' },
+    ],
+  },
+  {
+    version: '0.5.128',
+    date: '25 August 2026',
+    title: 'Link a participant across two plans',
+    changes: [
+      { type: 'new', text: 'If the same person is enrolled in more than one Companion plan (for example a family plan and a provider’s plan), a family member or the participant can now link the two records with a one-time code, so journal entries, goals and photos show up in one place for both. Notices and messages stay separate per plan. Only the participant or their decision-maker can link or unlink — never a coordinator or worker.' },
+    ],
+  },
+  {
+    version: '0.5.127',
+    date: '24 August 2026',
+    title: 'Behind the scenes: faster subscription-status updates',
+    changes: [
+      { type: 'change', text: 'No visible change yet. Laying the groundwork so a cancelled subscription is reflected immediately instead of only the next time someone signs in.' },
+    ],
+  },
+  {
+    version: '0.5.126',
+    date: '24 August 2026',
+    title: 'Behind the scenes: entitlements now sync to the server',
+    changes: [
+      { type: 'change', text: 'No visible change yet. Your subscription\'s included features are now also recorded against your organisation on sign-in, laying the groundwork for enforcing them server-side rather than only in the app itself.' },
+    ],
+  },
+  {
+    version: '0.5.125',
+    date: '24 August 2026',
+    title: 'Fix: "Note" journal entries could not be saved',
+    changes: [
+      { type: 'fix', text: 'Picking "Note" when logging a journal entry now saves correctly. It never worked — the database never accepted that entry type — and the error shown ("Could not save") hid the real reason.' },
+      { type: 'fix', text: 'Error messages across the app (journal entries, behaviour notes, goals, incidents, medications) now show the actual reason a save failed instead of a generic "Could not save. Try again."' },
+    ],
+  },
+  {
+    version: '0.5.123',
+    date: '23 August 2026',
+    title: 'Fix: edit button showed on a care journal with no participant',
+    changes: [
+      { type: 'fix', text: 'The journal header no longer shows an editable participant name (and the pencil icon that opened a form which silently did nothing) when the organisation has no participant set up yet — it now says "No participant yet" instead.' },
+    ],
+  },
+  {
+    version: '0.5.122',
+    date: '23 August 2026',
+    title: 'Configurable support worker types, and clearer permissions',
+    changes: [
+      { type: 'new', text: 'Coordinators can now create their own support worker "types" (e.g. "Trusted worker") from Settings → Permissions, each with its own set of permissions — instead of a single fixed "trusted" flag.' },
+      { type: 'change', text: '"Trusted support worker" is retired as a fixed role — anyone previously marked trusted keeps the exact same access, now expressed as a support worker type.' },
+      { type: 'change', text: 'The Members list shows each support worker\'s type, and coordinators can change it directly from a member\'s row.' },
+      { type: 'fix', text: 'Coordinators can now invite another coordinator from the Members page (previously only reachable via a direct link).' },
+      { type: 'new', text: 'The app header now always shows which organisation you\'re signed into.' },
+    ],
+  },
+  {
     version: '0.5.119',
     date: '25 July 2026',
     title: 'Medication tracking, multi-photo entries, and anyone can start a timer',

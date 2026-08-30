@@ -4,12 +4,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { useModalOpen } from '../../context/ModalActivityContext'
 import { supabase } from '../../lib/supabase'
-import { usePermissions } from '../../hooks/usePermissions'
 import { useFeatures } from '../../hooks/useFeatures'
 import { FEATURES } from '../../lib/features'
 import { buildSmsLink } from '../../lib/smsLink'
 
-type OrgMember = { id: string; full_name: string; role: string; email?: string; phone?: string | null }
+type OrgMember = {
+  id: string; full_name: string; role: string; email?: string; phone?: string | null
+  sub_role_id?: string | null; sub_role_name?: string | null
+}
+type SubRole = { id: string; name: string; is_default: boolean }
 
 type RpcResult = { ok: boolean; error?: string; new_role?: string }
 
@@ -60,11 +63,13 @@ function InviteModal({
   orgId,
   allowedRoles,
   clients,
+  subRoles,
   onClose,
 }: {
   orgId: string
   allowedRoles: string[]
   clients: { id: string; full_name: string }[]
+  subRoles: SubRole[]
   onClose: () => void
 }) {
   useModalOpen()
@@ -72,6 +77,7 @@ function InviteModal({
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState(allowedRoles[0] ?? 'support_worker')
+  const [subRoleId, setSubRoleId] = useState('')
   const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
   const [sent, setSent] = useState(false)
@@ -96,7 +102,10 @@ function InviteModal({
     setSaving(true)
     setErr('')
     const { data, error } = await supabase.functions.invoke('invite-member', {
-      body: { name: name.trim(), email: email.trim(), phone: phone.trim() || null, role, org_id: orgId, client_id: clientId },
+      body: {
+        name: name.trim(), email: email.trim(), phone: phone.trim() || null, role, org_id: orgId,
+        client_id: clientId, sub_role_id: role === 'support_worker' ? (subRoleId || null) : null,
+      },
     })
     setSaving(false)
     if (error || !data?.ok) {
@@ -196,6 +205,20 @@ function InviteModal({
           </div>
         )}
 
+        {role === 'support_worker' && subRoles.length > 0 && (
+          <div className="field" style={{ marginBottom: '1rem' }}>
+            <label htmlFor="invite-sub-role">Support worker type</label>
+            <select id="invite-sub-role" className="input" value={subRoleId} onChange={(e) => setSubRoleId(e.target.value)}>
+              {subRoles.map((sr) => (
+                <option key={sr.id} value={sr.id}>{sr.name}{sr.is_default ? ' (default)' : ''}</option>
+              ))}
+            </select>
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+              Sets which permissions this worker starts with — manage types in Settings → Permissions.
+            </p>
+          </div>
+        )}
+
         {needsClientPicker && (
           <div className="field" style={{ marginBottom: '1rem' }}>
             <label htmlFor="invite-client">
@@ -243,7 +266,6 @@ export default function MembersPage() {
   const [resendingId, setResendingId] = useState<string | null>(null)
   const [rescindingId, setRescindingId] = useState<string | null>(null)
 
-  const perms = usePermissions()
   const { has } = useFeatures()
   // Care-recipient login is a plan-selectable feature. FAIL CLOSED: unless the
   // subscription includes it, no one can invite/create a recipient account.
@@ -276,14 +298,42 @@ export default function MembersPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('invites')
-        .select('id, name, email, phone, role, token, client_id, created_at')
+        .select('id, name, email, phone, role, token, client_id, sub_role_id, created_at')
         .eq('org_id', profile!.org_id!)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
       return data ?? []
     },
-    enabled: !!profile?.org_id && ['coordinator', 'family', 'trusted_support_worker'].includes(profile?.role ?? ''),
+    // The section below only ever renders for isCoordinator || isFamily —
+    // a role-list gate here was dead code (a trusted worker could never see
+    // it render regardless of what this query returned).
+    enabled: !!profile?.org_id,
   })
+
+  // support_worker sub-roles for this org — used for the invite picker and
+  // for reassigning an existing worker's type from their member row.
+  const { data: subRoles = [] } = useQuery({
+    queryKey: ['sub-roles', profile?.org_id, 'support_worker'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('sub_roles')
+        .select('id, name, is_default')
+        .eq('org_id', profile!.org_id!)
+        .eq('base_role', 'support_worker')
+        .is('archived_at', null)
+        .order('is_default', { ascending: false })
+        .order('name')
+      return (data ?? []) as SubRole[]
+    },
+    enabled: !!profile?.org_id,
+  })
+
+  async function assignSubRole(memberId: string, subRoleId: string | null) {
+    setActionError('')
+    const { error } = await supabase.rpc('assign_sub_role', { p_user_id: memberId, p_sub_role_id: subRoleId })
+    if (error) { setActionError(error.message || 'Could not change sub-role'); return }
+    qc.invalidateQueries({ queryKey: ['org-members'] })
+  }
 
   // Every active participant in the org — used to let the coordinator pick
   // which one a family/recipient invite is for. A "first active client" guess
@@ -339,14 +389,14 @@ export default function MembersPage() {
     qc.invalidateQueries({ queryKey: ['org-members'] })
   }
 
-  async function resendInvite(invite: { id: string; email: string; role: string; phone?: string | null; name?: string | null; client_id?: string | null }) {
+  async function resendInvite(invite: { id: string; email: string; role: string; phone?: string | null; name?: string | null; client_id?: string | null; sub_role_id?: string | null }) {
     if (!org) return
     setResendingId(invite.id)
     try {
-      // Reuse the SAME participant the invite was originally sent for — never
-      // re-guess (that's the bug this whole flow used to have).
+      // Reuse the SAME participant AND sub-role the invite was originally
+      // sent for — never re-guess (that's the bug this whole flow used to have).
       await supabase.functions.invoke('invite-member', {
-        body: { name: invite.name ?? null, email: invite.email, phone: invite.phone ?? null, role: invite.role, org_id: org.id, client_id: invite.client_id ?? null },
+        body: { name: invite.name ?? null, email: invite.email, phone: invite.phone ?? null, role: invite.role, org_id: org.id, client_id: invite.client_id ?? null, sub_role_id: invite.sub_role_id ?? null },
       })
       qc.invalidateQueries({ queryKey: ['pending-invites'] })
     } finally {
@@ -385,36 +435,30 @@ export default function MembersPage() {
     ? `You've reached your plan's limit of ${seats} participant${seats === 1 ? '' : 's'}. Increase your plan quantity to add more.`
     : ''
 
-  // Roles the current user is allowed to invite
-  const invitableRoles: string[] = (() => {
-    const roles = (() => {
-      if (isCoordinator) {
-        // A participant's family is the same concept on every plan — they can
-        // see their own participant's data whether the org is family or
-        // provider — so 'family' is always invitable, not just on family orgs.
-        return ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
-      }
-      if (!perms.invite_members) return []
-      // Family members can invite the same set as a coordinator, including the recipient
-      // (trusted workers keep the prior set — they can't invite a recipient)
-      if (profile?.role === 'family') {
-        return ['family', 'recipient', 'support_worker', 'trusted_support_worker', 'therapist']
-      }
-      if (profile?.role === 'trusted_support_worker') {
-        return ['family', 'support_worker', 'trusted_support_worker']
-      }
-      return ['support_worker']
-    })()
-    // Drop roles the plan doesn't include (care-recipient login, therapist
-    // circles) or that are at their seat quota (workers / participants).
-    return roles.filter((r) => {
-      if (r === 'recipient' && !canInviteRecipient) return false
-      if (r === 'therapist' && !canInviteTherapist) return false
-      if ((r === 'support_worker' || r === 'trusted_support_worker') && workerCapReached) return false
-      if (r === 'recipient' && recipientCapReached) return false
-      return true
-    })
-  })()
+  // Roles the current user is allowed to invite. Resolved server-side from
+  // the caller's sub-role (companion.my_invitable_roles()) rather than a
+  // hardcoded per-role array — a coordinator-defined sub-role's invite
+  // breadth can only be expressed by the database, not a frontend list.
+  const { data: rpcInvitableRoles = [] } = useQuery({
+    queryKey: ['my-invitable-roles', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('my_invitable_roles')
+      if (error) return []
+      return (data ?? []) as string[]
+    },
+    enabled: !!profile?.org_id,
+    staleTime: 60_000,
+  })
+
+  // Drop roles the plan doesn't include (care-recipient login, therapist
+  // circles) or that are at their seat quota (workers / participants).
+  const invitableRoles: string[] = rpcInvitableRoles.filter((r) => {
+    if (r === 'recipient' && !canInviteRecipient) return false
+    if (r === 'therapist' && !canInviteTherapist) return false
+    if (r === 'support_worker' && workerCapReached) return false
+    if (r === 'recipient' && recipientCapReached) return false
+    return true
+  })
 
   const grouped = ROLE_ORDER.reduce<Record<string, OrgMember[]>>((acc, r) => {
     const inRole = members.filter((m) => m.role === r)
@@ -558,7 +602,15 @@ export default function MembersPage() {
                           {m.email}
                         </p>
                       )}
-                      <span style={roleBadgeStyle(m.role)}>{ROLE_LABEL[m.role] ?? m.role}</span>
+                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={roleBadgeStyle(m.role)}>{ROLE_LABEL[m.role] ?? m.role}</span>
+                        {m.sub_role_name && (
+                          <span style={{
+                            fontSize: '0.7rem', color: 'var(--color-muted)',
+                            padding: '0.1rem 0.4rem', border: '1px solid var(--color-border)', borderRadius: 4,
+                          }}>{m.sub_role_name}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -579,21 +631,21 @@ export default function MembersPage() {
                               ↑ Coord
                             </button>
                           )}
-                          {m.role === 'support_worker' && (
-                            <button className="btn btn-ghost" onClick={() => promote(m.id, 'trusted_support_worker')}
-                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Make trusted worker">
-                              ↑ Trust
-                            </button>
+                          {(m.role === 'support_worker' || m.role === 'trusted_support_worker') && subRoles.length > 0 && (
+                            <select
+                              className="input" title="Support worker type"
+                              value={m.sub_role_id ?? ''}
+                              onChange={(e) => assignSubRole(m.id, e.target.value || null)}
+                              style={{ fontSize: '0.75rem', padding: '0.2rem 0.3rem', width: 'auto', maxWidth: 130 }}
+                            >
+                              {subRoles.map((sr) => (
+                                <option key={sr.id} value={sr.id}>{sr.name}</option>
+                              ))}
+                            </select>
                           )}
                           {m.role === 'coordinator' && isFamilyOrg && coordinatorCount > 1 && (
                             <button className="btn btn-ghost" onClick={() => demote(m.id)}
                               style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to family member">
-                              ↓
-                            </button>
-                          )}
-                          {m.role === 'trusted_support_worker' && (
-                            <button className="btn btn-ghost" onClick={() => demote(m.id)}
-                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} title="Demote to support worker">
                               ↓
                             </button>
                           )}
@@ -624,6 +676,7 @@ export default function MembersPage() {
           orgId={org.id}
           allowedRoles={invitableRoles}
           clients={orgClients}
+          subRoles={subRoles}
           onClose={() => {
             setShowInvite(false)
             qc.invalidateQueries({ queryKey: ['org-members'] })
