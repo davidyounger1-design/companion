@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from '../../lib/auth'
 import { useAuth } from '../../context/AuthContext'
 import { useFeatures } from '../../hooks/useFeatures'
+import { usePermissions } from '../../hooks/usePermissions'
 import { FEATURES } from '../../lib/features'
 import { useUnreadMessagesMap } from '../../hooks/useUnreadMessagesMap'
 import { SettingsIcon } from '../../components/icons'
@@ -17,6 +18,7 @@ export default function WorkerLayout() {
   const unread = Object.values(unreadMap).reduce((sum, n) => sum + n, 0)
   const { has } = useFeatures()
   const showMessages = has(FEATURES.messaging)
+  const perms = usePermissions()
 
   async function handleSignOut() {
     await signOut()
@@ -76,6 +78,12 @@ export default function WorkerLayout() {
           <span style={{ fontSize: '1.25rem' }}>📌</span>
           Notices
         </NavLink>
+        {perms.moderate_entries && (
+          <NavLink to="/moderation" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+            <span style={{ fontSize: '1.25rem' }}>🛡️</span>
+            Moderate
+          </NavLink>
+        )}
         {showMessages && (
           <NavLink to="/messages" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
             <span style={{ fontSize: '1.25rem', position: 'relative', display: 'inline-flex' }}>

@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.138',
+    date: '31 August 2026',
+    title: 'Optional journal moderation',
+    changes: [
+      { type: 'new', text: 'Coordinators can turn on journal moderation in Account settings — when enabled, support worker journal entries are held for review before family and the participant see them. A new "Moderate entries" permission (grantable to any support worker type, not just coordinators) can release or hide entries from an org-wide review queue.' },
+    ],
+  },
+  {
     version: '0.5.137',
     date: '25 August 2026',
     title: 'Invites and plan checks working again',
