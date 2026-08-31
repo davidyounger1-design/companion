@@ -130,6 +130,7 @@ export interface Database {
           full_name: string
           setting: string | null
           dob: string | null
+          email: string | null
           about: { loves?: string; calming?: string; comms?: string }
           decision_maker_id: string | null
           decision_maker_kind: DecisionMakerKind | null
@@ -145,6 +146,7 @@ export interface Database {
           full_name: string
           setting?: string | null
           dob?: string | null
+          email?: string | null
           about?: { loves?: string; calming?: string; comms?: string }
           decision_maker_id?: string | null
           decision_maker_kind?: DecisionMakerKind | null
@@ -159,6 +161,7 @@ export interface Database {
           full_name?: string
           setting?: string | null
           dob?: string | null
+          email?: string | null
           about?: { loves?: string; calming?: string; comms?: string }
           decision_maker_id?: string | null
           decision_maker_kind?: DecisionMakerKind | null
