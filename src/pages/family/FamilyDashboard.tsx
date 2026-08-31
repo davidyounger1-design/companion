@@ -27,6 +27,7 @@ import NoticeCard from '../../components/NoticeCard'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
 import MedicationList from '../../components/MedicationList'
 import PersonLinkPanel from '../../components/PersonLinkPanel'
+import EmailLinkCard from '../../components/EmailLinkCard'
 import { useOrgFeatureFlags } from '../../hooks/useOrgFeatureFlags'
 import { usePermissions } from '../../hooks/usePermissions'
 
@@ -1150,6 +1151,7 @@ export default function FamilyDashboard() {
         )}
 
         {clientId && <PersonLinkPanel clientId={clientId} participantName={participantName} />}
+        {clientId && <EmailLinkCard clientId={clientId} participantName={participantName} />}
 
         {clientId && org && showMood && (
           <RecipientMoodLog clientId={clientId} orgId={org.id} participantName={participantName} />

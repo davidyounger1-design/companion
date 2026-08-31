@@ -1232,6 +1232,14 @@ export interface Database {
         Args: { p_client_id: string }
         Returns: void
       }
+      email_link_candidate_for: {
+        Args: { p_client_id: string }
+        Returns: Json
+      }
+      confirm_email_link: {
+        Args: { p_target_client_id: string }
+        Returns: void
+      }
       create_program: {
         Args: { p_name: string; p_kind: string; p_colour?: string | null }
         Returns: string
