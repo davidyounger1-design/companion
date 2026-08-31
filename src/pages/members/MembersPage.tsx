@@ -19,7 +19,7 @@ type RpcResult = { ok: boolean; error?: string; new_role?: string }
 const ROLE_LABEL: Record<string, string> = {
   coordinator: 'Coordinator',
   family: 'Family member',
-  recipient: 'Care recipient',
+  recipient: 'Participant',
   trusted_support_worker: 'Trusted worker',
   support_worker: 'Support worker',
   therapist: 'Therapist',

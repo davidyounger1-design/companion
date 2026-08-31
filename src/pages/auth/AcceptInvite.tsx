@@ -20,7 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
   coordinator:            'Coordinator',
   family:                 'Family Member',
   therapist:              'Therapist',
-  recipient:              'Care Recipient',
+  recipient:              'Participant',
 }
 
 // Friendly text for accept_invite's error codes — the RPC returns short
