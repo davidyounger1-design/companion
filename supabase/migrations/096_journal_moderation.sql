@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- 091 · Journal moderation  (idempotent)
+-- 096 · Journal moderation  (idempotent)
 --
 -- Org-level opt-in: when companion.org_settings.feature_flags ->>
 -- 'journal_moderation' = 'true', a support_worker-authored log_entries

@@ -3,11 +3,22 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
-    version: '0.5.138',
+    version: '0.5.139',
     date: '31 August 2026',
     title: 'Optional journal moderation',
     changes: [
       { type: 'new', text: 'Coordinators can turn on journal moderation in Account settings — when enabled, support worker journal entries are held for review before family and the participant see them. A new "Moderate entries" permission (grantable to any support worker type, not just coordinators) can release or hide entries from an org-wide review queue.' },
+    ],
+  },
+  {
+    version: '0.5.138',
+    date: '31 August 2026',
+    title: 'Rostering & shift handover',
+    changes: [
+      { type: 'new', text: 'Coordinators can build a weekly roster per program: create, publish, and cancel shifts; a week-summary and warnings panel flags worker overlaps, uncovered participants, and unconfirmed shifts; drag-and-drop reassigns draft shifts; recurring shift templates generate shifts automatically; "copy last week forward" duplicates a week as drafts.' },
+      { type: 'new', text: 'Workers get a shift schedule: confirm, start, and end shifts (with a handover note or an explicit "nothing to hand over"), a home-screen card for today\'s shift with a Start button, and a previous-handover banner before their first log entry of the shift.' },
+      { type: 'new', text: 'An open-shifts job board lets any worker staffing a program claim an unassigned published shift. Workers can also set their weekly availability and skills, which coordinators see as hints when building the roster.' },
+      { type: 'change', text: 'Available to plans that include the new rostering entitlement — everyone else sees no change.' },
     ],
   },
   {

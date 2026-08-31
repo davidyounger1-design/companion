@@ -19,6 +19,7 @@ export default function WorkerLayout() {
   const { has } = useFeatures()
   const showMessages = has(FEATURES.messaging)
   const perms = usePermissions()
+  const showShifts = has(FEATURES.rostering)
 
   async function handleSignOut() {
     await signOut()
@@ -78,6 +79,12 @@ export default function WorkerLayout() {
           <span style={{ fontSize: '1.25rem' }}>📌</span>
           Notices
         </NavLink>
+        {showShifts && (
+          <NavLink to="/worker/shifts" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+            <span style={{ fontSize: '1.25rem' }}>🗓️</span>
+            Shifts
+          </NavLink>
+        )}
         {perms.moderate_entries && (
           <NavLink to="/moderation" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
             <span style={{ fontSize: '1.25rem' }}>🛡️</span>
