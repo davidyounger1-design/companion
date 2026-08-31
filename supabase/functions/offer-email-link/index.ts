@@ -136,8 +136,8 @@ function buildEmail({ appUrl, orgName, participantName }: {
             <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#2f2c26;">
               <strong>${escapeHtml(participantName)}</strong> has been added to a plan at
               <strong>${escapeHtml(orgName)}</strong>, using this email address.
-              If you already use Companion, you can link the two records so everything
-              shows up in one place — sign in and look for the link offer on your journal.
+              If you already use Companion, you can link the two records together as the
+              same person — sign in and look for the link offer on your journal.
             </p>
             <a href="${appUrl}/"
                style="display:inline-block;background:#6f8c78;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:600;margin-bottom:24px;">
