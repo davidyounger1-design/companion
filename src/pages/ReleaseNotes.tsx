@@ -9,7 +9,7 @@ const RELEASES = [
     changes: [
       { type: 'new', text: 'You can now record a participant\'s email address when you add them, and optionally send them their own login at the same time — no separate trip to Members.' },
       { type: 'new', text: 'A participant\'s page now has an "Invite to log in" action, which disappears once they have a login.' },
-      { type: 'new', text: 'If you already have a record on another Companion plan under the same email address, your journal now offers to link the two so your plans show up in one place. Each plan\'s staff still only ever see their own plan.' },
+      { type: 'new', text: 'If you already have a record on another Companion plan under the same email address, your journal now offers to link the two records together as the same person, so the two plans aren\'t treated as two different people. Each plan\'s staff still only ever see their own plan.' },
       { type: 'change', text: 'Every invite now uses the same form, which asks who the person is in plain language — "the participant themselves", "family member", "support worker", "therapist" — and says what each one can see and do. The words "care recipient" are gone from the app.' },
     ],
   },
