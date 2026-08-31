@@ -32,6 +32,74 @@
 -- for them. That is live-broken today, independent of this design. It
 -- rides the same UPDATE branch, with the same first-wins semantics.
 -- I6 below counts how many rows are currently in that state.
+--
+-- WHY BOTH UPDATE-BRANCH PROMOTIONS ARE GUARDED BY "still solo":
+-- persons.recipient_profile_id is what 080's client_ids_for_recipient()
+-- reads, and it grants that profile READ access to EVERY enrolment
+-- sharing the person — across organisations. Promoting it from an
+-- enrolment whose person is ALREADY shared is therefore a cross-tenant
+-- privilege escalation, not a convenience: once two orgs' drawers
+-- legitimately share a person, a coordinator in EITHER org could invite
+-- a `recipient` login for THEIR OWN drawer, to an email address they
+-- control. accept_invite sets that drawer's clients.recipient_profile_id,
+-- an unguarded trigger promotes it to the SHARED person (whose own copy
+-- is very plausibly still null — nothing before this branch ever wrote
+-- it), and that coordinator-controlled account can then read the OTHER
+-- org's journal, behaviour notes and incidents. The
+-- `not exists (... c2.person_id = new.person_id and c2.id <> new.id)`
+-- guard closes it: promotion fires only while the enrolment's person is
+-- still solo. The email promotion carries the same guard for the same
+-- reason — persons.email is the match key 097's RPCs resolve on, so
+-- writing it onto an already-shared person is the same over-reach one
+-- step earlier.
+--
+-- WHY THE GUARD COSTS THE LEGITIMATE FLOW NOTHING: the promotion is
+-- meant to fire at ACCEPT time, and accepting always happens BEFORE any
+-- linking — linking is a separate, later, explicit confirm step, and
+-- 097's confirm_email_link refuses a target that is linked at all
+-- (target_already_linked). So the enrolment is always solo at the moment
+-- promotion matters. The guard only ever blocks a drawer that is ALREADY
+-- part of a multi-drawer cabinet, which is exactly the exploit
+-- precondition and never the legitimate one. V6 below proves both halves
+-- of that claim behaviourally.
+--
+-- WHY THE GUARD IS ON THE TRIGGER AND NOT JUST IN accept_invite: 002's
+-- "coordinators can manage clients" and 011's family equivalent are
+-- `for all` policies with no column restriction, so a coordinator can
+-- UPDATE clients.recipient_profile_id — and clients.person_id — on their
+-- own org's rows directly through PostgREST, without going near
+-- accept_invite. Only a trigger-level guard covers every write path. For
+-- the same reason the guard deliberately has NO exception for "this
+-- UPDATE also changed person_id": that exception would be trivially
+-- forgeable in two statements (point person_id elsewhere, then point it
+-- back together with a controlled recipient_profile_id).
+--
+-- ⚠ ONE KNOWN CONSEQUENCE, deliberately left for a separate decision:
+-- 097's confirm_email_link finishes with
+-- `update clients set person_id = <source> where id = <target>`, which
+-- also passes through this trigger — with the source person already
+-- holding its own drawer, so the guard blocks promotion there too. That
+-- only matters in one narrow case: a caller who is the recipient login
+-- on the TARGET drawer but merely the decision-maker (not the recipient)
+-- on the SOURCE side, whose source person therefore has a null
+-- recipient_profile_id. Before this guard, the merge would silently
+-- promote their login onto the source person; now it does not, and
+-- client_ids_for_recipient() returns nothing for them post-merge. That
+-- silent promotion was never a designed behaviour — spec §6.7 justified
+-- the ACCEPT-time promotion only, and never analysed the merge-time
+-- UPDATE — and making it deliberate means deciding whose recipient login
+-- wins for a merged person, which is exactly the kind of call §6.7
+-- flagged as needing a decision rather than a default. Closing the
+-- cross-tenant hole is not blocked on that decision; re-opening it via a
+-- trigger exception would be.
+--
+-- THE MATCHING ORG CLAUSE IN accept_invite: the recipient branch updates
+-- `where id = v_invite.client_id and org_id = v_invite.org_id`, so an
+-- invite can never repoint a clients row outside the org that invite
+-- itself belongs to. Every legitimate invite's client_id already belongs
+-- to its own org_id by construction, so this can only ever make the
+-- function MORE restrictive — defence in depth on the same attack
+-- surface, one layer earlier than the trigger guard.
 -- ═══════════════════════════════════════════════════════════════════
 
 
@@ -59,7 +127,7 @@ where  proname = 'auto_create_person_for_client'
   and  pronamespace = 'companion'::regnamespace;
 
 -- I4 · Live body of accept_invite (083's version) — the migration
---      below reproduces it verbatim with ONE line changed.
+--      below reproduces it verbatim except for the recipient branch.
 select pg_get_functiondef(oid) from pg_proc
 where  proname = 'accept_invite' and pronamespace = 'companion'::regnamespace;
 
@@ -123,14 +191,27 @@ begin
   -- UPDATE: promote to the person-level copy, first value wins. Both
   -- updates are no-ops once the person row already carries a value —
   -- that is what makes "first wins" true without extra branching.
+  --
+  -- Both are additionally gated on the person still being SOLO (no other
+  -- clients row shares it). Promoting onto an already-shared person is
+  -- the cross-org privilege escalation described in the file header:
+  -- persons.recipient_profile_id is what client_ids_for_recipient()
+  -- reads, so a coordinator who can set it via their own drawer would
+  -- hand a login they control read access to the other org's records.
+  -- `c2.id <> new.id` excludes this row itself, which the BEFORE-UPDATE
+  -- snapshot of companion.clients still holds unchanged.
   if new.person_id is not null then
-    if new.email is not null then
+    if new.email is not null
+       and not exists (select 1 from companion.clients c2
+                       where c2.person_id = new.person_id and c2.id <> new.id) then
       update companion.persons
       set    email = new.email
       where  id = new.person_id and email is null;
     end if;
 
-    if new.recipient_profile_id is not null then
+    if new.recipient_profile_id is not null
+       and not exists (select 1 from companion.clients c2
+                       where c2.person_id = new.person_id and c2.id <> new.id) then
       update companion.persons
       set    recipient_profile_id = new.recipient_profile_id
       where  id = new.person_id and recipient_profile_id is null;
@@ -146,11 +227,13 @@ create trigger clients_auto_create_person
   before insert or update on companion.clients
   for each row execute function companion.auto_create_person_for_client();
 
--- ── 3 · accept_invite — 083's body, ONE line changed ────────────────
+-- ── 3 · accept_invite — 083's body, one branch changed ──────────────
 -- The recipient branch now sets clients.email from the invite when the
 -- enrolment has none. The trigger's UPDATE branch above then promotes
 -- it to persons.email. This is what makes the acceptance card possible
 -- when the coordinator never typed an email on the participant form.
+-- The same branch also gains `and org_id = v_invite.org_id` — see the
+-- file header. Nothing else in 083's body is touched.
 create or replace function companion.accept_invite(p_token text)
 returns json
 language plpgsql security definer
@@ -212,10 +295,14 @@ begin
       values (v_invite.client_id, v_uid)
       on conflict (client_id, worker_id) do nothing;
     elsif v_invite.role = 'recipient' then
+      -- `and org_id = v_invite.org_id` — an invite can only ever repoint
+      -- a clients row inside its OWN org. No legitimate invite is
+      -- affected (client_id already belongs to org_id by construction);
+      -- it removes the possibility of a crafted invite reaching across.
       update companion.clients
       set    recipient_profile_id = v_uid,
              email = coalesce(email, lower(v_invite.email))
-      where  id = v_invite.client_id;
+      where  id = v_invite.client_id and org_id = v_invite.org_id;
     elsif v_invite.role = 'therapist' then
       insert into companion.client_circle (client_id, therapist_id, status)
       values (v_invite.client_id, v_uid, 'in_circle')
@@ -369,8 +456,114 @@ begin
   raise notice 'V5 PASSED: blank email normalised to null on both rows; test rows cleaned up';
 end $$;
 
+-- V6 · SECURITY — the "still solo" guard. Two halves, both must hold:
+--
+--        (a) EXPLOIT: two clients rows, in two different orgs, sharing
+--            one person (an already-linked cabinet). Setting
+--            recipient_profile_id on one of them must NOT reach the
+--            shared person — otherwise that login would read the other
+--            org's records via client_ids_for_recipient().
+--        (b) LEGITIMATE: a solo enrolment (no sibling clients row) must
+--            STILL promote, exactly as V4 asserts — the guard must not
+--            have cost the real accept-time flow anything.
+--
+--      Cleans up after itself. If any assertion raises, the whole DO
+--      block rolls back, so no test row survives either path.
+do $$
+declare
+  v_org_a    uuid;
+  v_org_b    uuid;
+  v_profile  uuid;
+  v_shared   uuid;   -- the person both linked drawers share
+  v_client_a uuid;
+  v_client_b uuid;
+  v_orphan   uuid;   -- b's original person, orphaned by the link
+  v_solo_cl  uuid;
+  v_solo_pn  uuid;
+  v_recip    uuid;
+  v_email    text;
+begin
+  select id into v_org_a   from companion.organisations order by created_at limit 1;
+  select id into v_org_b   from companion.organisations order by created_at desc limit 1;
+  select id into v_profile from companion.profiles      limit 1;
+
+  if v_org_a is null or v_profile is null then
+    raise notice 'V6 SKIPPED: needs at least one organisation and one profile';
+    return;
+  end if;
+  if v_org_a = v_org_b then
+    -- Single-org database. The guard is sibling-scoped, not org-scoped,
+    -- so (a) still exercises the exact predicate; only the cross-org
+    -- framing is simulated less faithfully.
+    raise notice 'V6 NOTE: only one organisation exists — both drawers created in it';
+  end if;
+
+  -- ── (a) Build the already-linked cabinet ──────────────────────────
+  insert into companion.clients (org_id, full_name, active)
+  values (v_org_a, '__096_guard_drawer_a__', true)
+  returning id, person_id into v_client_a, v_shared;
+
+  insert into companion.clients (org_id, full_name, active)
+  values (v_org_b, '__096_guard_drawer_b__', true)
+  returning id, person_id into v_client_b, v_orphan;
+
+  -- Same shape 097's confirm_email_link produces: b is absorbed into a's
+  -- person. No email / recipient login on either row yet, so this UPDATE
+  -- promotes nothing on its way through the trigger.
+  update companion.clients set person_id = v_shared where id = v_client_b;
+
+  -- The exploit attempt: a coordinator-issued recipient invite accepted
+  -- on drawer b sets b's own recipient_profile_id...
+  update companion.clients
+  set    recipient_profile_id = v_profile, email = 'attacker@example.com'
+  where  id = v_client_b;
+
+  -- ...and neither value may reach the SHARED person.
+  select recipient_profile_id, email into v_recip, v_email
+  from   companion.persons where id = v_shared;
+
+  if v_recip is not null then
+    raise exception 'V6 FAILED (a): shared persons.recipient_profile_id = %, expected null — the guard did not block the promotion', v_recip;
+  end if;
+  if v_email is not null then
+    raise exception 'V6 FAILED (a): shared persons.email = %, expected null — the guard did not block the promotion', v_email;
+  end if;
+
+  -- ── (b) The legitimate solo case still promotes ───────────────────
+  insert into companion.clients (org_id, full_name, active)
+  values (v_org_a, '__096_guard_solo__', true)
+  returning id, person_id into v_solo_cl, v_solo_pn;
+
+  update companion.clients
+  set    recipient_profile_id = v_profile, email = 'Solo@Example.COM'
+  where  id = v_solo_cl;
+
+  select recipient_profile_id, email into v_recip, v_email
+  from   companion.persons where id = v_solo_pn;
+
+  if v_recip is distinct from v_profile then
+    raise exception 'V6 FAILED (b): solo persons.recipient_profile_id = %, expected % — the guard broke the legitimate accept-time promotion', v_recip, v_profile;
+  end if;
+  if v_email is distinct from 'solo@example.com' then
+    raise exception 'V6 FAILED (b): solo persons.email = %, expected solo@example.com', v_email;
+  end if;
+
+  delete from companion.clients where id in (v_client_a, v_client_b, v_solo_cl);
+  delete from companion.persons where id in (v_shared, v_orphan, v_solo_pn);
+
+  raise notice 'V6 PASSED: promotion blocked for an already-linked drawer, still fires for a solo one; test rows cleaned up';
+end $$;
+
 -- ── Behavioural, needs a real session (documented, not runnable here) ──
--- V6 · Accept a recipient invite for an enrolment whose clients.email
+-- V7 · Accept a recipient invite for an enrolment whose clients.email
 --      is null → afterwards clients.email equals the invite's email
 --      (lowercased) AND persons.email equals it too. This is the
 --      acceptance card's precondition (spec §8).
+-- V8 · SECURITY, end to end — the escalation V6 simulates, driven
+--      through the real UI: link two orgs' drawers for one participant,
+--      then have org A's coordinator invite a `recipient` login on their
+--      own drawer to an address they control. After that account
+--      accepts, sign in as it: it must see ONLY org A's enrolment.
+--      client_ids_for_recipient() must return exactly one client_id, and
+--      org B's journal, behaviour notes and incidents must be
+--      unreachable. If this ever fails, stop and revert.
