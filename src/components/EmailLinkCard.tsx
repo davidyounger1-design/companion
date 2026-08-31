@@ -3,10 +3,12 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { errorMessage } from '../lib/errorMessage'
 
+// Mirrors email_link_candidate_for's payload exactly (097). No person
+// UUID: the RPC deliberately stops at the spec's rule-4 disclosure
+// ceiling, and confirm_email_link re-resolves the source itself.
 type Candidate =
   | { ambiguous: true }
   | {
-      person_id: string
       first_name: string
       last_initial: string
       dob: string | null
@@ -71,6 +73,12 @@ export default function EmailLinkCard({ clientId, participantName }: { clientId:
     onSuccess: () => {
       setError('')
       qc.invalidateQueries({ queryKey: ['email-link-candidate', clientId] })
+      // PersonLinkPanel's linked-drawers query is keyed on the person_id
+      // its OWN query resolved, and the merge just repointed this client
+      // at a different person. Without invalidating that query first, the
+      // refetch below re-runs against the now-orphaned person_id and
+      // comes back with zero drawers.
+      qc.invalidateQueries({ queryKey: ['participant-person', clientId] })
       qc.invalidateQueries({ queryKey: ['linked-drawers'] })
     },
     onError: (e) => setError(messageFor(e)),
@@ -106,11 +114,11 @@ export default function EmailLinkCard({ clientId, participantName }: { clientId:
         You already have a record with <strong>{candidate.org_name}</strong> as{' '}
         <strong>{candidate.first_name} {candidate.last_initial}.</strong>
         {candidate.dob && <> Born {new Date(candidate.dob).toLocaleDateString()}.</>}{' '}
-        Link them so you see all your plans in one place?
+        Link them so Companion knows they're the same person?
       </p>
       <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
-        Linking merges {participantName}'s journal, goals and photos across both plans for you and your
-        family. Each plan's staff still only see their own plan.
+        Linking tells Companion that both records are for {participantName}, so the two plans aren't
+        treated as two different people. Each plan's staff still only see their own plan.
       </p>
       {error && <div className="alert alert-error" style={{ marginBottom: '0.5rem' }}>{error}</div>}
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

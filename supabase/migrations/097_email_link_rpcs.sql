@@ -127,9 +127,12 @@ begin
   order  by o.name
   limit  1;
 
-  -- Rule 4 disclosure ceiling: first name, last initial, dob, org name.
+  -- Rule 4 disclosure ceiling: first name, last initial, dob, org name
+  -- and nothing else. The person's UUID is deliberately NOT returned —
+  -- confirm_email_link re-resolves the source itself from the caller's
+  -- own email, so the card never needs an identifier it would only be
+  -- disclosing past the ceiling.
   return jsonb_build_object(
-    'person_id',    v_person.id,
     'first_name',   split_part(v_person.full_name, ' ', 1),
     'last_initial', left(reverse(split_part(reverse(v_person.full_name), ' ', 1)), 1),
     'dob',          v_person.dob,
