@@ -42,7 +42,9 @@ import WorkerLayout from './pages/worker/WorkerLayout'
 import WorkerClients from './pages/worker/WorkerClients'
 import WorkerClientDetail from './pages/worker/WorkerClientDetail'
 import WorkerNoticeBoard from './pages/worker/WorkerNoticeBoard'
+import WorkerShifts from './pages/worker/WorkerShifts'
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard'
+import Rostering from './pages/coordinator/Rostering'
 import ChooseParticipants from './pages/ChooseParticipants'
 import CoordinatorClientDetail from './pages/coordinator/CoordinatorClientDetail'
 import TherapistDashboard from './pages/therapist/TherapistDashboard'
@@ -240,6 +242,9 @@ export default function App() {
             <Route path="/dashboard" element={<RequireCoordinator><CoordinatorDashboard /></RequireCoordinator>} />
             <Route path="/dashboard/clients/:clientId" element={<RequireCoordinator><CoordinatorClientDetail /></RequireCoordinator>} />
 
+            {/* Rostering — coordinator week grid, shift lifecycle, templates */}
+            <Route path="/rostering" element={<RequireCoordinator><RequireFeature feature={FEATURES.rostering}><Rostering /></RequireFeature></RequireCoordinator>} />
+
             {/* Therapist portal — read-only, explicitly-shared behaviour notes */}
             <Route path="/therapist" element={<RequireAuth><RequireFeature feature={FEATURES.therapyCircles}><TherapistDashboard /></RequireFeature></RequireAuth>} />
 
@@ -250,6 +255,7 @@ export default function App() {
             <Route path="/worker" element={<RequireAuth><WorkerLayout /></RequireAuth>}>
               <Route index element={<WorkerClients />} />
               <Route path="clients/:clientId" element={<WorkerClientDetail />} />
+              <Route path="shifts" element={<RequireFeature feature={FEATURES.rostering}><WorkerShifts /></RequireFeature>} />
             </Route>
 
             {/* Worker notice board (outside WorkerLayout — full-page) */}

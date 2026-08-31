@@ -135,6 +135,11 @@ export default function CoordinatorDashboard() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
           <ColorModePill />
+          {has(FEATURES.rostering) && (
+            <Link to="/rostering" className="btn btn-ghost" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+              Rostering
+            </Link>
+          )}
           <Link to="/help" className="btn btn-ghost" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
             Help
           </Link>

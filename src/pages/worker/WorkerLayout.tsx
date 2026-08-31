@@ -17,6 +17,7 @@ export default function WorkerLayout() {
   const unread = Object.values(unreadMap).reduce((sum, n) => sum + n, 0)
   const { has } = useFeatures()
   const showMessages = has(FEATURES.messaging)
+  const showShifts = has(FEATURES.rostering)
 
   async function handleSignOut() {
     await signOut()
@@ -76,6 +77,12 @@ export default function WorkerLayout() {
           <span style={{ fontSize: '1.25rem' }}>📌</span>
           Notices
         </NavLink>
+        {showShifts && (
+          <NavLink to="/worker/shifts" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+            <span style={{ fontSize: '1.25rem' }}>🗓️</span>
+            Shifts
+          </NavLink>
+        )}
         {showMessages && (
           <NavLink to="/messages" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
             <span style={{ fontSize: '1.25rem', position: 'relative', display: 'inline-flex' }}>

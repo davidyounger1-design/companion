@@ -42,6 +42,7 @@ export const FEATURES = {
   behaviourSupportPlans: 'behaviour_support_plans',
   goals: 'goals',
   medicationTracking: 'medication_tracking',
+  rostering: 'rostering',
 } as const
 
 /**
