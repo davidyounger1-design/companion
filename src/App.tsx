@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { ModalActivityProvider } from './context/ModalActivityContext'
 import { isWorkerRole, roleHome } from './lib/roleHome'
 import { useFeatures } from './hooks/useFeatures'
+import { usePermissions } from './hooks/usePermissions'
 import { FEATURES } from './lib/features'
 import { getStoredFontScale, applyFontScale } from './lib/fontScale'
 import { getStoredColorMode, applyColorMode } from './lib/colorScheme'
@@ -53,6 +54,7 @@ import ReleaseNotes from './pages/ReleaseNotes'
 import Help from './pages/Help'
 import Account from './pages/Account'
 import PermissionsPage from './pages/settings/PermissionsPage'
+import ModerationQueue from './pages/moderation/ModerationQueue'
 import DisplaySettings from './pages/settings/DisplaySettings'
 import Deck from './pages/Deck'
 import SiteFooter from './components/SiteFooter'
@@ -82,6 +84,19 @@ function RequireCoordinator({ children }: { children: React.ReactNode }) {
     if (isWorkerRole(profile?.role)) return <Navigate to="/worker" replace />
     return <Navigate to="/family" replace />
   }
+  return <>{children}</>
+}
+
+// Gates on the 'moderate_entries' permission, not a specific role — the
+// sub-role engine (068-072) makes this assignable to any support_worker
+// sub-role, not just coordinators. Coordinators pass automatically:
+// usePermissions() returns COORDINATOR_PERMS (every key true) for them.
+function RequireModerator({ children }: { children: React.ReactNode }) {
+  const { user, loading, profile, org } = useAuth()
+  const perms = usePermissions()
+  if (loading) return <FullPageSpinner />
+  if (!user) return <Navigate to="/sign-in" replace />
+  if (!perms.moderate_entries) return <Navigate to={roleHome(profile?.role, org?.org_type)} replace />
   return <>{children}</>
 }
 
@@ -250,6 +265,10 @@ export default function App() {
 
             {/* Member management */}
             <Route path="/members" element={<RequireAuth><MembersPage /></RequireAuth>} />
+
+            {/* Moderation queue — coordinators, or any support_worker sub-role
+                granted 'moderate_entries' */}
+            <Route path="/moderation" element={<RequireModerator><ModerationQueue /></RequireModerator>} />
 
             {/* Worker portal */}
             <Route path="/worker" element={<RequireAuth><WorkerLayout /></RequireAuth>}>

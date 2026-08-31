@@ -11,6 +11,7 @@ type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 export type Role = 'coordinator' | 'support_worker' | 'trusted_support_worker' | 'family' | 'therapist' | 'recipient'
 export type OrgType = 'family' | 'provider'
 export type LogType = 'meal' | 'activity' | 'mood' | 'note' | 'photo'
+export type LogEntryStatus = 'pending' | 'released' | 'hidden'
 export type CircleStatus = 'proposed' | 'pending_approval' | 'in_circle' | 'removed'
 export type DecisionMakerKind = 'self' | 'guardian' | 'nominee'
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'cancelled'
@@ -320,6 +321,7 @@ export interface Database {
           mood_score: number | null
           ai_source: string | null
           ai_reason: string | null
+          status: LogEntryStatus
           created_at: string
         }
         Insert: {
@@ -337,7 +339,7 @@ export interface Database {
           ai_reason?: string | null
           created_at?: string
         }
-        Update: { label?: string; type?: LogType; mood_score?: number | null; flagged?: boolean; ai_source?: string | null; ai_reason?: string | null }
+        Update: { label?: string; type?: LogType; mood_score?: number | null; flagged?: boolean; ai_source?: string | null; ai_reason?: string | null; status?: LogEntryStatus }
         Relationships: []
       }
       notices: {
