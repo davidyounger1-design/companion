@@ -50,6 +50,35 @@ Every claim here was confirmed against the code, not inferred from the v1 design
   (§6.1). Nothing in this design reads it. It exists so claiming can be added later without
   restructuring `shifts`.
 
+## 3.1 Clean slate — the rostering tables carry no production data
+
+Confirmed by David 2026-09-01: **nobody uses rostering live.** This follows from finding 1 —
+the feature has never been usable end-to-end — and it removes the usual migration-compatibility
+burden for this design specifically.
+
+**What that permits:** rostering-owned tables (`programs`, `program_participants`,
+`program_workers`, `shift_templates`, `shifts`, `shift_participants`, `shift_handovers`,
+`worker_availability`, `profile_skills`) may be dropped and recreated rather than carefully
+migrated. Column types may change. No backfill is owed.
+
+**What it does not permit:** everything else in the `companion` schema is live with real
+subscribers. `profiles`, `clients`, `persons`, `organisations` and every table this design
+*references* stay untouchable. A rostering migration may not alter a shared table's shape to
+suit itself.
+
+**Cheap insurance before dropping anything** — confirm the assumption still holds at
+implementation time rather than trusting this paragraph:
+
+```sql
+select 'shifts' as t, count(*) from companion.shifts
+union all select 'shift_templates', count(*) from companion.shift_templates
+union all select 'programs',        count(*) from companion.programs
+union all select 'program_workers', count(*) from companion.program_workers;
+```
+
+Non-zero counts mean somebody started using it after this was written — stop and re-plan the
+migration rather than proceeding.
+
 ## 4. Non-negotiables
 
 1. **Org isolation is absolute.** Rostering is org-scoped; nothing here introduces a cross-org
@@ -113,6 +142,10 @@ matching the v1 pattern exactly.
 
 > **Migration numbers:** 097 is taken by `fix/delete-cancelled-shift` (PR #93). Re-check
 > `supabase/migrations/` at implementation time and renumber; concurrent sessions ship often.
+>
+> Per §3.1 these are written as clean creates, not careful alters — but they still run against a
+> **live database** that holds real subscriber data in other tables. `drop table` statements must
+> name rostering-owned tables explicitly and never cascade into a shared one.
 
 ### 6.1 Changes to `shifts`
 
@@ -165,9 +198,12 @@ Three changes from `shift_templates`, each fixing a v1 limitation: **worker null
 open shifts, currently impossible), **multiple weekdays per pattern** (one row instead of five),
 and an explicit **`start_date`**.
 
-**Migration of existing templates:** each existing `shift_templates` row becomes one
-`shift_patterns` row with `days_of_week = ARRAY[day_of_week]`. Generated shifts keep their
-`template_id` → repointed to `pattern_id`. No shift is regenerated or deleted.
+**Migration of existing templates:** none needed — per §3.1 the table is empty, so
+`shift_templates` is dropped and `shift_patterns` created in its place, with `shifts.template_id`
+replaced by `shifts.pattern_id`. Run §3.1's row-count check first; if it returns anything
+non-zero, fall back to a real migration (each `shift_templates` row becoming one
+`shift_patterns` row with `days_of_week = ARRAY[day_of_week]`, existing shifts repointed rather
+than regenerated).
 
 ### 6.4 Three-way recurrence editing
 
@@ -382,8 +418,9 @@ Frontend verification is manual QA plus `npm run build`.
 1. **Part-time guaranteed hours** (§5.2) requires storing each worker's agreed pattern. That is a
    contract record the app has no concept of today. Confirm whether Phase 2 should introduce it,
    or whether the enforcement drops to a warning until an employment-terms model exists.
-2. **Timezone migration.** Moving off UTC day-bucketing (§6.7) changes how existing shifts bucket
-   into days for any org not effectively on UTC. Needs its own reviewed backfill decision.
+2. ~~**Timezone migration.**~~ **Resolved by §3.1** — there are no existing shifts to re-bucket,
+   so `rostering_settings.timezone` can be introduced as the correct behaviour from the start
+   rather than as a migration. Build it right the first time; no backfill decision is owed.
 3. **Broken shifts** are modelled here as a flag plus break count on one shift. If providers need
    the segments individually costed, they may need to be separate linked shift rows instead.
    Deferred until a real provider asks.
