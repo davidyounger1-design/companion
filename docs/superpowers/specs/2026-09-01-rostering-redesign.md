@@ -79,6 +79,20 @@ union all select 'program_workers', count(*) from companion.program_workers;
 Non-zero counts mean somebody started using it after this was written — stop and re-plan the
 migration rather than proceeding.
 
+**Result when run, 2026-09-01:** `shifts` 1, `programs` 1, `shift_templates` 0,
+`program_workers` 0. Both rows are test artifacts, not usage:
+
+- The shift is `status='cancelled'`, `is_open=true`, `worker_id=null`, notes `"xxx"`, in
+  org "The Friendship Circle", created 10:14 AEST that morning while the delete-cancelled
+  behaviour was being investigated. It is the shift that prompted PR #93.
+- `worker_id` is null **necessarily**, not incidentally: `rostering_create_shift` (`094:16-20`)
+  raises `worker does not staff this program` for any non-null worker, and `program_workers` is
+  empty. With no staffing UI, an open shift is the only shift the system can produce — the
+  count is a trace of finding 1, not evidence against it.
+
+So the clean-slate assumption **held**. Re-run the query anyway at implementation time; if the
+counts have grown, or any row belongs to an org doing real work, take the §6.3 fallback.
+
 ## 4. Non-negotiables
 
 1. **Org isolation is absolute.** Rostering is org-scoped; nothing here introduces a cross-org
