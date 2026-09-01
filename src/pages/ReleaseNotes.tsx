@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.141',
+    date: '31 August 2026',
+    title: 'Delete a cancelled shift',
+    changes: [
+      { type: 'fix', text: 'Cancelled shifts can now be deleted from the roster. Previously a cancelled shift stayed on the board permanently with no way to clear it — useful if one was cancelled by mistake, or was only ever a test.' },
+    ],
+  },
+  {
     version: '0.5.140',
     date: '31 August 2026',
     title: 'Create programs directly from Rostering',
