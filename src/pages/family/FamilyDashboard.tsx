@@ -27,6 +27,7 @@ import NoticeCard from '../../components/NoticeCard'
 import BehaviourNotesSection from '../../components/BehaviourNotesSection'
 import MedicationList from '../../components/MedicationList'
 import PersonLinkPanel from '../../components/PersonLinkPanel'
+import EmailLinkCard from '../../components/EmailLinkCard'
 import { useOrgFeatureFlags } from '../../hooks/useOrgFeatureFlags'
 import { usePermissions } from '../../hooks/usePermissions'
 
@@ -861,10 +862,19 @@ export default function FamilyDashboard() {
     queryKey: ['family-client', user?.id, profile?.role],
     queryFn: async () => {
       if (profile?.role === 'recipient') {
+        // .order + .limit(1) before .maybeSingle(): a recipient who has
+        // accepted an invite in TWO orgs has two clients rows carrying
+        // their profile id, and .maybeSingle() alone 406s on that — which
+        // blanked the whole dashboard for exactly the two-plan recipients
+        // EmailLinkCard exists to serve. limit(1) constrains the SQL
+        // result set so the negotiation succeeds; order('id') just makes
+        // which row wins deterministic rather than arbitrary.
         const { data } = await supabase
           .from('clients')
           .select('id, full_name, dob')
           .eq('recipient_profile_id', user!.id)
+          .order('id')
+          .limit(1)
           .maybeSingle()
         return data ? { client_id: data.id, clients: { full_name: data.full_name, dob: data.dob } } : null
       }
@@ -1149,6 +1159,10 @@ export default function FamilyDashboard() {
           </div>
         )}
 
+        {/* EmailLinkCard first, deliberately: it is the one-tap primary
+            offer, and its copy points at "the linking panel below" for
+            the manual code-based fallback. */}
+        {clientId && <EmailLinkCard clientId={clientId} participantName={participantName} />}
         {clientId && <PersonLinkPanel clientId={clientId} participantName={participantName} />}
 
         {clientId && org && showMood && (

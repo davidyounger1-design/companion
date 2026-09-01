@@ -10,7 +10,7 @@ const ROLE_LABEL: Record<string, string> = {
   support_worker: 'support worker',
   trusted_support_worker: 'trusted support worker',
   therapist: 'therapist',
-  recipient: 'care recipient',
+  recipient: 'participant',
 }
 
 Deno.serve(async (req) => {

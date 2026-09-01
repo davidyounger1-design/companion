@@ -3,13 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useFeatures } from '../../hooks/useFeatures'
+import { FEATURES } from '../../lib/features'
 
 export default function Step4Clients() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { user, profile, org } = useAuth()
+  const { has } = useFeatures()
   const [name, setName] = useState('')
   const [dob, setDob] = useState('')
+  const [email, setEmail] = useState('')
+  const [sendInvite, setSendInvite] = useState(false)
+  const [notice, setNotice] = useState('')
   const [added, setAdded] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -58,6 +64,7 @@ export default function Step4Clients() {
 
   async function addClient() {
     setError('')
+    setNotice('')
     if (!name.trim()) return
     if (!orgId) {
       setError('Organisation not loaded yet — wait a moment and try again.')
@@ -68,28 +75,68 @@ export default function Step4Clients() {
       return
     }
     setSaving(true)
-    const { error: err } = await supabase.from('clients').insert({
-      org_id: orgId,
-      full_name: name.trim(),
-      dob: dob || null,
-      active: true,
-    })
-    setSaving(false)
-    if (err) {
+    const trimmedEmail = email.trim().toLowerCase()
+    const { data: inserted, error: err } = await supabase
+      .from('clients')
+      .insert({
+        org_id: orgId,
+        full_name: name.trim(),
+        dob: dob || null,
+        email: trimmedEmail || null,
+        active: true,
+      })
+      .select('id')
+      .single()
+
+    if (err || !inserted) {
+      setSaving(false)
       // The DB trigger is the real enforcement — this fires if the client-side
       // check above was stale (e.g. org.seats hadn't synced yet this session).
       setError(
-        err.message.includes('Participant seat limit reached')
+        (err?.message ?? '').includes('Participant seat limit reached')
           ? `You've reached your plan's limit of ${seats ?? 'your plan\'s'} participant${seats === 1 ? '' : 's'}. Increase your plan quantity to add more.`
-          : err.message
+          : (err?.message ?? 'Could not add participant.')
       )
-    } else {
-      qc.invalidateQueries({ queryKey: ['clients', orgId] })
-      setAdded((prev) => [...prev, name.trim()])
-      setActiveCount((prev) => (prev ?? 0) + 1)
-      setName('')
-      setDob('')
+      return
     }
+
+    // The participant record is saved. Everything below is best-effort:
+    // a failed invite or a failed recognition email must never read as a
+    // failed add, because the record is already there.
+    if (sendInvite && trimmedEmail && has(FEATURES.recipientLogin)) {
+      const { data: inviteData, error: inviteErr } = await supabase.functions.invoke('invite-member', {
+        body: {
+          email: trimmedEmail,
+          name: name.trim(),
+          role: 'recipient',
+          org_id: orgId,
+          client_id: inserted.id,
+        },
+      })
+      if (inviteErr || !inviteData?.ok) {
+        setNotice(`${name.trim()} was added, but the login invite could not be sent. You can send it later from their participant page.`)
+      }
+    }
+
+    // Fire-and-forget: the response is byte-identical whether or not a
+    // match existed, so there is nothing to branch on and nothing to
+    // show the coordinator either way (rule 1).
+    if (trimmedEmail) {
+      supabase.functions
+        .invoke('offer-email-link', {
+          body: { org_id: orgId, email: trimmedEmail, participant_name: name.trim() },
+        })
+        .catch(() => {})
+    }
+
+    setSaving(false)
+    qc.invalidateQueries({ queryKey: ['clients', orgId] })
+    setAdded((prev) => [...prev, name.trim()])
+    setActiveCount((prev) => (prev ?? 0) + 1)
+    setName('')
+    setDob('')
+    setEmail('')
+    setSendInvite(false)
   }
 
   return (
@@ -102,6 +149,11 @@ export default function Step4Clients() {
       {error && (
         <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
           {error}
+        </div>
+      )}
+      {notice && (
+        <div className="alert" style={{ marginBottom: '1rem' }}>
+          {notice}
         </div>
       )}
       {!error && capReached && (
@@ -141,6 +193,37 @@ export default function Step4Clients() {
               onChange={(e) => setDob(e.target.value)}
             />
           </div>
+          <div className="field" style={{ marginBottom: '0.75rem' }}>
+            <label htmlFor="clientEmail">
+              Email address <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>(optional)</span>
+            </label>
+            <input
+              id="clientEmail"
+              type="email"
+              className="input"
+              placeholder="their@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>
+              Used if you invite them to log in, and to recognise them if they already use Companion elsewhere.
+            </p>
+          </div>
+
+          {has(FEATURES.recipientLogin) && (
+            <div className="field" style={{ marginBottom: '1rem' }}>
+              <label htmlFor="clientSendInvite" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 400 }}>
+                <input
+                  id="clientSendInvite"
+                  type="checkbox"
+                  checked={sendInvite}
+                  onChange={(e) => setSendInvite(e.target.checked)}
+                  disabled={!email.trim()}
+                />
+                Send them a login invite now
+              </label>
+            </div>
+          )}
           <button
             className="btn btn-primary"
             onClick={addClient}

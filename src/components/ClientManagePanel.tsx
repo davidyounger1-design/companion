@@ -11,6 +11,7 @@ import RestrictivePracticesSection from './RestrictivePracticesSection'
 import BehaviourSupportPlanForm from './BehaviourSupportPlanForm'
 import BehaviourSupportPlansSection from './BehaviourSupportPlansSection'
 import MedicationList from './MedicationList'
+import InviteMemberModal from './InviteMemberModal'
 import { useFeatures } from '../hooks/useFeatures'
 import { useOrgFeatureFlags } from '../hooks/useOrgFeatureFlags'
 import { usePermissions } from '../hooks/usePermissions'
@@ -41,6 +42,7 @@ export default function ClientManagePanel({
   const [showIncidentForm, setShowIncidentForm] = useState(false)
   const [showRpForm, setShowRpForm] = useState(false)
   const [showBspForm, setShowBspForm] = useState(false)
+  const [showInviteLogin, setShowInviteLogin] = useState(false)
   const [dangerMode, setDangerMode] = useState<'deactivate' | 'delete' | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
@@ -49,7 +51,7 @@ export default function ClientManagePanel({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('decision_maker_id, decision_maker_kind, recipient_profile_id')
+        .select('decision_maker_id, decision_maker_kind, recipient_profile_id, email')
         .eq('id', clientId)
         .single()
       if (error) throw error
@@ -231,6 +233,35 @@ export default function ClientManagePanel({
           <p style={{ fontSize: '0.78rem', color: 'var(--color-primary)', marginTop: '0.4rem' }}>Saved.</p>
         )}
       </div>
+
+      {has(FEATURES.recipientLogin) && !client?.recipient_profile_id && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Participant login</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.75rem' }}>
+            {participantName} doesn't have their own login yet. Inviting them lets them see and add to their own care journal.
+          </p>
+          <button className="btn btn-secondary" style={{ fontSize: '0.8rem' }}
+            onClick={() => setShowInviteLogin(true)}>
+            Invite to log in
+          </button>
+        </div>
+      )}
+
+      {showInviteLogin && (
+        <InviteMemberModal
+          orgId={orgId}
+          allowedRoles={['recipient']}
+          clients={[{ id: clientId, full_name: participantName }]}
+          subRoles={[]}
+          pinnedRole="recipient"
+          pinnedClientId={clientId}
+          initialEmail={client?.email ?? ''}
+          onClose={() => {
+            setShowInviteLogin(false)
+            qc.invalidateQueries({ queryKey: ['client-manage', clientId] })
+          }}
+        />
+      )}
 
       <div style={{ marginBottom: '1.5rem' }}>
         <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Assigned workers</p>
