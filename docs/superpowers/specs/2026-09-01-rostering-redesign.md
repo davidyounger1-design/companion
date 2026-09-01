@@ -90,8 +90,12 @@ migration rather than proceeding.
   empty. With no staffing UI, an open shift is the only shift the system can produce — the
   count is a trace of finding 1, not evidence against it.
 
-So the clean-slate assumption **held**. Re-run the query anyway at implementation time; if the
-counts have grown, or any row belongs to an org doing real work, take the §6.3 fallback.
+So the clean-slate assumption **held**. The shift was deleted the same day, leaving only the
+empty program (kept deliberately as a fixture for testing Phase 0's staffing UI) — so the
+rostering tables are now empty in fact, not merely in effect.
+
+Re-run the query anyway at implementation time; if the counts have grown, or any row belongs to
+an org doing real work, take the §6.3 fallback.
 
 ## 4. Non-negotiables
 
