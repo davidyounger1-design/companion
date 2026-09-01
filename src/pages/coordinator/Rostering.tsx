@@ -23,6 +23,7 @@ export default function Rostering() {
   const [detailShift, setDetailShift] = useState<WeekGridShift | null>(null)
   const [showTemplates, setShowTemplates] = useState(false)
   const [showCopyForward, setShowCopyForward] = useState(false)
+  const [showCreateProgram, setShowCreateProgram] = useState(false)
   const [dragShiftId, setDragShiftId] = useState<string | null>(null)
 
   const { data: programs } = useQuery({
@@ -213,16 +214,21 @@ export default function Rostering() {
             {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         )}
+        <button className="btn btn-ghost" style={{ fontSize: '0.85rem' }} onClick={() => setShowCreateProgram(true)}>
+          + Program
+        </button>
       </header>
 
       <main style={{ padding: '1.25rem', maxWidth: 1200, margin: '0 auto' }}>
         {!programs?.length ? (
           <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
             <p style={{ color: 'var(--color-muted)', marginBottom: '0.5rem' }}>No programs exist yet.</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
-              Rostering is organised by program. Programs are created directly for now — ask your MyAppBuddy contact
-              to set up your first program before rostering shifts.
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginBottom: '1.25rem' }}>
+              Rostering is organised by program — create your first one to start building a roster.
             </p>
+            <button className="btn btn-primary" onClick={() => setShowCreateProgram(true)}>
+              + Create your first program
+            </button>
           </div>
         ) : (
           <>
@@ -341,6 +347,17 @@ export default function Rostering() {
       {showTemplates && programId && (
         <TemplateManagerModal programId={programId} workers={workers ?? []} participants={participants ?? []} onClose={() => setShowTemplates(false)} />
       )}
+      {showCreateProgram && (
+        <CreateProgramModal
+          onClose={() => setShowCreateProgram(false)}
+          onCreated={(id) => {
+            setShowCreateProgram(false)
+            setProgramId(id)
+            qc.invalidateQueries({ queryKey: ['rostering-programs'] })
+          }}
+        />
+      )}
+
       {showCopyForward && programId && (
         <CopyForwardModal weekStart={weekStart} onClose={() => setShowCopyForward(false)}
           onDone={() => { setShowCopyForward(false); qc.invalidateQueries({ queryKey: gridQueryKey }); qc.invalidateQueries({ queryKey: warningsQueryKey }) }} />
@@ -676,6 +693,60 @@ function CopyForwardModal({ weekStart, onClose, onDone }: { weekStart: string; o
             </button>
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+const PROGRAM_KINDS: { kind: string; label: string }[] = [
+  { kind: 'day_program', label: 'Day program' },
+  { kind: 'group_home', label: 'Group home' },
+  { kind: 'in_home', label: 'In-home' },
+  { kind: 'community_access', label: 'Community access' },
+  { kind: 'other', label: 'Other' },
+]
+
+function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
+  useModalOpen()
+  const [name, setName] = useState('')
+  const [kind, setKind] = useState(PROGRAM_KINDS[0].kind)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleCreate() {
+    if (!name.trim()) return
+    setSaving(true); setError('')
+    try {
+      const { data, error: err } = await supabase.rpc('create_program', {
+        p_name: name.trim(), p_kind: kind, p_colour: null,
+      })
+      if (err) throw err
+      onCreated(data as string)
+    } catch (e) {
+      setError(errorMessage(e, 'Could not create this program.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 400, margin: 0 }}>Create program</h2>
+          <button className="icon-btn" aria-label="Close" onClick={onClose}>✕</button>
+        </div>
+        <label style={{ fontSize: '0.8rem', color: 'var(--color-muted)', display: 'block', marginBottom: '0.3rem' }}>Name</label>
+        <input className="input" style={{ marginBottom: '0.75rem' }} value={name}
+          onChange={(e) => setName(e.target.value)} placeholder="e.g. Tuesday Day Program" autoFocus />
+        <label style={{ fontSize: '0.8rem', color: 'var(--color-muted)', display: 'block', marginBottom: '0.3rem' }}>Type</label>
+        <select className="input" style={{ marginBottom: '1rem' }} value={kind} onChange={(e) => setKind(e.target.value)}>
+          {PROGRAM_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
+        </select>
+        {error && <p style={{ fontSize: '0.8rem', color: 'var(--color-error)', marginBottom: '0.6rem' }}>{error}</p>}
+        <button className="btn btn-primary btn-full" disabled={saving || !name.trim()} onClick={handleCreate}>
+          {saving ? <span className="spinner" /> : 'Create program'}
+        </button>
       </div>
     </div>
   )

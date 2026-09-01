@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.140',
+    date: '31 August 2026',
+    title: 'Create programs directly from Rostering',
+    changes: [
+      { type: 'new', text: 'Coordinators can now create a program straight from the Rostering page instead of asking MyAppBuddy support to set one up — a "+ Program" button opens a short form (name and type).' },
+    ],
+  },
+  {
     version: '0.5.139',
     date: '31 August 2026',
     title: 'Optional journal moderation',
