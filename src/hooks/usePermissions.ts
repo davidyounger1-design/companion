@@ -14,6 +14,7 @@ export type PermissionKey =
   | 'edit_own_goal'
   | 'edit_any_goal'
   | 'delete_own_goal'
+  | 'moderate_entries'
 
 type RolePerms = Record<PermissionKey, boolean>
 type PermissionsMap = Partial<Record<string, Partial<RolePerms>>>
@@ -36,13 +37,14 @@ const COORDINATOR_PERMS: RolePerms = {
   edit_own_goal: true,
   edit_any_goal: true,
   delete_own_goal: true,
+  moderate_entries: true,
 }
 
 const ALL_DENIED: RolePerms = {
   view_all_entries: false, edit_any_entry: false, edit_own_entry: false,
   add_entries: false, delete_own_entry: false, send_messages: false,
   invite_members: false, add_goals: false, edit_own_goal: false,
-  edit_any_goal: false, delete_own_goal: false,
+  edit_any_goal: false, delete_own_goal: false, moderate_entries: false,
 }
 
 // Legacy fallback ONLY — used while org_settings.permissions still exists

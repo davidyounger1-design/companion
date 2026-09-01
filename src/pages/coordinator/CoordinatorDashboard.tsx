@@ -57,6 +57,20 @@ export default function CoordinatorDashboard() {
     enabled: !!profile?.org_id,
   })
 
+  const { data: entriesNeedingReview } = useQuery({
+    queryKey: ['entries-needing-review', profile?.org_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('log_entries')
+        .select('id')
+        .eq('org_id', profile!.org_id!)
+        .in('status', ['pending', 'hidden'])
+      if (error) throw error
+      return data
+    },
+    enabled: !!profile?.org_id,
+  })
+
   const { data: todayLogs } = useQuery({
     queryKey: ['today-logs', profile?.org_id],
     queryFn: async () => {
@@ -177,6 +191,14 @@ export default function CoordinatorDashboard() {
               label="Needs review"
               value={flaggedNotes ? String(flaggedNotes.length) : '…'}
               icon="🔍"
+            />
+          )}
+          {!!entriesNeedingReview?.length && (
+            <StatCard
+              label="Journal review"
+              value={String(entriesNeedingReview.length)}
+              icon="🛡️"
+              to="/moderation"
             />
           )}
           {showWorkforce && (
@@ -313,14 +335,16 @@ function InactiveParticipants({ clients, orgId }: { clients: { id: string; full_
   )
 }
 
-function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
-  return (
-    <div className="card card-sm">
+function StatCard({ label, value, icon, to }: { label: string; value: string; icon: string; to?: string }) {
+  const content = (
+    <>
       <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{icon}</div>
       <p style={{ fontSize: '1.6rem', fontFamily: 'var(--font-display)', fontWeight: 600, margin: '0 0 0.2rem' }}>{value}</p>
       <p className="eyebrow" style={{ margin: 0 }}>{label}</p>
-    </div>
+    </>
   )
+  if (to) return <Link to={to} className="card card-sm" style={{ display: 'block' }}>{content}</Link>
+  return <div className="card card-sm">{content}</div>
 }
 
 function timeOfDay() {

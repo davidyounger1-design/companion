@@ -524,7 +524,19 @@ function ActivityTab({
                 <span style={{ fontSize: '1.25rem', flexShrink: 0, cursor: canEdit ? 'pointer' : 'default' }}
                   onClick={() => canEdit && startEdit(log)}>{typeInfo?.icon ?? '📝'}</span>
                 <div style={{ flex: 1, minWidth: 0, cursor: isOwn ? 'pointer' : 'default' }} onClick={() => isOwn && startEdit(log)}>
-                  <p style={{ margin: 0, fontWeight: 500 }}>{log.label}</p>
+                  <p style={{ margin: 0, fontWeight: 500 }}>
+                    {log.label}
+                    {log.status === 'pending' && (
+                      <span style={{ marginLeft: '0.4rem', fontSize: '0.68rem', fontWeight: 600, padding: '0.1rem 0.4rem', borderRadius: 4, background: '#fff3cd', color: '#856404' }}>
+                        Awaiting review
+                      </span>
+                    )}
+                    {log.status === 'hidden' && (
+                      <span style={{ marginLeft: '0.4rem', fontSize: '0.68rem', fontWeight: 600, padding: '0.1rem 0.4rem', borderRadius: 4, background: '#f8d7da', color: '#721c24' }}>
+                        Hidden
+                      </span>
+                    )}
+                  </p>
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
                     {new Date(log.occurred_at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     {' · '}{typeInfo?.label ?? log.type}

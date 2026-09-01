@@ -45,10 +45,15 @@ export default function Account() {
   // cap; there is no seat limit.
   const [memberCount, setMemberCount] = useState<number | null>(null)
   const { has } = useFeatures()
-  const { isEnabled, setFlag } = useOrgFeatureFlags()
+  const { flags, isEnabled, setFlag } = useOrgFeatureFlags()
   const [savingFlag, setSavingFlag] = useState(false)
   const showMedicationToggle = has(FEATURES.medicationTracking)
   const medicationTrackingEnabled = isEnabled('medication_tracking')
+  // Opt-IN, not opt-out — must check the raw flag directly. isEnabled()'s
+  // "absent key = true" default would make this ON for every org the
+  // instant the key doesn't exist yet, which is the opposite of opt-in.
+  const [savingModerationFlag, setSavingModerationFlag] = useState(false)
+  const journalModerationEnabled = flags?.journal_moderation === true
   const [webhookBusy, setWebhookBusy] = useState(false)
   const [webhookResult, setWebhookResult] = useState<unknown>(null)
   const [webhookError, setWebhookError] = useState('')
@@ -59,6 +64,14 @@ export default function Account() {
       await setFlag.mutateAsync({ key: 'medication_tracking', value: on })
     } catch { /* ignore — setFlag handles error display */ }
     setSavingFlag(false)
+  }
+
+  async function toggleJournalModeration(on: boolean) {
+    setSavingModerationFlag(true)
+    try {
+      await setFlag.mutateAsync({ key: 'journal_moderation', value: on })
+    } catch { /* ignore — setFlag handles error display */ }
+    setSavingModerationFlag(false)
   }
 
   // One-time setup action — registers this project's sync-subscription
@@ -242,6 +255,34 @@ export default function Account() {
             </div>
           </div>
         )}
+
+        <div className="card card-sm" style={{ marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <div>
+              <p style={{ fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>🛡️ Journal moderation</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', margin: '0.2rem 0 0' }}>
+                Hold support worker journal entries for review before family and the participant see them.
+              </p>
+            </div>
+            <button
+              onClick={() => toggleJournalModeration(!journalModerationEnabled)}
+              disabled={savingModerationFlag}
+              style={{
+                flexShrink: 0, width: 44, height: 24, borderRadius: 12, border: 'none',
+                cursor: 'pointer', position: 'relative', transition: 'background 0.2s',
+                background: journalModerationEnabled ? 'var(--color-primary)' : 'var(--color-border)',
+              }}
+              aria-label={`${journalModerationEnabled ? 'Disable' : 'Enable'} journal moderation`}
+            >
+              <span style={{
+                position: 'absolute', top: 2, left: journalModerationEnabled ? 22 : 2,
+                width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                display: 'block',
+              }} />
+            </button>
+          </div>
+        </div>
 
         {/* One-time setup: register the MAB webhook endpoint. Idempotent —
             safe to click again after a redeploy. Remove this block once

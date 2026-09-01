@@ -3,14 +3,30 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
-    version: '0.5.139',
-    date: '31 August 2026',
+    version: '0.5.142',
+    date: '1 September 2026',
     title: 'One invite form, participant emails, and record linking by email',
     changes: [
       { type: 'new', text: 'You can now record a participant\'s email address when you add them, and optionally send them their own login at the same time — no separate trip to Members.' },
       { type: 'new', text: 'A participant\'s page now has an "Invite to log in" action, which disappears once they have a login.' },
       { type: 'new', text: 'If you already have a record on another Companion plan under the same email address, your journal now offers to link the two records together as the same person, so the two plans aren\'t treated as two different people. Each plan\'s staff still only ever see their own plan.' },
       { type: 'change', text: 'Every invite now uses the same form, which asks who the person is in plain language — "the participant themselves", "family member", "support worker", "therapist" — and says what each one can see and do. The words "care recipient" are gone from the app.' },
+    ],
+  },
+  {
+    version: '0.5.140',
+    date: '31 August 2026',
+    title: 'Create programs directly from Rostering',
+    changes: [
+      { type: 'new', text: 'Coordinators can now create a program straight from the Rostering page instead of asking MyAppBuddy support to set one up — a "+ Program" button opens a short form (name and type).' },
+    ],
+  },
+  {
+    version: '0.5.139',
+    date: '31 August 2026',
+    title: 'Optional journal moderation',
+    changes: [
+      { type: 'new', text: 'Coordinators can turn on journal moderation in Account settings — when enabled, support worker journal entries are held for review before family and the participant see them. A new "Moderate entries" permission (grantable to any support worker type, not just coordinators) can release or hide entries from an org-wide review queue.' },
     ],
   },
   {
