@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
     // Cross-org match. The `clients!inner(org_id)` + `.neq` pair is
     // load-bearing: the participant this call is ABOUT has just been
-    // created with this same email, so 096's trigger already stamped it
+    // created with this same email, so 098's trigger already stamped it
     // onto a brand-new person. A naive `persons.email = X` therefore
     // always finds at least two rows and this function would never send
     // anything. Filtering the embedded clients to other orgs drops the

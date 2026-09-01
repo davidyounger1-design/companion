@@ -24,7 +24,22 @@
 - **No test framework exists.** `package.json` scripts are `dev` / `build` (`tsc && vite build`) / `preview` only. DB tasks are verified by their own migration file's INSPECT-first queries and post-migration `do $$` probes (David runs them). Frontend tasks end with manual QA plus `npm run build` passing.
 - **Commit style:** descriptive imperative subject line, then a short "why" paragraph in the body.
 - **Never fabricate an existing function body.** Before `create or replace`, read the live definition with `select pg_get_functiondef(oid) from pg_proc where ...` — every migration below starts with exactly that INSPECT query. Read any source file fresh before quoting it.
-- **Migration numbers verified 2026-08-31:** `supabase/migrations/` currently ends at `095_rostering_notify.sql` (the concurrent session added 091–095 after the spec was written, which named 091/092). This plan therefore uses **096** and **097**. Re-check `supabase/migrations/` before creating either file; if 096/097 are taken, renumber to the next free pair and update the cross-references in Tasks 2 and 11.
+- **Migration numbers — RENUMBERED 2026-09-01, after this plan was executed.** The plan was
+  written when `supabase/migrations/` ended at `095_rostering_notify.sql`, so its tasks below
+  say 096/097 (and 098 for the follow-up fix). While this branch was in review, `096_journal_moderation.sql`
+  merged to `master` via #89, and `097_rostering_delete_cancelled_shift.sql` was created on
+  `fix/delete-cancelled-shift` (#93) — colliding with both. **The shipped files on this branch are:**
+
+  | Task text below says | Actual file on this branch |
+  |---|---|
+  | `096_email_link_columns.sql` | **`098_email_link_columns.sql`** |
+  | `097_email_link_rpcs.sql` | **`099_email_link_rpcs.sql`** |
+  | `098_org_creation_writes_profile_orgs.sql` | **`100_org_creation_writes_profile_orgs.sql`** |
+
+  Cross-references *inside* the SQL files, the probe row names (`__098_*_test__` etc.), and the
+  code comments in `EmailLinkCard.tsx` / `offer-email-link/index.ts` were all updated to match.
+  The embedded SQL in the task text below deliberately still shows the original numbers — it is a
+  record of how the work was done, not something to re-execute. **Run the files, not this document.**
 
 ---
 
@@ -34,8 +49,8 @@
 
 | Path | Responsibility |
 |---|---|
-| `supabase/migrations/096_email_link_columns.sql` | Additive schema: `persons.email`, `clients.email`, `person_links.link_method`; extends the 082 trigger to a BEFORE INSERT OR UPDATE promoter; one-line `accept_invite` change; `unlink_person` snapshot carries email. Zero behaviour change on its own. |
-| `supabase/migrations/097_email_link_rpcs.sql` | `public.email_link_candidate_for(uuid)` (read-only card data source) and `public.confirm_email_link(uuid)` (the commit). 081's discipline exactly. |
+| `supabase/migrations/098_email_link_columns.sql` | Additive schema: `persons.email`, `clients.email`, `person_links.link_method`; extends the 082 trigger to a BEFORE INSERT OR UPDATE promoter; one-line `accept_invite` change; `unlink_person` snapshot carries email. Zero behaviour change on its own. |
+| `supabase/migrations/099_email_link_rpcs.sql` | `public.email_link_candidate_for(uuid)` (read-only card data source) and `public.confirm_email_link(uuid)` (the commit). 081's discipline exactly. |
 | `supabase/functions/offer-email-link/index.ts` | Fire-and-forget cross-org recognition email on participant-create-with-email. Returns `{ ok: true }` in every case. |
 | `src/components/InviteMemberModal.tsx` | The one unified invite modal, extracted from MembersPage's local `InviteModal` and given a plain-language role picker plus pinning props. |
 | `src/components/EmailLinkCard.tsx` | The one-tap acceptance-flow link card. |
@@ -61,7 +76,7 @@
 ### Task 1: Migration 096 — email columns, trigger promotion, accept_invite
 
 **Files:**
-- Create: `supabase/migrations/096_email_link_columns.sql`
+- Create: `supabase/migrations/098_email_link_columns.sql`
 - Test: none (no test framework — the migration file carries its own INSPECT + VERIFICATION probes, run by David in the Supabase SQL editor)
 
 **Interfaces:**
@@ -70,7 +85,7 @@
 
 - [ ] **Step 1: Create the migration file**
 
-Create `supabase/migrations/096_email_link_columns.sql` with exactly this content:
+Create `supabase/migrations/098_email_link_columns.sql` with exactly this content:
 
 ```sql
 -- ═══════════════════════════════════════════════════════════════════
@@ -455,7 +470,7 @@ end $$;
 
 There is no local Postgres. Verification is David running the file's own probes. Before that, self-check the file mechanically:
 
-Run: `node -e "const s=require('fs').readFileSync('supabase/migrations/096_email_link_columns.sql','utf8'); const n=(s.match(/\$\$/g)||[]).length; if(n%2) throw new Error('unbalanced $$ delimiters: '+n); if(!s.includes('begin;')||!s.includes('commit;')) throw new Error('missing transaction wrapper'); console.log('ok: '+n+' $$ delimiters, transaction wrapped')"`
+Run: `node -e "const s=require('fs').readFileSync('supabase/migrations/098_email_link_columns.sql','utf8'); const n=(s.match(/\$\$/g)||[]).length; if(n%2) throw new Error('unbalanced $$ delimiters: '+n); if(!s.includes('begin;')||!s.includes('commit;')) throw new Error('missing transaction wrapper'); console.log('ok: '+n+' $$ delimiters, transaction wrapped')"`
 
 Expected: `ok: 8 $$ delimiters, transaction wrapped`
 
@@ -468,7 +483,7 @@ Do not proceed to Task 2 until V1–V5 have all reported PASSED.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add supabase/migrations/096_email_link_columns.sql
+git add supabase/migrations/098_email_link_columns.sql
 git commit -m "Add email columns and person-level promotion trigger
 
 Adds persons.email/clients.email as the auto-link match key and
@@ -485,7 +500,7 @@ until 097."
 ### Task 2: Migration 097 — the two email-link RPCs
 
 **Files:**
-- Create: `supabase/migrations/097_email_link_rpcs.sql`
+- Create: `supabase/migrations/099_email_link_rpcs.sql`
 - Test: none (probes live in the file)
 
 **Interfaces:**
@@ -496,7 +511,7 @@ until 097."
 
 - [ ] **Step 1: Create the migration file**
 
-Create `supabase/migrations/097_email_link_rpcs.sql` with exactly this content:
+Create `supabase/migrations/099_email_link_rpcs.sql` with exactly this content:
 
 ```sql
 -- ═══════════════════════════════════════════════════════════════════
@@ -835,7 +850,7 @@ end $$;
 
 - [ ] **Step 2: Verify the file parses mechanically**
 
-Run: `node -e "const s=require('fs').readFileSync('supabase/migrations/097_email_link_rpcs.sql','utf8'); const n=(s.match(/\$\$/g)||[]).length; if(n%2) throw new Error('unbalanced $$ delimiters: '+n); if(!s.includes('grant execute on function')) throw new Error('missing grants'); console.log('ok: '+n+' $$ delimiters, grants present')"`
+Run: `node -e "const s=require('fs').readFileSync('supabase/migrations/099_email_link_rpcs.sql','utf8'); const n=(s.match(/\$\$/g)||[]).length; if(n%2) throw new Error('unbalanced $$ delimiters: '+n); if(!s.includes('grant execute on function')) throw new Error('missing grants'); console.log('ok: '+n+' $$ delimiters, grants present')"`
 
 Expected: `ok: 6 $$ delimiters, grants present`
 
@@ -846,13 +861,13 @@ Paste the whole file into chat. Ask him to run INSPECT → migration → V1/V2/V
 - [ ] **Step 4: Commit**
 
 ```bash
-git add supabase/migrations/097_email_link_rpcs.sql
+git add supabase/migrations/099_email_link_rpcs.sql
 git commit -m "Add email_link_candidate_for and confirm_email_link RPCs
 
 Mirrors 081's code-link machinery for the email path: the card reads a
 minimum-disclosure candidate, the commit repoints the target drawer
 onto the pre-existing person and records link_method='email'. Both
-lookups exclude the target's own person, because 096's trigger stamps
+lookups exclude the target's own person, because 098's trigger stamps
 the same email there and would otherwise make every acceptance-flow
 merge ambiguous; the absorbed person's email is cleared for the same
 reason on the next merge. foreign_recipient_login replaces the code
@@ -938,7 +953,7 @@ Deno.serve(async (req) => {
 
     // Cross-org match. The `clients!inner(org_id)` + `.neq` pair is
     // load-bearing: the participant this call is ABOUT has just been
-    // created with this same email, so 096's trigger already stamped it
+    // created with this same email, so 098's trigger already stamped it
     // onto a brand-new person. A naive `persons.email = X` therefore
     // always finds at least two rows and this function would never send
     // anything. Filtering the embedded clients to other orgs drops the

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- 097 · Unified invite & email auto-link, step 2 — the RPCs
+-- 099 · Unified invite & email auto-link, step 2 — the RPCs
 --       (idempotent)
 --
 -- Full rationale: docs/superpowers/specs/2026-08-30-unified-invite-
@@ -16,7 +16,7 @@
 -- the coordinator path it means the coordinator's new drawer → the
 -- account holder's pre-existing person. Same direction either way.
 --
--- WHY THE SOURCE LOOKUP EXCLUDES THE TARGET'S OWN PERSON: 096's
+-- WHY THE SOURCE LOOKUP EXCLUDES THE TARGET'S OWN PERSON: 098's
 -- trigger stamps the accepting user's email onto the just-accepted
 -- drawer's own person. Without `p.id <> <target's person>` that row
 -- matches alongside the genuine pre-existing one, the count is 2, and
@@ -41,7 +41,7 @@
 
 -- ═══ INSPECT FIRST — read-only. ═════════════════════════════════════
 
--- I1 · 096 must be applied first — all three columns must be present.
+-- I1 · 098 must be applied first — all three columns must be present.
 select table_name, column_name from information_schema.columns
 where  table_schema = 'companion'
   and  (table_name, column_name) in
@@ -62,7 +62,7 @@ where  p.proname in ('email_link_candidate_for','confirm_email_link');
 -- I4 · How many persons rows share an email today — every group of
 --      size > 1 is a household that will get the ambiguous fallback
 --      rather than the one-tap card. Expect this to be near-empty
---      immediately after 096 (nothing has written emails yet).
+--      immediately after 098 (nothing has written emails yet).
 select email, count(*) from companion.persons
 where  email is not null group by email having count(*) > 1;
 
@@ -275,11 +275,11 @@ begin
   select id into v_org_b from companion.organisations order by created_at desc limit 1;
 
   insert into companion.clients (org_id, full_name, email, active)
-  values (v_org_a, '__097_source_test__', 'probe@example.com', true)
+  values (v_org_a, '__099_source_test__', 'probe@example.com', true)
   returning id, person_id into v_client_a, v_person_a;
 
   insert into companion.clients (org_id, full_name, email, active)
-  values (v_org_b, '__097_target_test__', 'probe@example.com', true)
+  values (v_org_b, '__099_target_test__', 'probe@example.com', true)
   returning id, person_id into v_client_b, v_person_b;
 
   select count(*) into v_count
@@ -331,5 +331,5 @@ end $$;
 --      confirm_email_link raises ambiguous_email_match.
 -- V11 · Unlink after an email link: unlink_person works unchanged, the
 --      person_links row shows unlinked_at set, the fresh snapshot row
---      carries email (096's change), and both plans' journals
+--      carries email (098's change), and both plans' journals
 --      re-isolate.

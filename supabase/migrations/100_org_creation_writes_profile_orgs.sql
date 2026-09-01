@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- 098 · URGENT FIX — the two org-CREATION RPCs never kept profile_orgs
+-- 100 · URGENT FIX — the two org-CREATION RPCs never kept profile_orgs
 --       in sync either (idempotent)
 --
 -- The same gap 083 closed for the four MEMBERSHIP RPCs, in the two
@@ -243,7 +243,7 @@ begin
   begin
     perform set_config('request.jwt.claims', json_build_object('sub', v_uid)::text, true);
 
-    select companion.setup_family_org('__098_probe_participant__') into v_result;
+    select companion.setup_family_org('__100_probe_participant__') into v_result;
     v_new_org := (v_result ->> 'org_id')::uuid;
 
     if v_new_org is not null then
@@ -255,9 +255,9 @@ begin
 
     -- Unwind every write the probe just made. Caught immediately below;
     -- anything else the RPC might raise propagates as a real failure.
-    raise exception using errcode = 'ZZ098', message = '__098_probe_rollback__';
+    raise exception using errcode = 'ZZ100', message = '__100_probe_rollback__';
   exception
-    when sqlstate 'ZZ098' then null;
+    when sqlstate 'ZZ100' then null;
   end;
 
   if v_new_org is null then

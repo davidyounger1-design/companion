@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { errorMessage } from '../lib/errorMessage'
 
-// Mirrors email_link_candidate_for's payload exactly (097). No person
+// Mirrors email_link_candidate_for's payload exactly (099). No person
 // UUID: the RPC deliberately stops at the spec's rule-4 disclosure
 // ceiling, and confirm_email_link re-resolves the source itself.
 type Candidate =

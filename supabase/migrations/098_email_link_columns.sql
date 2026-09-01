@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- 096 · Unified invite & email auto-link, step 1 — additive only
+-- 098 · Unified invite & email auto-link, step 1 — additive only
 --       (idempotent)
 --
 -- Full rationale: docs/superpowers/specs/2026-08-30-unified-invite-
@@ -7,7 +7,7 @@
 -- behaviour: it adds three nullable/defaulted columns, extends 082's
 -- BEFORE INSERT trigger to also fire on UPDATE, changes one line of
 -- accept_invite, and adds one column to unlink_person's snapshot.
--- The RPCs that actually use any of it land in 097.
+-- The RPCs that actually use any of it land in 099.
 --
 -- WHY persons.email has NO unique constraint: a shared family email
 -- producing several persons rows is a DESIGNED ambiguity case (the
@@ -49,14 +49,14 @@
 -- `not exists (... c2.person_id = new.person_id and c2.id <> new.id)`
 -- guard closes it: promotion fires only while the enrolment's person is
 -- still solo. The email promotion carries the same guard for the same
--- reason — persons.email is the match key 097's RPCs resolve on, so
+-- reason — persons.email is the match key 099's RPCs resolve on, so
 -- writing it onto an already-shared person is the same over-reach one
 -- step earlier.
 --
 -- WHY THE GUARD COSTS THE LEGITIMATE FLOW NOTHING: the promotion is
 -- meant to fire at ACCEPT time, and accepting always happens BEFORE any
 -- linking — linking is a separate, later, explicit confirm step, and
--- 097's confirm_email_link refuses a target that is linked at all
+-- 099's confirm_email_link refuses a target that is linked at all
 -- (target_already_linked). So the enrolment is always solo at the moment
 -- promotion matters. The guard only ever blocks a drawer that is ALREADY
 -- part of a multi-drawer cabinet, which is exactly the exploit
@@ -75,7 +75,7 @@
 -- back together with a controlled recipient_profile_id).
 --
 -- ⚠ ONE KNOWN CONSEQUENCE, deliberately left for a separate decision:
--- 097's confirm_email_link finishes with
+-- 099's confirm_email_link finishes with
 -- `update clients set person_id = <source> where id = <target>`, which
 -- also passes through this trigger — with the source person already
 -- holding its own drawer, so the guard blocks promotion there too. That
@@ -405,7 +405,7 @@ begin
 
   -- INSERT path: email normalised (lower + trim) onto the new person.
   insert into companion.clients (org_id, full_name, email, active)
-  values (v_org, '__096_trigger_test__', '  MiXeD@Example.COM  ', true)
+  values (v_org, '__098_trigger_test__', '  MiXeD@Example.COM  ', true)
   returning id, person_id into v_client, v_person;
 
   select email into v_email from companion.persons where id = v_person;
@@ -442,7 +442,7 @@ begin
   select id into v_org from companion.organisations limit 1;
 
   insert into companion.clients (org_id, full_name, email, active)
-  values (v_org, '__096_blank_email_test__', '   ', true)
+  values (v_org, '__098_blank_email_test__', '   ', true)
   returning id, person_id into v_client, v_person;
 
   select email into v_email from companion.persons where id = v_person;
@@ -500,14 +500,14 @@ begin
 
   -- ── (a) Build the already-linked cabinet ──────────────────────────
   insert into companion.clients (org_id, full_name, active)
-  values (v_org_a, '__096_guard_drawer_a__', true)
+  values (v_org_a, '__098_guard_drawer_a__', true)
   returning id, person_id into v_client_a, v_shared;
 
   insert into companion.clients (org_id, full_name, active)
-  values (v_org_b, '__096_guard_drawer_b__', true)
+  values (v_org_b, '__098_guard_drawer_b__', true)
   returning id, person_id into v_client_b, v_orphan;
 
-  -- Same shape 097's confirm_email_link produces: b is absorbed into a's
+  -- Same shape 099's confirm_email_link produces: b is absorbed into a's
   -- person. No email / recipient login on either row yet, so this UPDATE
   -- promotes nothing on its way through the trigger.
   update companion.clients set person_id = v_shared where id = v_client_b;
@@ -531,7 +531,7 @@ begin
 
   -- ── (b) The legitimate solo case still promotes ───────────────────
   insert into companion.clients (org_id, full_name, active)
-  values (v_org_a, '__096_guard_solo__', true)
+  values (v_org_a, '__098_guard_solo__', true)
   returning id, person_id into v_solo_cl, v_solo_pn;
 
   update companion.clients
