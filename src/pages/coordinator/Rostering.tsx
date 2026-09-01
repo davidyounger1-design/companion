@@ -638,7 +638,7 @@ function ShiftDetailModal({ shift, onClose, onChanged }: { shift: WeekGridShift;
               {busy === 'cancel' ? <span className="spinner" /> : 'Cancel shift'}
             </button>
           )}
-          {(shift.status === 'draft' || shift.status === 'published' || shift.status === 'confirmed') && (
+          {(shift.status === 'draft' || shift.status === 'published' || shift.status === 'confirmed' || shift.status === 'cancelled') && (
             <button className="btn btn-ghost" style={{ color: 'var(--color-error)' }} disabled={!!busy} onClick={() => act('delete')}>
               {busy === 'delete' ? <span className="spinner" /> : 'Delete'}
             </button>
