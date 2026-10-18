@@ -801,6 +801,37 @@ export interface Database {
         }
         Relationships: []
       }
+      calendar_feeds: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string
+          token: string
+          timezone: string
+          reminder_minutes: number | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id: string
+          token?: string
+          timezone?: string
+          reminder_minutes?: number | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          token?: string
+          timezone?: string
+          reminder_minutes?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       active_timers: {
         Row: {
           id: string
@@ -1388,6 +1419,7 @@ export type Invite       = Tables['invites']['Row']
 export type OrgSettings  = Tables['org_settings']['Row']
 export type Notice       = Tables['notices']['Row']
 export type DayNote      = Tables['day_notes']['Row']
+export type CalendarFeed = Tables['calendar_feeds']['Row']
 export type Message      = Tables['messages']['Row']
 export type ClientFeedback = Tables['client_feedback']['Row']
 export type RecipientMood = Tables['recipient_moods']['Row']

@@ -3,6 +3,14 @@ import { APP_VERSION } from '../lib/version'
 
 const RELEASES = [
   {
+    version: '0.5.141',
+    date: '18 October 2026',
+    title: 'Sync the schedule to a phone calendar',
+    changes: [
+      { type: 'new', text: 'Family and coordinators can now show a participant\'s schedule in an iPhone, iCloud or Google calendar. Tap "📅 Calendar" on the schedule, create a private link, and add it to the phone once — weekly items repeat, skipped days are left out, day notes appear as all-day events, and changes made in Companion flow through automatically. It\'s one-way: edits made inside the calendar app don\'t come back, and the link can be replaced or switched off at any time.' },
+    ],
+  },
+  {
     version: '0.5.140',
     date: '31 August 2026',
     title: 'Create programs directly from Rostering',
