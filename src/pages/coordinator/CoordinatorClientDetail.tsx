@@ -29,6 +29,7 @@ import {
 } from '../../lib/schedule'
 import { printSchedule } from '../../lib/printSchedule'
 import PrintScheduleModal, { type PrintRange } from '../../components/PrintScheduleModal'
+import CalendarSyncModal from '../../components/CalendarSyncModal'
 import type { LogType, ScheduleItem } from '../../types/database'
 
 const LOG_TYPES: { type: LogType; icon: string; label: string }[] = [
@@ -574,6 +575,7 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
   const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
   const [copyDayOpen, setCopyDayOpen] = useState(false)
   const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000)
@@ -709,7 +711,7 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
         <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)' }}>Today</button>
         <SegmentedControl value={view} onChange={setView} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
@@ -717,7 +719,21 @@ function ScheduleTab({ clientId, orgId, userId, participantName }: { clientId: s
           onClick={() => setPrintModalOpen(true)}
           className="btn btn-ghost" title="Print or save as PDF"
           style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
+        <button
+          onClick={() => setCalendarModalOpen(true)}
+          className="btn btn-ghost" title="Show this schedule in an iPhone, iCloud or Google calendar"
+          style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>📅 Calendar</button>
       </div>
+
+      {calendarModalOpen && (
+        <CalendarSyncModal
+          clientId={clientId}
+          orgId={orgId}
+          userId={userId}
+          participantName={participantName}
+          onClose={() => setCalendarModalOpen(false)}
+        />
+      )}
 
       {printModalOpen && (
         <PrintScheduleModal

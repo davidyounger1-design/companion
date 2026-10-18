@@ -25,6 +25,7 @@ import {
 import { themedPageBackground } from '../../lib/timer'
 import { printSchedule } from '../../lib/printSchedule'
 import PrintScheduleModal, { type PrintRange } from '../../components/PrintScheduleModal'
+import CalendarSyncModal from '../../components/CalendarSyncModal'
 
 /** What the add/edit sheet is doing:
  *  - new    → create a fresh item
@@ -64,6 +65,7 @@ export default function FamilySchedule() {
   const [scopeChoice, setScopeChoice] = useState<{ item: ScheduleItem; action: 'edit' | 'delete' } | null>(null)
   const [copyDayOpen, setCopyDayOpen] = useState(false)
   const [printModalOpen, setPrintModalOpen] = useState(false)
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false)
   const [showTimerModal, setShowTimerModal] = useState(false)
   const [dayNoteFormOpen, setDayNoteFormOpen] = useState(false)
   const [savingDayNote, setSavingDayNote] = useState(false)
@@ -335,7 +337,7 @@ export default function FamilySchedule() {
         )}
 
         {/* Today / Day / Week selector */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
           <button onClick={() => { setSelectedDate(todayStr); setView('day') }} className="btn btn-ghost" style={{
             padding: '0.4rem 0.9rem', fontSize: '0.82rem', color: 'var(--color-primary)',
           }}>Today</button>
@@ -348,6 +350,12 @@ export default function FamilySchedule() {
             onClick={() => setPrintModalOpen(true)}
             className="btn btn-ghost" title="Print or save as PDF"
             style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>🖨️ Print</button>
+          {canManage && clientId && (
+            <button
+              onClick={() => setCalendarModalOpen(true)}
+              className="btn btn-ghost" title="Show this schedule in an iPhone, iCloud or Google calendar"
+              style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}>📅 Calendar</button>
+          )}
         </div>
 
         {/* Day / Week navigator */}
@@ -488,6 +496,16 @@ export default function FamilySchedule() {
         <PrintScheduleModal
           onClose={() => setPrintModalOpen(false)}
           onPrint={handlePrintConfirm}
+        />
+      )}
+
+      {calendarModalOpen && clientId && user && profile?.org_id && (
+        <CalendarSyncModal
+          clientId={clientId}
+          orgId={profile.org_id}
+          userId={user.id}
+          participantName={participantName}
+          onClose={() => setCalendarModalOpen(false)}
         />
       )}
 

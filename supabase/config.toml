@@ -46,3 +46,10 @@ verify_jwt = false
 # check-plan call at login.
 [functions.sync-subscription]
 verify_jwt = false
+
+# Fetched by calendar apps (iPhone Calendar, Google Calendar, Outlook), which
+# can't send an Authorization header — the unguessable per-participant token in
+# the URL (companion.calendar_feeds.token) is the credential instead. With
+# verify_jwt=true every calendar refresh would 401 at the gateway.
+[functions.calendar-feed]
+verify_jwt = false
